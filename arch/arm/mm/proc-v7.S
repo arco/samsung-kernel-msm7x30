@@ -64,7 +64,14 @@ ENDPROC(cpu_v7_proc_fin)
  */
 	.align	5
 ENTRY(cpu_v7_reset)
-	mov	pc, r0
+	mrc     p15, 0, r1, c1, c0, 0           @ ctrl register
+	bic     r1, r1, #0x0001                 @ ...............m
+        mcr     p15, 0, r1, c1, c0, 0           @ Turn off MMU
+        mcr     p15, 0, ip, c8, c7, 0           @ invalidate I & D,flush TLB
+        mcr     p15, 0, ip, c7, c5, 6           @ flush BTC
+        dsb
+        isb
+	mov     pc,r0
 ENDPROC(cpu_v7_reset)
 
 /*
