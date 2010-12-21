@@ -66,12 +66,6 @@ struct clk {
 #define CLK_MAX CLKFLAG_MAX
 #define CLK_MINMAX (CLK_MIN | CLK_MAX)
 
-enum clkvote_client {
-	CLKVOTE_ACPUCLK = 0,
-	CLKVOTE_PMQOS,
-	CLKVOTE_MAX,
-};
-
 #ifdef CONFIG_ARCH_MSM7X30
 void __init msm_clk_soc_set_ops(struct clk *clk);
 #else
@@ -106,7 +100,6 @@ static inline int msm_clock_get_name(uint32_t id, char *name, uint32_t size)
 	return 0;
 }
 
-int ebi1_clk_set_min_rate(enum clkvote_client client, unsigned long rate);
 unsigned long clk_get_max_axi_khz(void);
 
 #endif

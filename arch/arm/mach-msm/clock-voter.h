@@ -54,8 +54,6 @@ enum {
 	V_DFAB_SDC4_CLK,
 	V_DFAB_SDC5_CLK,
 
-	V_EBI_PM_QOS_CLK,
-
 	V_NR_CLKS
 };
 

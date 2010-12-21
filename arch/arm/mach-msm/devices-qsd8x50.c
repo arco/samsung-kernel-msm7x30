@@ -896,7 +896,6 @@ struct clk_lookup msm_clocks_8x50[] = {
 	CLK_VOTER("ebi1_tv_clk",	EBI_TV_CLK,	"ebi1_clk", NULL, 0),
 	CLK_VOTER("ebi1_usb_clk",	EBI_USB_CLK,	"ebi1_clk", NULL, 0),
 	CLK_VOTER("ebi1_vfe_clk",	EBI_VFE_CLK,	"ebi1_clk", NULL, 0),
-	CLK_VOTER("ebi1_pm_qos_clk",	EBI_PM_QOS_CLK,	"ebi1_clk", NULL, 0),
 
 #ifdef CONFIG_MSM_SOC_REV_A
 	CLK_PCOM("grp_pclk",	GRP_3D_P_CLK,	NULL, 0),

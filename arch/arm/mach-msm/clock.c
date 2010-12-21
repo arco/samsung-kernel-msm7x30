@@ -18,7 +18,9 @@
 #include <linux/list.h>
 #include <linux/err.h>
 #include <linux/spinlock.h>
-#include <linux/pm_qos_params.h>
+#include <linux/mutex.h>
+#include <linux/string.h>
+#include <linux/module.h>
 #include <linux/clk.h>
 
 #include <asm/clkdev.h>
@@ -28,10 +30,7 @@
 #include "clock.h"
 
 static DEFINE_MUTEX(clocks_mutex);
-static DEFINE_SPINLOCK(ebi1_vote_lock);
 static LIST_HEAD(clocks);
-
-static struct notifier_block axi_freq_notifier_block;
 
 /*
  * Standard clock functions defined in include/linux/clk.h
@@ -114,74 +113,6 @@ int clk_set_flags(struct clk *clk, unsigned long flags)
 }
 EXPORT_SYMBOL(clk_set_flags);
 
-/* EBI1 is the only shared clock that several clients want to vote on as of
- * this commit. If this changes in the future, then it might be better to
- * make clk_min_rate handle the voting or make ebi1_clk_set_min_rate more
- * generic to support different clocks.
- */
-static unsigned long ebi1_min_rate[CLKVOTE_MAX];
-static struct clk *ebi1_clk;
-
-/* Rate is in Hz to be consistent with the other clk APIs. */
-int ebi1_clk_set_min_rate(enum clkvote_client client, unsigned long rate)
-{
-	static unsigned long last_set_val = -1;
-	unsigned long new_val;
-	unsigned long flags;
-	int ret = 0, i;
-
-	spin_lock_irqsave(&ebi1_vote_lock, flags);
-
-	ebi1_min_rate[client] = (rate == MSM_AXI_MAX_FREQ) ?
-				(clk_get_max_axi_khz() * 1000) : rate;
-
-	new_val = ebi1_min_rate[0];
-	for (i = 1; i < CLKVOTE_MAX; i++)
-		if (ebi1_min_rate[i] > new_val)
-			new_val = ebi1_min_rate[i];
-
-	/* This check is to save a proc_comm call. */
-	if (last_set_val != new_val) {
-		ret = clk_set_min_rate(ebi1_clk, new_val);
-		if (ret < 0) {
-			pr_err("Setting EBI1 min rate to %lu Hz failed!\n",
-				new_val);
-			pr_err("Last successful value was %lu Hz.\n",
-				last_set_val);
-		} else {
-			last_set_val = new_val;
-		}
-	}
-
-	spin_unlock_irqrestore(&ebi1_vote_lock, flags);
-
-	return ret;
-}
-
-static int axi_freq_notifier_handler(struct notifier_block *block,
-				unsigned long min_freq, void *v)
-{
-	/* convert min_freq from KHz to Hz, unless it's a magic value */
-	if (min_freq != MSM_AXI_MAX_FREQ)
-		min_freq *= 1000;
-
-	switch (socinfo_get_msm_cpu()) {
-	case MSM_CPU_7X30:
-	case MSM_CPU_8X55:
-		/* On 7x30/8x55, ebi1_clk votes are dropped during power
-		 * collapse, but pbus_clk votes are not. Use pbus_clk to
-		 * implicitly request ebi1 and AXI rates. */
-		return clk_set_min_rate(ebi1_clk, min_freq);
-	case MSM_CPU_8X60:
-		/* The bus driver handles ebi1_clk requests on 8x60. */
-		return 0;
-	default:
-		/* Update pm_qos vote for ebi1_clk. */
-		return ebi1_clk_set_min_rate(CLKVOTE_PMQOS, min_freq);
-	}
-}
-
-
 void __init msm_clock_init(struct clk_lookup *clock_tbl, unsigned num_clocks)
 {
 	unsigned n;
@@ -207,15 +138,6 @@ void __init msm_clock_init(struct clk_lookup *clock_tbl, unsigned num_clocks)
 			clk_set_parent(clk, agg_clk);
 		}
 	}
-
-	ebi1_clk = clk_get(NULL, "ebi1_pm_qos_clk");
-	if (!cpu_is_msm8x60()) {
-		BUG_ON(IS_ERR(ebi1_clk));
-		clk_enable(ebi1_clk);
-	}
-
-	axi_freq_notifier_block.notifier_call = axi_freq_notifier_handler;
-	pm_qos_add_notifier(PM_QOS_SYSTEM_BUS_FREQ, &axi_freq_notifier_block);
 }
 
 /* The bootloader and/or AMSS may have left various clocks enabled.
