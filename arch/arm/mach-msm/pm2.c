@@ -115,7 +115,6 @@ module_param_named(
 				msm_pm_smem_data->pending_irqs); \
 	} while (0)
 
-#define MAX_NR_CLKS 33
 extern bool MicroJigUARTOffStatus;
 
 static void __iomem *reset_base;
@@ -722,7 +721,6 @@ static struct msm_pm_time_stats {
 };
 
 static uint32_t msm_pm_sleep_limit = SLEEP_LIMIT_NONE;
-static DECLARE_BITMAP(msm_pm_clocks_no_tcxo_shutdown, MAX_NR_CLKS);
 
 /*
  * Add the given time data to the statistics collection.
@@ -782,7 +780,6 @@ static int msm_pm_read_proc
 {
 	int i;
 	char *p = page;
-	char clk_name[16];
 
 	if (count < 1024) {
 		*start = (char *) 0;
@@ -791,13 +788,6 @@ static int msm_pm_read_proc
 	}
 
 	if (!off) {
-		SNPRINTF(p, count, "Clocks against last TCXO shutdown:\n");
-		for_each_set_bit(i, msm_pm_clocks_no_tcxo_shutdown, MAX_NR_CLKS) {
-			clk_name[0] = '\0';
-			msm_clock_get_name(i, clk_name, sizeof(clk_name));
-			SNPRINTF(p, count, "  %s (id=%d)\n", clk_name, i);
-		}
-
 		SNPRINTF(p, count, "Last power collapse voted ");
 		if ((msm_pm_sleep_limit & SLEEP_LIMIT_MASK) ==
 			SLEEP_LIMIT_NONE)
@@ -889,7 +879,6 @@ static int msm_pm_write_proc(struct file *file, const char __user *buffer,
 	}
 
 	msm_pm_sleep_limit = SLEEP_LIMIT_NONE;
-	bitmap_zero(msm_pm_clocks_no_tcxo_shutdown, MAX_NR_CLKS);
 	local_irq_restore(flags);
 
 	return count;
@@ -1406,7 +1395,6 @@ void arch_idle(void)
 	int i;
 
 #ifdef CONFIG_MSM_IDLE_STATS
-	DECLARE_BITMAP(clk_ids, MAX_NR_CLKS);
 	int64_t t1;
 	static int64_t t2;
 	int exit_stat;
@@ -1493,17 +1481,6 @@ void arch_idle(void)
 		}
 	}
 
-#ifdef CONFIG_MSM_IDLE_STATS
-	ret = msm_clock_require_tcxo(clk_ids, MAX_NR_CLKS);
-#elif defined(CONFIG_CLOCK_BASED_SLEEP_LIMIT)
-	ret = msm_clock_require_tcxo(NULL, 0);
-#endif /* CONFIG_MSM_IDLE_STATS */
-
-#ifdef CONFIG_CLOCK_BASED_SLEEP_LIMIT
-	if (ret)
-		sleep_limit = SLEEP_LIMIT_NO_TCXO_SHUTDOWN;
-#endif
-
 	MSM_PM_DPRINTK(MSM_PM_DEBUG_IDLE, KERN_INFO,
 		"%s(): latency qos %d, next timer %lld, sleep limit %u\n",
 		__func__, latency_qos, timer_expiration, sleep_limit);
@@ -1540,8 +1517,6 @@ void arch_idle(void)
 		else {
 			exit_stat = MSM_PM_STAT_IDLE_POWER_COLLAPSE;
 			msm_pm_sleep_limit = sleep_limit;
-			bitmap_copy(msm_pm_clocks_no_tcxo_shutdown, clk_ids,
-				MAX_NR_CLKS);
 		}
 #endif /* CONFIG_MSM_IDLE_STATS */
 	} else if (allow[MSM_PM_SLEEP_MODE_APPS_SLEEP]) {
@@ -1621,19 +1596,10 @@ static int msm_pm_enter(suspend_state_t state)
 	int i;
 
 #ifdef CONFIG_MSM_IDLE_STATS
-	DECLARE_BITMAP(clk_ids, MAX_NR_CLKS);
 	int64_t period = 0;
 	int64_t time = 0;
 
 	time = msm_timer_get_sclk_time(&period);
-	ret = msm_clock_require_tcxo(clk_ids, MAX_NR_CLKS);
-#elif defined(CONFIG_CLOCK_BASED_SLEEP_LIMIT)
-	ret = msm_clock_require_tcxo(NULL, 0);
-#endif /* CONFIG_MSM_IDLE_STATS */
-
-#ifdef CONFIG_CLOCK_BASED_SLEEP_LIMIT
-	if (ret)
-		sleep_limit = SLEEP_LIMIT_NO_TCXO_SHUTDOWN;
 #endif
 
 	MSM_PM_DPRINTK(MSM_PM_DEBUG_SUSPEND, KERN_INFO,
@@ -1723,8 +1689,6 @@ static int msm_pm_enter(suspend_state_t state)
 		else {
 			id = MSM_PM_STAT_SUSPEND;
 			msm_pm_sleep_limit = sleep_limit;
-			bitmap_copy(msm_pm_clocks_no_tcxo_shutdown, clk_ids,
-				MAX_NR_CLKS);
 		}
 
 		if (time != 0) {

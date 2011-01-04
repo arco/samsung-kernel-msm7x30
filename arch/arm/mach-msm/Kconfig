@@ -1150,14 +1150,6 @@ config SURF_FFA_GPIO_KEYPAD
 	help
 	  Select if the GPIO keypad is attached.
 
-config CLOCK_BASED_SLEEP_LIMIT
-	default y
-	bool "Set sleep limitation based on clock usage"
-	help
-	  The application processor checks for enabled clocks and
-	  decides accordingly the sleep limitation which it informs
-	  the modem to use.
-
 config MSM_SLEEP_TIME_OVERRIDE
 	bool "Allow overriding suspend/sleep time with PM module parameter"
 	default y
