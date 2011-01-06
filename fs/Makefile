@@ -130,3 +130,6 @@ obj-$(CONFIG_AUFS_FS)		+= aufs/
 
 # Patched by YAFFS
 obj-$(CONFIG_YAFFS_FS)		+= yaffs2/
+
+# Ignore warnings to prevent build breaks when using gcc 4.5.0
+CFLAGS_REMOVE_eventpoll.o = -Werror

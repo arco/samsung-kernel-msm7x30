@@ -2603,7 +2603,7 @@ static int reg_debug_init(void)
 static int regulator_debug_create_directory(struct regulator_dev *regulator_dev)
 {
 	struct dentry *reg_subdir;
-	struct dentry *err_ptr;
+	struct dentry *err_ptr = NULL;
 	struct regulator *reg;
 	struct regulator_ops *reg_ops;
 	mode_t mode;
