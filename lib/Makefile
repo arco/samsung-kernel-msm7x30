@@ -69,6 +69,7 @@ obj-$(CONFIG_ZLIB_DEFLATE) += zlib_deflate/
 obj-$(CONFIG_REED_SOLOMON) += reed_solomon/
 obj-$(CONFIG_LZO_COMPRESS) += lzo/
 obj-$(CONFIG_LZO_DECOMPRESS) += lzo/
+obj-$(CONFIG_XZ_DEC) += xz/
 
 lib-$(CONFIG_DECOMPRESS_GZIP) += decompress_inflate.o
 CFLAGS_REMOVE_decompress_bunzip2.o = -Werror
