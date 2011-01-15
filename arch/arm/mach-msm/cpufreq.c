@@ -157,7 +157,7 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 		goto done;
 	} else {
 		cancel_work_sync(&cpu_work->work);
-		init_completion(&cpu_work->complete);
+		INIT_COMPLETION(cpu_work->complete);
 		queue_work_on(policy->cpu, msm_cpufreq_wq, &cpu_work->work);
 		wait_for_completion(&cpu_work->complete);
 	}
@@ -227,6 +227,7 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 #ifdef CONFIG_SMP
 	cpu_work = &per_cpu(cpufreq_work, policy->cpu);
 	INIT_WORK(&cpu_work->work, set_cpu_work);
+	init_completion(&cpu_work->complete);
 #endif
 
 	return 0;
