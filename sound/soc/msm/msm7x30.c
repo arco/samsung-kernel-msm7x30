@@ -609,6 +609,39 @@ static int msm_reset_put(struct snd_kcontrol *kcontrol,
 	return msm_reset_all_device();
 }
 
+
+static int msm_dual_mic_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 2;
+	uinfo->value.integer.min = 0;
+	/*Max value is decided based on MAX ENC sessions*/
+	uinfo->value.integer.max = MAX_AUDREC_SESSIONS - 1;
+	return 0;
+}
+
+static int msm_dual_mic_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	int enc_session_id = ucontrol->value.integer.value[0];
+	ucontrol->value.integer.value[1] =
+			msm_get_dual_mic_config(enc_session_id);
+	MM_DBG("session id = %d, config = %ld\n", enc_session_id,
+				ucontrol->value.integer.value[1]);
+	return 0;
+}
+
+static int msm_dual_mic_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	int enc_session_id = ucontrol->value.integer.value[0];
+	int dual_mic_config = ucontrol->value.integer.value[1];
+	MM_DBG("session id = %d, config = %d\n", enc_session_id,
+					dual_mic_config);
+	return msm_set_dual_mic_config(enc_session_id, dual_mic_config);
+}
+
 static struct snd_kcontrol_new snd_dev_controls[AUDIO_DEV_CTL_MAX_DEV];
 
 static int snd_dev_ctl_index(int idx)
@@ -665,6 +698,8 @@ static struct snd_kcontrol_new snd_msm_controls[] = {
 			msm_device_volume_get, msm_device_volume_put, 0),
 	MSM_EXT("Reset", msm_reset_info,
 			msm_reset_get, msm_reset_put, 0),
+	MSM_EXT("DualMic Switch", msm_dual_mic_info,
+			msm_dual_mic_get, msm_dual_mic_put, 0),
 };
 
 static int msm_new_mixer(struct snd_card *card)
