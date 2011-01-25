@@ -425,31 +425,14 @@ void vfp_reinit(void)
 
 static int vfp_pm_suspend(struct sys_device *dev, pm_message_t state)
 {
-	struct thread_info *ti = current_thread_info();
-	u32 fpexc = fmrx(FPEXC);
-
-	/* if vfp is on, then save state for resumption */
-	if (fpexc & FPEXC_EN) {
-		printk(KERN_DEBUG "%s: saving vfp state\n", __func__);
-		vfp_save_state(&ti->vfpstate, fpexc);
-
-		/* disable, just in case */
-		fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_EN);
-	}
-
-	/* clear any information we had about last context state */
-	memset(last_VFP_context, 0, sizeof(last_VFP_context));
+	vfp_flush_context();
 
 	return 0;
 }
 
 static int vfp_pm_resume(struct sys_device *dev)
 {
-	/* ensure we have access to the vfp */
-	vfp_enable(NULL);
-
-	/* and disable it to ensure the next usage restores the state */
-	fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_EN);
+	vfp_reinit();
 
 	return 0;
 }
