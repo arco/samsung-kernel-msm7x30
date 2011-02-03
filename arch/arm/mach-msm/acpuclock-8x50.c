@@ -172,12 +172,6 @@ struct clock_state {
 
 static struct clock_state drv_state = { 0 };
 
-unsigned long clk_get_max_axi_khz(void)
-{
-	return 128000;
-}
-EXPORT_SYMBOL(clk_get_max_axi_khz);
-
 static void scpll_set_freq(uint32_t lval, unsigned freq_switch)
 {
 	uint32_t regval;

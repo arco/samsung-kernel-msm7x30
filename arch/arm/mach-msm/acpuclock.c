@@ -322,12 +322,6 @@ static void __init cpufreq_table_init(void)
 }
 #endif
 
-unsigned long clk_get_max_axi_khz(void)
-{
-	return drv_state.max_axi_khz;
-}
-EXPORT_SYMBOL(clk_get_max_axi_khz);
-
 static int pc_pll_request(unsigned id, unsigned on)
 {
 	int res = 0;

@@ -342,13 +342,6 @@ uint32_t acpuclk_get_switch_time(void)
 	return drv_state.acpu_switch_time_us;
 }
 
-unsigned long clk_get_max_axi_khz(void)
-{
-	return MAX_AXI_KHZ;
-}
-EXPORT_SYMBOL(clk_get_max_axi_khz);
-
-
 /*----------------------------------------------------------------------------
  * Clock driver initialization
  *---------------------------------------------------------------------------*/

@@ -140,12 +140,6 @@ struct clock_state {
 
 static struct clock_state drv_state = { 0 };
 
-unsigned long clk_get_max_axi_khz(void)
-{
-	return 192000;
-}
-EXPORT_SYMBOL(clk_get_max_axi_khz);
-
 unsigned long acpuclk_get_rate(int cpu)
 {
 	return drv_state.current_speed->acpuclk_khz;

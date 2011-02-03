@@ -100,7 +100,5 @@ static inline int msm_clock_get_name(uint32_t id, char *name, uint32_t size)
 	return 0;
 }
 
-unsigned long clk_get_max_axi_khz(void);
-
 #endif
 
