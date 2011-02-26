@@ -672,7 +672,7 @@ struct clk_local soc_clk_local_tbl[] = {
 	CLK_SLAVE(VFE_CAMIF, CAM_VFE_NS_REG, BIT(15), VFE, CLK_HALT_STATEC_REG,
 			HALT, 13, 0x7000),
 	CLK_SLAVE(CSI0_VFE, CSI_NS_REG, BIT(15), VFE, CLK_HALT_STATEC_REG,
-			HALT, 16, 0),
+			HALT, 16, 0x7200),
 
 	CLK_MND16(SDAC, SDAC_NS_REG, BIT(9), BIT(11), clk_tbl_sdac,
 			NONE, chld_sdac, CLK_HALT_STATEA_REG, HALT, 2, 0x4D60),
@@ -725,7 +725,7 @@ struct clk_local soc_clk_local_tbl[] = {
 			0x0F),
 
 	CLK_MND8(CSI0, CSI_NS_REG, 24, 17, BIT(9), BIT(11), clk_tbl_csi, NULL,
-			CLK_HALT_STATEC_REG, HALT, 17, 0x5F00),
+			CLK_HALT_STATEC_REG, HALT, 17, 0x7100),
 
 	/* For global clocks to be on we must have GLBL_ROOT_ENA set */
 	CLK_1RATE(GLBL_ROOT, GLBL_CLK_ENA_SC_REG, 0, BIT(29), clk_tbl_axi,
@@ -741,7 +741,7 @@ struct clk_local soc_clk_local_tbl[] = {
 	CLK_GLBL(CAMIF_PAD_P,	GLBL_CLK_ENA_SC_REG,	BIT(9),
 				GLBL_CLK_STATE_REG,	HALT_VOTED, 9, 0x1A),
 	CLK_GLBL(CSI0_P,	GLBL_CLK_ENA_SC_REG,	BIT(30),
-				GLBL_CLK_STATE_REG,	HALT_VOTED, 30, 0),
+				GLBL_CLK_STATE_REG,	HALT_VOTED, 30, 0x7300),
 	CLK_GLBL(EMDH_P,	GLBL_CLK_ENA_2_SC_REG,	BIT(3),
 				GLBL_CLK_STATE_2_REG,	HALT_VOTED, 3, 0x03),
 	CLK_GLBL(GRP_2D_P,	GLBL_CLK_ENA_SC_REG,	BIT(24),
