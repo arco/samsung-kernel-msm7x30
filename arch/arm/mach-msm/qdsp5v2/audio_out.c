@@ -27,6 +27,7 @@
 #include <linux/wakelock.h>
 
 #include <linux/msm_audio.h>
+#include <linux/android_pmem.h>
 
 #include <asm/atomic.h>
 #include <asm/ioctls.h>
@@ -630,13 +631,23 @@ static int audio_open(struct inode *inode, struct file *file)
 	}
 
 	if (!audio->data) {
-		audio->data = dma_alloc_coherent(NULL, DMASZ,
-						 &audio->phys, GFP_KERNEL);
-		if (!audio->data) {
+		audio->phys = pmem_kalloc(DMASZ, PMEM_MEMTYPE_EBI1|
+						PMEM_ALIGNMENT_4K);
+		if (!IS_ERR((void *)audio->phys)) {
+			audio->data = ioremap(audio->phys, DMASZ);
+			if (!audio->data) {
+				MM_ERR("could not allocate DMA buffers\n");
+				rc = -ENOMEM;
+				pmem_kfree(audio->phys);
+				goto done;
+			}
+		} else {
 			MM_ERR("could not allocate DMA buffers\n");
 			rc = -ENOMEM;
 			goto done;
 		}
+		MM_DBG("Memory addr = 0x%8x  phy addr = 0x%8x\n",\
+		(int) audio->data, (int) audio->phys);
 	}
 
 	audio->dec_id = HOSTPCM_STREAM_ID;
