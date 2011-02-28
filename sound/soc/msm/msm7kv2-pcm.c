@@ -479,8 +479,8 @@ static int msm_pcm_playback_copy(struct snd_pcm_substream *substream, int a,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct msm_audio *prtd = runtime->private_data;
 
-	MM_DBG("%d\n", fbytes);
 	fbytes = frames_to_bytes(runtime, frames);
+	MM_DBG("%d\n", fbytes);
 	ret = alsa_send_buffer(prtd, buf, fbytes, NULL);
 	++copy_count;
 	prtd->pcm_buf_pos += fbytes;
@@ -539,8 +539,8 @@ static int msm_pcm_capture_copy(struct snd_pcm_substream *substream,
 	if (prtd->abort)
 		return -EPERM;
 
-	MM_DBG("%d\n", fbytes);
 	fbytes = frames_to_bytes(runtime, frames);
+	MM_DBG("%d\n", fbytes);
 	monofbytes = fbytes / 2;
 	if (runtime->channels == 2) {
 		ret = alsa_buffer_read(prtd, buf, fbytes, NULL);
@@ -616,7 +616,7 @@ static snd_pcm_uframes_t msm_pcm_pointer(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct msm_audio *prtd = runtime->private_data;
 
-	MM_DBG("\n");
+	MM_DBG("pcm_irq_pos = %d\n", prtd->pcm_irq_pos);
 	if (prtd->pcm_irq_pos == prtd->pcm_size)
 		prtd->pcm_irq_pos = 0;
 	return bytes_to_frames(runtime, (prtd->pcm_irq_pos));

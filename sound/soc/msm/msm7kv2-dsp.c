@@ -229,7 +229,6 @@ static void audrec_dsp_event(void *data, unsigned id, size_t len,
 		++intcnt;
 		if (prtd->channel_mode == 1) {
 			spin_lock_irqsave(&the_locks.read_dsp_lock, flag);
-			prtd->pcm_irq_pos += prtd->pcm_count;
 			if (prtd->pcm_irq_pos >= prtd->pcm_size)
 				prtd->pcm_irq_pos = 0;
 			spin_unlock_irqrestore(&the_locks.read_dsp_lock, flag);
@@ -238,7 +237,6 @@ static void audrec_dsp_event(void *data, unsigned id, size_t len,
 				prtd->ops->capture(prtd);
 		} else if ((prtd->channel_mode == 0) && (intcnt % 2 == 0)) {
 			spin_lock_irqsave(&the_locks.read_dsp_lock, flag);
-			prtd->pcm_irq_pos += prtd->pcm_count;
 			if (prtd->pcm_irq_pos >= prtd->pcm_size)
 				prtd->pcm_irq_pos = 0;
 			spin_unlock_irqrestore(&the_locks.read_dsp_lock, flag);
@@ -626,6 +624,7 @@ static void alsa_get_dsp_frames(struct msm_audio *prtd)
 		else
 			prtd->in_count++;
 
+		prtd->pcm_irq_pos += frame->bytes;
 		alsa_dsp_read_buffer(prtd, prtd->dsp_cnt++);
 		spin_unlock_irqrestore(&the_locks.read_dsp_lock, flag);
 
