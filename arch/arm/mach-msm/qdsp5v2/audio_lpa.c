@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2008 Google, Inc.
  * Copyright (C) 2008 HTC Corporation
- * Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -177,8 +177,13 @@ static void lpa_listner(u32 evt_id, union auddev_evt_data *evt_payload,
 	struct audio *audio = (struct audio *) private_data;
 	switch (evt_id) {
 	case AUDDEV_EVT_DEV_RDY:
-		MM_DBG(":AUDDEV_EVT_DEV_RDY\n");
-		if ((0x1 << evt_payload->routing_id) == AUDPP_MIXER_ICODEC) {
+		MM_DBG(":AUDDEV_EVT_DEV_RDY routing id = %d\n",
+		evt_payload->routing_id);
+		/* Do not select HLB path for icodec, if there is already COPP3
+		 * routing exists. DSP can not support concurrency of HLB path
+		 * and COPP3 routing as it involves different buffer Path */
+		if (((0x1 << evt_payload->routing_id) == AUDPP_MIXER_ICODEC) &&
+			!(audio->source & AUDPP_MIXER_3)) {
 			audio->source |= AUDPP_MIXER_HLB;
 			MM_DBG("mixer_mask modified for low-power audio\n");
 		} else
@@ -219,7 +224,10 @@ static void lpa_listner(u32 evt_id, union auddev_evt_data *evt_payload,
 		break;
 	case AUDDEV_EVT_REL_PENDING:
 		MM_DBG(":AUDDEV_EVT_REL_PENDING\n");
-		if (audio->running == 1 && audio->enabled == 1) {
+		/* If route to multiple devices like COPP3, not need to
+		 * handle device switch */
+		if ((audio->running == 1) && (audio->enabled == 1) &&
+			!(audio->source & AUDPP_MIXER_3)) {
 			if (audio->device_switch == DEVICE_SWITCH_STATE_NONE) {
 				if (!(audio->drv_status & ADRV_STATUS_PAUSE)) {
 					if (audpp_pause(audio->dec_id, 1))
@@ -245,11 +253,17 @@ static void lpa_listner(u32 evt_id, union auddev_evt_data *evt_payload,
 		}
 		break;
 	case AUDDEV_EVT_DEV_RLS:
-		MM_DBG(":AUDDEV_EVT_DEV_RLS\n");
-		if ((0x1 << evt_payload->routing_id) == AUDPP_MIXER_ICODEC)
+		/* If there is already COPP3 routing exists. icodec route
+		 * was not having HLB path. */
+		MM_DBG(":AUDDEV_EVT_DEV_RLS routing id = %d\n",
+			evt_payload->routing_id);
+		if (((0x1 << evt_payload->routing_id) == AUDPP_MIXER_ICODEC) &&
+			!(audio->source & AUDPP_MIXER_3))
 			audio->source &= ~AUDPP_MIXER_HLB;
 		else
 			audio->source &= ~(0x1 << evt_payload->routing_id);
+		MM_DBG("running = %d, enabled = %d, source = 0x%x\n",
+			audio->running, audio->enabled, audio->source);
 
 		if (audio->running == 1 && audio->enabled == 1)
 			audpp_route_stream(audio->dec_id, audio->source);
@@ -305,16 +319,27 @@ static int audio_enable(struct audio *audio)
 /* must be called with audio->lock held */
 static int audio_disable(struct audio *audio)
 {
+	int rc = 0;
 	MM_DBG("\n"); /* Macro prints the file name and function */
 	if (audio->enabled) {
 		audio->enabled = 0;
+		audio->dec_state = MSM_AUD_DECODER_STATE_NONE;
 		auddec_dsp_config(audio, 0);
+		rc = wait_event_interruptible_timeout(audio->wait,
+				audio->dec_state != MSM_AUD_DECODER_STATE_NONE,
+				msecs_to_jiffies(MSM_AUD_DECODER_WAIT_MS));
+		if (rc == 0)
+			rc = -ETIMEDOUT;
+		else if (audio->dec_state != MSM_AUD_DECODER_STATE_CLOSE)
+			rc = -EFAULT;
+		else
+			rc = 0;
 		wake_up(&audio->write_wait);
 		msm_adsp_disable(audio->audplay);
 		audpp_disable(audio->dec_id, audio);
 		audio->out_needed = 0;
 	}
-	return 0;
+	return rc;
 }
 
 /* ------------------- dsp --------------------- */
@@ -358,6 +383,11 @@ static void audio_dsp_event(void *private, unsigned id, uint16_t *msg)
 					AUDPP_MSG_REASON_NODECODER)) {
 					audio->dec_state =
 						MSM_AUD_DECODER_STATE_FAILURE;
+					wake_up(&audio->wait);
+				} else if (reason == AUDPP_MSG_REASON_NONE) {
+					/* decoder is in disable state */
+					audio->dec_state =
+						MSM_AUD_DECODER_STATE_CLOSE;
 					wake_up(&audio->wait);
 				}
 				break;

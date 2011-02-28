@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009,2011 Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -481,9 +481,12 @@ bool mi2s_set_hdmi_output_path(uint8_t channels, uint8_t size,
 	mi2s_set_output_num_channels(mi2s, HDMI, channels);
 
 	num_of_sd_lines = num_of_bits_set(sd_line_mask);
+	/*Second argument to find_first_bit should be maximum number of
+	bit*/
 
 	sd_line = find_first_bit((unsigned long *)&sd_line_mask,
-			sizeof(sd_line_mask));
+			sizeof(sd_line_mask) * 8);
+	pr_debug("sd_line = %d\n", sd_line);
 
 	if (channels == 1) {
 
@@ -680,8 +683,11 @@ bool mi2s_set_hdmi_input_path(uint8_t channels, uint8_t size,
 		return MI2S_FALSE;
 	}
 
+	/*Second argument to find_first_bit should be maximum number of
+	bits interested*/
 	sd_line = find_first_bit((unsigned long *)&sd_line_mask,
-			sizeof(sd_line_mask));
+			sizeof(sd_line_mask) * 8);
+	pr_debug("sd_line = %d\n", sd_line);
 
 	/* Ensure sd_line parameter is valid (0-max) */
 	if (sd_line > MAX_SD_LINES) {

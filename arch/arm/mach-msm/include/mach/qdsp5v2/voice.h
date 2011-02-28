@@ -113,11 +113,10 @@ struct voice_device {
 	uint32_t tx_mute;
 	uint32_t rx_sample;
 	uint32_t tx_sample;
-#if 1 // CPAUDIO : send more info to CP from AP
+// CPAUDIO : send more info to CP from AP
 	uint32_t rx_volume_min;
 	uint32_t rx_volume_max;
 	uint32_t rx_volume_percentage;
-#endif
 };
 
 /*Voice command structure*/

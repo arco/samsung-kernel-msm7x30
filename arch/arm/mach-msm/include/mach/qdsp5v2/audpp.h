@@ -95,6 +95,15 @@ int audpp_restore_avsync(int id, uint16_t *avsync);
 int audpp_dsp_set_eq(unsigned id, unsigned enable,
 	struct audpp_cmd_cfg_object_params_eqalizer *eq,
 			enum obj_type objtype);
+
+int audpp_dsp_set_spa(unsigned id,
+	struct audpp_cmd_cfg_object_params_spectram *spa,
+			enum obj_type objtype);
+
+int audpp_dsp_set_stf(unsigned id, unsigned enable,
+     struct audpp_cmd_cfg_object_params_sidechain *stf,
+			enum obj_type objtype);
+
 int audpp_dsp_set_vol_pan(unsigned id,
 	struct audpp_cmd_cfg_object_params_volume *vol_pan,
 			enum obj_type objtype);

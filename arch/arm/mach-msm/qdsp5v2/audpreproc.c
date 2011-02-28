@@ -1,7 +1,7 @@
 /*
  * Common code to deal with the AUDPREPROC dsp task (audio preprocessing)
  *
- * Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * Based on the audpp layer in arch/arm/mach-msm/qdsp5/audpp.c
  *
@@ -21,10 +21,10 @@
 #include <linux/module.h>
 #include <linux/wakelock.h>
 #include <mach/msm_adsp.h>
-
+#include <mach/qdsp5v2/audio_acdbi.h>
 #include <mach/qdsp5v2/audpreproc.h>
 #include <mach/debug_mm.h>
-
+#include <mach/qdsp5v2/qdsp5audpreprocmsg.h>
 
 static DEFINE_MUTEX(audpreproc_lock);
 static struct wake_lock audpre_wake_lock;
@@ -46,13 +46,15 @@ struct msm_adspenc_info {
 #define MAX_EVENT_CALLBACK_CLIENTS 1
 
 #define ENC0_FORMAT ((1<<MSM_ADSP_ENC_CODEC_WAV)| \
-	(1<<MSM_ADSP_ENC_CODEC_SBC))
+	(1<<MSM_ADSP_ENC_CODEC_SBC) | (1<<MSM_ADSP_ENC_CODEC_EXT_WAV))
 
 #define ENC1_FORMAT ((1<<MSM_ADSP_ENC_CODEC_WAV)| \
 	(1<<MSM_ADSP_ENC_CODEC_AAC) | (1<<MSM_ADSP_ENC_CODEC_AMRNB) | \
-	(1<<MSM_ADSP_ENC_CODEC_EVRC) | (1<<MSM_ADSP_ENC_CODEC_QCELP))
+	(1<<MSM_ADSP_ENC_CODEC_EVRC) | (1<<MSM_ADSP_ENC_CODEC_QCELP) | \
+	(1<<MSM_ADSP_ENC_CODEC_EXT_WAV))
 
-#define ENC2_FORMAT (1<<MSM_ADSP_ENC_CODEC_WAV)
+#define ENC2_FORMAT ((1<<MSM_ADSP_ENC_CODEC_WAV) | \
+	(1<<MSM_ADSP_ENC_CODEC_EXT_WAV))
 
 struct msm_adspenc_database {
 	unsigned num_enc;
@@ -63,18 +65,18 @@ static struct msm_adspenc_info enc_info_list[] = {
 	ENC_MODULE_INFO("AUDREC0TASK", \
 			((QDSP_uPAudRec0BitStreamQueue << 16)| \
 			   QDSP_uPAudRec0CmdQueue), 0, \
-			 (ENC0_FORMAT  | (1 << MSM_ADSP_ENC_MODE_TUNNEL)), 2),
+			 (ENC0_FORMAT  | (1 << MSM_ADSP_ENC_MODE_TUNNEL)), 3),
 
 	ENC_MODULE_INFO("AUDREC1TASK", \
 			 ((QDSP_uPAudRec1BitStreamQueue << 16)| \
 			   QDSP_uPAudRec1CmdQueue), 1, \
 			 (ENC1_FORMAT | (1 << MSM_ADSP_ENC_MODE_TUNNEL) | \
-			  (1 << MSM_ADSP_ENC_MODE_NON_TUNNEL)), 5),
+			  (1 << MSM_ADSP_ENC_MODE_NON_TUNNEL)), 6),
 
 	ENC_MODULE_INFO("AUDREC2TASK", \
 			 ((QDSP_uPAudRec2BitStreamQueue << 16)| \
 			   QDSP_uPAudRec2CmdQueue), 2, \
-			 (ENC2_FORMAT  | (1 << MSM_ADSP_ENC_MODE_TUNNEL)), 1),
+			 (ENC2_FORMAT  | (1 << MSM_ADSP_ENC_MODE_TUNNEL)), 2),
 
 };
 
@@ -82,6 +84,10 @@ static struct msm_adspenc_database msm_enc_database = {
 	.num_enc = ARRAY_SIZE(enc_info_list),
 	.enc_info_list = enc_info_list,
 };
+
+
+static struct audrec_session_info
+		session_info[MAX_ENC_COUNT] = { {0, 0}, {0, 0}, {0, 0} };
 
 struct audpreproc_state {
 	struct msm_adsp_module *mod;
@@ -155,10 +161,12 @@ static void audpreproc_dsp_event(void *data, unsigned id, size_t len,
 			audpreproc->private[enc_cfg_msg.stream_id], id,
 			&enc_cfg_msg);
 		for (n = 0; n < MAX_EVENT_CALLBACK_CLIENTS; ++n) {
-			if (audpreproc->cb_tbl[n] && audpreproc->cb_tbl[n]->fn)
+			if (audpreproc->cb_tbl[n] &&
+					audpreproc->cb_tbl[n]->fn) {
 				audpreproc->cb_tbl[n]->fn( \
 					audpreproc->cb_tbl[n]->private, \
 					id, (void *) &enc_cfg_msg);
+			}
 		}
 		break;
 	}
@@ -202,6 +210,20 @@ static void audpreproc_dsp_event(void *data, unsigned id, size_t len,
 			audpreproc->func[routing_mode_done.stream_id](
 			audpreproc->private[routing_mode_done.stream_id], id,
 			&routing_mode_done);
+		break;
+	}
+#ifdef CONFIG_DEBUG_FS
+	case AUDPREPROC_MSG_FEAT_QUERY_DM_DONE:
+	   {
+	    uint16_t msg[3];
+	    getevent(msg, sizeof(msg));
+	    MM_INFO("RTC ACK --> %x %x %x\n", msg[0], msg[1], msg[2]);
+	    acdb_rtc_set_err(msg[2]);
+	   }
+	break;
+#endif
+	case ADSP_MESSAGE_ID: {
+		MM_DBG("Received ADSP event:module audpreproctask\n");
 		break;
 	}
 	default:
@@ -263,6 +285,23 @@ out:
 	return res;
 }
 EXPORT_SYMBOL(audpreproc_enable);
+
+int audpreproc_update_audrec_info(
+			struct audrec_session_info *audrec_session_info)
+{
+	if (!audrec_session_info) {
+		MM_ERR("error in audrec session info address\n");
+		return -EINVAL;
+	}
+	if (audrec_session_info->session_id < MAX_ENC_COUNT) {
+		memcpy(&session_info[audrec_session_info->session_id],
+				audrec_session_info,
+				sizeof(struct audrec_session_info));
+		return 0;
+	}
+	return -EINVAL;
+}
+EXPORT_SYMBOL(audpreproc_update_audrec_info);
 
 void audpreproc_disable(int enc_id, void *private)
 {
@@ -463,3 +502,14 @@ int audpreproc_dsp_set_gain_tx(
 			QDSP_uPAudPreProcCmdQueue, calib_gain_tx, len);
 }
 EXPORT_SYMBOL(audpreproc_dsp_set_gain_tx);
+
+void get_audrec_session_info(int id, struct audrec_session_info *info)
+{
+	if (id >= MAX_ENC_COUNT) {
+		MM_ERR("invalid session id = %d\n", id);
+		return;
+	}
+	memcpy(info, &session_info[id], sizeof(struct audrec_session_info));
+}
+EXPORT_SYMBOL(get_audrec_session_info);
+

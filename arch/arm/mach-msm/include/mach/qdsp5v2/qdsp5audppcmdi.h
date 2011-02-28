@@ -574,7 +574,7 @@ struct audpp_cmd_cfg_object_params_common{
 /*
  * Command Structure to configure post processing params (Volume)
  */
-
+#define AUDPP_CMD_VOLUME_PAN		0
 #define AUDPP_CMD_CFG_OBJECT_PARAMS_VOLUME_LEN		\
 	sizeof(struct audpp_cmd_cfg_object_params_volume)
 
@@ -640,6 +640,7 @@ struct filter_4 {
 	struct pan			pan_filter[4];
 } __attribute__((packed));
 
+#define AUDPP_CMD_IIR_TUNING_FILTER	1
 #define AUDPP_CMD_CFG_OBJECT_PARAMS_PCM_LEN		\
 	sizeof(struct audpp_cmd_cfg_object_params_pcm)
 
@@ -656,6 +657,7 @@ struct audpp_cmd_cfg_object_params_pcm {
 	} __attribute__((packed)) params_filter;
 } __attribute__((packed));
 
+#define AUDPP_CMD_CALIB_GAIN_RX         15
 #define AUDPP_CMD_CFG_CAL_GAIN_LEN sizeof(struct audpp_cmd_cfg_cal_gain)
 
 
@@ -669,7 +671,7 @@ struct audpp_cmd_cfg_cal_gain {
 /*
  * Command Structure to configure post processing parameters (equalizer)
  */
-
+#define AUDPP_CMD_EQUALIZER		2
 #define AUDPP_CMD_CFG_OBJECT_PARAMS_EQALIZER_LEN		\
 	sizeof(struct audpp_cmd_cfg_object_params_eqalizer)
 
@@ -789,7 +791,7 @@ struct audpp_cmd_cfg_object_params_eqalizer {
 /*
  * Command Structure to configure post processing parameters (ADRC)
  */
-
+#define AUDPP_CMD_ADRC			3
 #define AUDPP_CMD_CFG_OBJECT_PARAMS_ADRC_LEN		\
 	sizeof(struct audpp_cmd_cfg_object_params_adrc)
 
@@ -815,7 +817,7 @@ struct audpp_cmd_cfg_object_params_adrc {
 /*
  * Command Structure to configure post processing parameters (MB - ADRC)
  */
-
+#define AUDPP_CMD_MBADRC		10
 #define	AUDPP_MAX_MBADRC_BANDS		5
 
 struct adrc_config {
@@ -847,7 +849,7 @@ struct audpp_cmd_cfg_object_params_mbadrc {
 /*
  * Command Structure to configure post processing parameters(Spectrum Analizer)
  */
-
+#define AUDPP_CMD_SPECTROGRAM		4
 #define AUDPP_CMD_CFG_OBJECT_PARAMS_SPECTRAM_LEN		\
 	sizeof(struct audpp_cmd_cfg_object_params_spectram)
 
@@ -861,7 +863,7 @@ struct audpp_cmd_cfg_object_params_spectram {
 /*
  * Command Structure to configure post processing parameters (QConcert)
  */
-
+#define AUDPP_CMD_QCONCERT		5
 #define AUDPP_CMD_CFG_OBJECT_PARAMS_QCONCERT_LEN		\
 	sizeof(struct audpp_cmd_cfg_object_params_qconcert)
 
@@ -907,7 +909,7 @@ struct audpp_cmd_cfg_object_params_qconcert {
 /*
  * Command Structure to configure post processing parameters (Side Chain)
  */
-
+#define AUDPP_CMD_SIDECHAIN_TUNING_FILTER	6
 #define AUDPP_CMD_CFG_OBJECT_PARAMS_SIDECHAIN_LEN		\
 	sizeof(struct audpp_cmd_cfg_object_params_sidechain)
 
@@ -931,7 +933,7 @@ struct audpp_cmd_cfg_object_params_sidechain {
 /*
  * Command Structure to configure post processing parameters (QAFX)
  */
-
+#define AUDPP_CMD_QAFX			8
 #define AUDPP_CMD_CFG_OBJECT_PARAMS_QAFX_LEN		\
 	sizeof(struct audpp_cmd_cfg_object_params_qafx)
 
@@ -1022,6 +1024,7 @@ struct audpp_cmd_reverb_config_env_15 {
 	unsigned short			absolute_gain;
 } __attribute__((packed));
 
+#define AUDPP_CMD_PBE                   16
 #define AUDPP_CMD_CFG_PBE_LEN sizeof(struct audpp_cmd_cfg_pbe)
 
 struct audpp_cmd_cfg_pbe {
@@ -1058,5 +1061,28 @@ struct audpp_cmd_cfg_pbe {
 	unsigned short extbuffstart_lsw;
 	unsigned short extbuffstart_msw;
 } __attribute__((packed));
+
+#define AUDPP_CMD_PP_FEAT_QUERY_PARAMS  0x0002
+
+struct audpp_cmd_cfg_object_params_volpan {
+	struct audpp_cmd_cfg_object_params_common       common;
+	u16 volume ;
+	u16 pan;
+};
+
+struct rtc_audpp_read_data {
+	unsigned short  cmd_id;
+	unsigned short  obj_id;
+	unsigned short  route_id;
+	unsigned short  feature_id;
+	unsigned short  extbufsizemsw;
+	unsigned short  extbufsizelsw;
+	unsigned short	extpart;
+	unsigned short	extbufstartmsw;
+	unsigned short	extbufstartlsw;
+} __attribute__((packed)) ;
+
+#define AUDPP_CMD_SAMPLING_FREQUENCY	7
+#define AUDPP_CMD_QRUMBLE		9
 
 #endif /* __MACH_QDSP5_V2_QDSP5AUDPPCMDI_H */

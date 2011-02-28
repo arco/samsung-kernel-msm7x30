@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2008 Google, Inc.
  * Copyright (C) 2008 HTC Corporation
- * Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -315,6 +315,11 @@ static void audplay_dsp_event(void *data, unsigned id, size_t len,
 	case AUDPLAY_MSG_DEC_NEEDS_DATA:
 		audio->drv_ops.send_data(audio, 1);
 		break;
+
+	case ADSP_MESSAGE_ID:
+		MM_DBG("Received ADSP event:module audplaytask\n");
+		break;
+
 	default:
 		MM_ERR("unexpected message from decoder\n");
 		break;

@@ -157,10 +157,10 @@ static struct snddev_icodec_data snddev_ispkr_stereo_data = {
 	.default_sample_rate = 48000,
 	.pamp_on = msm_snddev_poweramp_on,
 	.pamp_off = msm_snddev_poweramp_off,
-	.max_voice_rx_vol[VOC_NB_INDEX] = -200,
-	.min_voice_rx_vol[VOC_NB_INDEX] = -1700,
-	.max_voice_rx_vol[VOC_WB_INDEX] = -200,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -1700
+	.max_voice_rx_vol[VOC_NB_INDEX] = 1000,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -500,
+	.max_voice_rx_vol[VOC_WB_INDEX] = 1000,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -500
 };
 
 static struct platform_device msm_ispkr_stereo_device = {
@@ -223,6 +223,24 @@ static struct platform_device  msm_snddev_mi2s_fm_tx_device = {
 	.name = "snddev_mi2s",
 	.id = 1,
 	.dev = { .platform_data = &snddev_mi2s_fm_tx_data},
+};
+
+static struct snddev_mi2s_data snddev_mi2s_fm_rx_data = {
+	.capability = SNDDEV_CAP_RX ,
+	.name = "fmradio_stereo_rx",
+	.copp_id = 3,
+	.acdb_id = ACDB_ID_FM_RX,
+	.channel_mode = 2,
+	.sd_lines = MI2S_SD_3,
+	.route = NULL,
+	.deroute = NULL,
+	.default_sample_rate = 48000,
+};
+
+static struct platform_device  msm_snddev_mi2s_fm_rx_device = {
+	.name = "snddev_mi2s",
+	.id = 2,
+	.dev = { .platform_data = &snddev_mi2s_fm_rx_data},
 };
 
 static struct snddev_ecodec_data snddev_bt_sco_earpiece_data = {
@@ -298,8 +316,8 @@ static struct snddev_icodec_data snddev_ihs_stereo_rx_data = {
 	.voltage_off = msm_snddev_hsed_voltage_off,
 	.max_voice_rx_vol[VOC_NB_INDEX] = -700,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -2200,
-	.max_voice_rx_vol[VOC_WB_INDEX] = -1400,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -2900,
+	.max_voice_rx_vol[VOC_WB_INDEX] = -900,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2400,
 };
 
 static struct platform_device msm_headset_stereo_device = {
@@ -745,8 +763,8 @@ static struct snddev_icodec_data snddev_ihs_stereo_speaker_stereo_rx_data = {
 	.voltage_off = msm_snddev_hsed_voltage_off,
 	.max_voice_rx_vol[VOC_NB_INDEX] = -500,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -2000,
-	.max_voice_rx_vol[VOC_WB_INDEX] = -500,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -2000,
+	.max_voice_rx_vol[VOC_WB_INDEX] = -900,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2400,
 };
 
 static struct platform_device msm_ihs_stereo_speaker_stereo_rx_device = {
@@ -882,6 +900,7 @@ static struct platform_device *snd_devices_ffa[] __initdata = {
 	&msm_ispkr_stereo_device,
 	&msm_headset_mic_device,
 	&msm_ihs_ffa_mono_rx_device,
+	&msm_snddev_mi2s_fm_rx_device,
 	&msm_snddev_mi2s_fm_tx_device,
 	&msm_bt_sco_earpiece_device,
 	&msm_bt_sco_mic_device,

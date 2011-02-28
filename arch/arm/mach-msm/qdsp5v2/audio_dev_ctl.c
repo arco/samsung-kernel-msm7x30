@@ -28,6 +28,7 @@
 #include <mach/qdsp5v2/qdsp5audppmsg.h>
 #include <mach/qdsp5v2/audpp.h>
 #include <linux/slab.h>
+#include <linux/debugfs.h>
 
 #ifndef MAX
 #define  MAX(x, y) (((x) > (y)) ? (x) : (y))
@@ -55,11 +56,13 @@ struct session_freq {
 	int evt;
 };
 
+
 struct audio_routing_info {
 	unsigned short mixer_mask[MAX_DEC_SESSIONS];
 	unsigned short audrec_mixer_mask[MAX_ENC_SESSIONS];
 	struct session_freq dec_freq[MAX_DEC_SESSIONS];
 	struct session_freq enc_freq[MAX_ENC_SESSIONS];
+	int dual_mic_setting[MAX_ENC_SESSIONS];
 	int voice_tx_dev_id;
 	int voice_rx_dev_id;
 	int voice_tx_sample_rate;
@@ -73,6 +76,89 @@ struct audio_routing_info {
 
 static struct audio_routing_info routing_info;
 
+#ifdef CONFIG_DEBUG_FS
+
+static struct dentry *dentry;
+static int rtc_getdevice_dbg_open(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	MM_INFO("debug intf %s\n", (char *) file->private_data);
+	return 0;
+}
+bool is_dev_opened(u32 adb_id)
+{
+
+	int dev_id = 0;
+	struct msm_snddev_info *dev_info = NULL;
+
+	for (dev_id = 0; dev_id < audio_dev_ctrl.num_dev; dev_id++) {
+		dev_info = audio_dev_ctrl_find_dev(dev_id);
+	      if (IS_ERR(dev_info)) {
+		MM_ERR("pass invalid dev_id %d\n", dev_id);
+			  return false;
+		}
+		if (dev_info->opened && (dev_info->acdb_id == adb_id))
+			return true;
+	}
+
+  return false;
+}
+static ssize_t rtc_getdevice_dbg_read(struct file *file, char __user *buf,
+			  size_t count, loff_t *ppos)
+{
+	static char buffer[1024];
+	static char swap_buf[1024];
+	const int debug_bufmax = sizeof(buffer);
+	int n = 0;
+	int swap_count = 0;
+	int rc = 0;
+    int dev_count = 0;
+	int dev_id = 0;
+	struct msm_snddev_info *dev_info = NULL;
+
+
+	if (audio_dev_ctrl.num_dev <= 0) {
+		MM_ERR("Invalid no Device present\n");
+		dev_count = 0;
+		n = scnprintf(buffer, debug_bufmax, "DEV_NO:0x%x\n", dev_count);
+	} else {
+	for (dev_id = 0; dev_id < audio_dev_ctrl.num_dev; dev_id++) {
+		dev_info = audio_dev_ctrl_find_dev(dev_id);
+		if (IS_ERR(dev_info)) {
+			MM_ERR("pass invalid dev_id %d\n", dev_id);
+			rc = PTR_ERR(dev_info);
+			return rc;
+		}
+		if (dev_info->opened) {
+			n += scnprintf(swap_buf + n, debug_bufmax - n,
+					"ACDB_ID:0x%x;CAPB:0x%x\n",
+					dev_info->acdb_id,
+					dev_info->capability);
+		      dev_count++;
+		      MM_DBG("RTC Get Device %x COPP %x Session Mask \
+			      %x Capb %x Dev Count %x\n",
+			     dev_id , dev_info->copp_id, dev_info->sessions,
+			     dev_info->capability, dev_count);
+
+		}
+	}
+
+	swap_count = scnprintf(buffer, debug_bufmax, \
+			"DEV_NO:0x%x\n", dev_count);
+
+	memcpy(buffer+swap_count, swap_buf, n*sizeof(char));
+	n = n+swap_count;
+
+	buffer[n] = 0;
+    }
+	return simple_read_from_buffer(buf, count, ppos, buffer, n);
+}
+
+static const struct file_operations rtc_acdb_debug_fops = {
+	.open = rtc_getdevice_dbg_open,
+	.read = rtc_getdevice_dbg_read
+};
+#endif
 int msm_reset_all_device(void)
 {
 	int rc = 0;
@@ -109,6 +195,29 @@ int msm_reset_all_device(void)
 	return 0;
 }
 EXPORT_SYMBOL(msm_reset_all_device);
+
+int msm_set_dual_mic_config(int enc_session_id, int config)
+{
+	int i;
+	if (enc_session_id >= MAX_ENC_SESSIONS)
+		return -EINVAL;
+	/*config is set(1) dual mic recording is selected */
+	/*config is reset (0) dual mic recording is not selected*/
+	routing_info.dual_mic_setting[enc_session_id] = config;
+	for (i = 0; i < MAX_ENC_SESSIONS; i++)
+		MM_DBG("dual_mic_setting[%d] = %d\n",
+			i, routing_info.dual_mic_setting[i]);
+	return 0;
+}
+EXPORT_SYMBOL(msm_set_dual_mic_config);
+
+int msm_get_dual_mic_config(int enc_session_id)
+{
+	if (enc_session_id >= MAX_ENC_SESSIONS)
+		return -EINVAL;
+	return routing_info.dual_mic_setting[enc_session_id];
+}
+EXPORT_SYMBOL(msm_get_dual_mic_config);
 
 int msm_get_voice_state(void)
 {
@@ -486,6 +595,8 @@ int auddev_unregister_evt_listner(u32 clnt_type, u32 clnt_id)
 		info = audio_dev_ctrl.devs[i];
 		info->sessions &= ~session_mask;
 	}
+	if (clnt_type == AUDDEV_CLNT_ENC)
+		msm_set_dual_mic_config(clnt_id, 0);
 	mutex_unlock(&session_lock);
 	return 0;
 }
@@ -583,28 +694,42 @@ int msm_snddev_request_freq(int *freq, u32 session_id,
 			set_freq = MAX(*freq, info->set_sample_rate);
 
 
-			if (clnt_type == AUDDEV_CLNT_DEC) {
-				routing_info.dec_freq[session_id].evt = 1;
+			if (clnt_type == AUDDEV_CLNT_DEC)
 				routing_info.dec_freq[session_id].freq
 						= set_freq;
-			} else if (clnt_type == AUDDEV_CLNT_ENC) {
-				routing_info.enc_freq[session_id].evt = 1;
+			else if (clnt_type == AUDDEV_CLNT_ENC)
 				routing_info.enc_freq[session_id].freq
 						= set_freq;
-			} else if (capability == SNDDEV_CAP_TX)
+			else if (capability == SNDDEV_CAP_TX)
 				routing_info.voice_tx_sample_rate = set_freq;
 
 			rc = set_freq;
-			info->set_sample_rate = set_freq;
-			*freq = info->set_sample_rate;
-
-			if (info->opened) {
-				broadcast_event(AUDDEV_EVT_FREQ_CHG, i,
-							SESSION_IGNORE);
-				set_freq = info->dev_ops.set_freq(info,
+			*freq = set_freq;
+			/* There is difference in device sample rate to
+			 * requested sample rate. So update device sample rate
+			 * and propagate sample rate change event to active
+			 * sessions of the device.
+			 */
+			if (info->set_sample_rate != set_freq) {
+				info->set_sample_rate = set_freq;
+				if (info->opened) {
+					/* Ignore propagating sample rate
+					 * change event to requested client
+					 * session
+					 */
+					if (clnt_type == AUDDEV_CLNT_DEC)
+						routing_info.\
+						dec_freq[session_id].evt = 1;
+					else if (clnt_type == AUDDEV_CLNT_ENC)
+						routing_info.\
+						enc_freq[session_id].evt = 1;
+					broadcast_event(AUDDEV_EVT_FREQ_CHG, i,
+								SESSION_IGNORE);
+					set_freq = info->dev_ops.set_freq(info,
 								set_freq);
-				broadcast_event(AUDDEV_EVT_DEV_RDY, i,
-							SESSION_IGNORE);
+					broadcast_event(AUDDEV_EVT_DEV_RDY, i,
+								SESSION_IGNORE);
+				}
 			}
 		}
 		MM_DBG("info->set_sample_rate = %d\n", info->set_sample_rate);
@@ -1168,6 +1293,10 @@ EXPORT_SYMBOL(mixer_post_event);
 
 static int __init audio_dev_ctrl_init(void)
 {
+#ifdef CONFIG_DEBUG_FS
+	char name[sizeof "rtc_get_device"+1];
+#endif
+
 	init_waitqueue_head(&audio_dev_ctrl.wait);
 
 	event.cb = NULL;
@@ -1177,11 +1306,24 @@ static int __init audio_dev_ctrl_init(void)
 	audio_dev_ctrl.voice_tx_dev = NULL;
 	audio_dev_ctrl.voice_rx_dev = NULL;
 	routing_info.voice_state = VOICE_STATE_INVALID;
+#ifdef CONFIG_DEBUG_FS
+	snprintf(name, sizeof name, "rtc_get_device");
+	dentry = debugfs_create_file(name, S_IFREG | S_IRUGO | S_IWUGO,
+			NULL, NULL, &rtc_acdb_debug_fops);
+	if (IS_ERR(dentry))
+		MM_DBG("debugfs_create_file failed\n");
+#endif
+
 	return misc_register(&audio_dev_ctrl_misc);
 }
 
 static void __exit audio_dev_ctrl_exit(void)
 {
+#ifdef CONFIG_DEBUG_FS
+	if (dentry)
+		debugfs_remove(dentry);
+#endif
+
 }
 module_init(audio_dev_ctrl_init);
 module_exit(audio_dev_ctrl_exit);

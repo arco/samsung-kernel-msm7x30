@@ -1,6 +1,6 @@
 /* amrwb audio decoder device
  *
- * Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2011, Code Aurora Forum. All rights reserved.
  *
  * Based on the mp3 native driver in arch/arm/mach-msm/qdsp5v2/audio_mp3.c
  *
@@ -328,6 +328,10 @@ static void audplay_dsp_event(void *data, unsigned id, size_t len,
 
 	case AUDPLAY_MSG_BUFFER_UPDATE:
 		audamrwb_update_pcm_buf_entry(audio, msg);
+		break;
+
+	case ADSP_MESSAGE_ID:
+		MM_DBG("Received ADSP event:module audplaytask\n");
 		break;
 
 	default:

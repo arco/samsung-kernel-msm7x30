@@ -38,6 +38,8 @@ GNU General Public License for more details.
  * MSG to Informs the ARM os Success/Failure of bringing up the decoder
  */
 
+#define AUDPP_MSG_FEAT_QUERY_DM_DONE 0x000b
+
 #define AUDPP_MSG_STATUS_MSG		0x0001
 #define AUDPP_MSG_STATUS_MSG_LEN	\
 	sizeof(struct audpp_msg_status_msg)

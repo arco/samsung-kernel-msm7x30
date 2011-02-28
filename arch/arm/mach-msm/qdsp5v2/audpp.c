@@ -3,7 +3,7 @@
  * common code to deal with the AUDPP dsp task (audio postproc)
  *
  * Copyright (C) 2008 Google, Inc.
- * Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -29,7 +29,7 @@
 #include <asm/ioctls.h>
 #include <mach/board.h>
 #include <mach/msm_adsp.h>
-
+#include <mach/qdsp5v2/audio_acdbi.h>
 #include <mach/qdsp5v2/qdsp5audppcmdi.h>
 #include <mach/qdsp5v2/qdsp5audppmsg.h>
 #include <mach/qdsp5v2/audpp.h>
@@ -76,20 +76,8 @@ static struct wake_lock audpp_wake_lock;
 #define AUDPP_CMD_EQ_FLAG_ENA	-1
 #define AUDPP_CMD_IIR_FLAG_DIS	  0x0000
 #define AUDPP_CMD_IIR_FLAG_ENA	  -1
-
-#define AUDPP_CMD_VOLUME_PAN		0
-#define AUDPP_CMD_IIR_TUNING_FILTER	1
-#define AUDPP_CMD_EQUALIZER		2
-#define AUDPP_CMD_ADRC			3
-#define AUDPP_CMD_SPECTROGRAM		4
-#define AUDPP_CMD_QCONCERT		5
-#define AUDPP_CMD_SIDECHAIN_TUNING_FILTER	6
-#define AUDPP_CMD_SAMPLING_FREQUENCY	7
-#define AUDPP_CMD_QAFX			8
-#define AUDPP_CMD_QRUMBLE		9
-#define AUDPP_CMD_MBADRC		10
-#define AUDPP_CMD_CALIB_GAIN_RX         15
-#define AUDPP_CMD_PBE                   16
+#define AUDPP_CMD_STF_FLAG_ENA -1
+#define AUDPP_CMD_STF_FLAG_DIS 0x0000
 
 #define MAX_EVENT_CALLBACK_CLIENTS 	1
 
@@ -319,6 +307,14 @@ static void audpp_dsp_event(void *data, unsigned id, size_t len,
 	case AUDPP_MSG_AVSYNC_MSG:
 		audpp_notify_clnt(audpp, msg[0], id, msg);
 		break;
+#ifdef CONFIG_DEBUG_FS
+	case AUDPP_MSG_FEAT_QUERY_DM_DONE:
+		MM_INFO(" RTC ACK --> %x %x %x %x %x %x %x %x\n", msg[0],\
+			msg[1], msg[2], msg[3], msg[4], \
+			msg[5], msg[6], msg[7]);
+		acdb_rtc_set_err(msg[3]);
+		break;
+#endif
 	default:
 		MM_INFO("unhandled msg id %x\n", id);
 	}
@@ -332,8 +328,15 @@ static void audpp_fake_event(struct audpp_state *audpp, int id,
 			     unsigned event, unsigned arg)
 {
 	uint16_t msg[1];
+	uint16_t n = 0;
 	msg[0] = arg;
 	audpp->func[id] (audpp->private[id], event, msg);
+	if (audpp->enabled == 1) {
+		for (n = 0; n < MAX_EVENT_CALLBACK_CLIENTS; ++n)
+			if (audpp->cb_tbl[n] && audpp->cb_tbl[n]->fn)
+				audpp->cb_tbl[n]->fn(audpp->cb_tbl[n]->private,
+					 AUDPP_MSG_CFG_MSG, msg);
+	}
 }
 
 int audpp_enable(int id, audpp_event_func func, void *private)
@@ -677,6 +680,72 @@ int audpp_dsp_set_pbe(unsigned id, unsigned enable,
 }
 EXPORT_SYMBOL(audpp_dsp_set_pbe);
 
+int audpp_dsp_set_spa(unsigned id,
+     struct audpp_cmd_cfg_object_params_spectram *spa,
+			enum obj_type objtype){
+	struct audpp_cmd_cfg_object_params_spectram cmd;
+
+	if (objtype) {
+		if (id > 5) {
+			MM_ERR("Wrong POPP decoder id: %d\n", id);
+			return -EINVAL;
+		}
+	} else {
+		if (id > 3) {
+			MM_ERR("Wrong COPP decoder id: %d\n", id);
+			return -EINVAL;
+		}
+	}
+
+	memset(&cmd, 0, sizeof(cmd));
+	if (objtype)
+		cmd.common.stream = AUDPP_CMD_POPP_STREAM;
+	else
+		cmd.common.stream = AUDPP_CMD_COPP_STREAM;
+
+	cmd.common.stream_id = id;
+	cmd.common.obj_cfg = AUDPP_CMD_CFG_OBJ_UPDATE;
+	cmd.common.command_type = AUDPP_CMD_SPECTROGRAM;
+       cmd.sample_interval = spa->sample_interval;
+	cmd.num_coeff = spa->num_coeff;
+	return audpp_send_queue3(&cmd, sizeof(cmd));
+
+}
+EXPORT_SYMBOL(audpp_dsp_set_spa);
+
+int audpp_dsp_set_stf(unsigned id, unsigned enable,
+     struct audpp_cmd_cfg_object_params_sidechain *stf,
+			enum obj_type objtype){
+	if (objtype) {
+		if (id > 5) {
+			MM_ERR("Wrong POPP decoder id: %d\n", id);
+			return -EINVAL;
+		}
+	} else {
+		if (id > 3) {
+			MM_ERR("Wrong COPP decoder id: %d\n", id);
+			return -EINVAL;
+		}
+	}
+
+	stf->common.cmd_id = AUDPP_CMD_CFG_OBJECT_PARAMS;
+	if (objtype)
+		stf->common.stream = AUDPP_CMD_POPP_STREAM;
+	else
+		stf->common.stream = AUDPP_CMD_COPP_STREAM;
+
+	stf->common.stream_id = id;
+	stf->common.obj_cfg = AUDPP_CMD_CFG_OBJ_UPDATE;
+	stf->common.command_type = AUDPP_CMD_SIDECHAIN_TUNING_FILTER;
+
+	if (enable)
+		stf->active_flag = AUDPP_CMD_STF_FLAG_ENA;
+	else
+		stf->active_flag = AUDPP_CMD_STF_FLAG_DIS;
+	return audpp_send_queue3(stf,
+		sizeof(struct audpp_cmd_cfg_object_params_sidechain));
+}
+EXPORT_SYMBOL(audpp_dsp_set_stf);
 
 /* Implementation Of COPP + POPP */
 int audpp_dsp_set_eq(unsigned id, unsigned enable,

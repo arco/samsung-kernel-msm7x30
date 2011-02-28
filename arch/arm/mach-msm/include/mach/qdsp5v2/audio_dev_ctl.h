@@ -80,6 +80,8 @@ struct msm_volume {
 
 extern struct msm_volume msm_vol_ctl;
 
+int msm_get_dual_mic_config(int enc_session_id);
+int msm_set_dual_mic_config(int enc_session_id, int config);
 int msm_reset_all_device(void);
 void msm_snddev_register(struct msm_snddev_info *);
 void msm_snddev_unregister(struct msm_snddev_info *);
@@ -217,4 +219,8 @@ int msm_snddev_get_enc_freq(int session_id);
 int msm_set_voice_vol(int dir, s32 volume);
 int msm_set_voice_mute(int dir, int mute);
 int msm_get_voice_state(void);
+#ifdef CONFIG_DEBUG_FS
+bool is_dev_opened(u32 acdb_id);
+#endif
+
 #endif

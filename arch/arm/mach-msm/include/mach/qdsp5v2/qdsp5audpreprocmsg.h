@@ -30,6 +30,8 @@
 #ifndef QDSP5AUDPREPROCMSG_H
 #define QDSP5AUDPREPROCMSG_H
 
+#define AUDPREPROC_MSG_FEAT_QUERY_DM_DONE 0x0006
+
 /*
  * ADSPREPROCTASK Messages
  * AUDPREPROCTASK uses audPreProcUpRlist to communicate with ARM

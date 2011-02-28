@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -80,6 +80,12 @@ struct audrec_cmd_pcm_cfg_arm_to_enc {
 	unsigned short frequency_of_intimation;
 	unsigned short max_number_of_buffers;
 } __attribute__((packed));
+
+#define AUDREC_PCM_CONFIG_UPDATE_FLAG_ENABLE -1
+#define AUDREC_PCM_CONFIG_UPDATE_FLAG_DISABLE 0
+
+#define AUDREC_ENABLE_FLAG_VALUE -1
+#define AUDREC_DISABLE_FLAG_VALUE 0
 
 /*
  * Command to intimate available pcm buffer

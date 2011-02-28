@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2008 Google, Inc.
  * Copyright (C) 2008 HTC Corporation
- * Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -24,6 +24,7 @@
 #include <linux/wait.h>
 #include <linux/dma-mapping.h>
 #include <linux/msm_audio_amrnb.h>
+#include <linux/android_pmem.h>
 
 #include <asm/atomic.h>
 #include <asm/ioctls.h>
@@ -61,6 +62,7 @@ struct audio_in {
 	wait_queue_head_t wait_enable;
 
 	struct msm_adsp_module *audrec;
+	struct audrec_session_info session_info; /*audrec session info*/
 
 	/* configuration to use on next enable */
 	uint32_t buffer_size; /* Frame size (36 bytes) */
@@ -280,6 +282,10 @@ static void audrec_dsp_event(void *data, unsigned id, size_t len,
 		audamrnb_in_get_dsp_frames(audio);
 		break;
 	}
+	case ADSP_MESSAGE_ID: {
+		MM_DBG("Received ADSP event:module audrectask\n");
+		break;
+	}
 	default:
 		MM_ERR("Unknown Event id %d\n", id);
 	}
@@ -325,7 +331,7 @@ static int audamrnb_in_enc_config(struct audio_in *audio, int enable)
 	struct audpreproc_audrec_cmd_enc_cfg cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.cmd_id = AUDPREPROC_AUDREC_CMD_ENC_CFG;
+	cmd.cmd_id = AUDPREPROC_AUDREC_CMD_ENC_CFG_2;
 	cmd.stream_id = audio->enc_id;
 
 	if (enable)
@@ -511,6 +517,11 @@ static long audamrnb_in_ioctl(struct file *file,
 			MM_DBG("msm_snddev_withdraw_freq\n");
 			break;
 		}
+		/*update aurec session info in audpreproc layer*/
+		audio->session_info.session_id = audio->enc_id;
+		/*amrnb works only on 8KHz*/
+		audio->session_info.sampling_freq = 8000;
+		audpreproc_update_audrec_info(&audio->session_info);
 		rc = audamrnb_in_enable(audio);
 		if (!rc) {
 			rc =
@@ -527,6 +538,9 @@ static long audamrnb_in_ioctl(struct file *file,
 		break;
 	}
 	case AUDIO_STOP: {
+		/*reset the sampling frequency information at audpreproc layer*/
+		audio->session_info.sampling_freq = 0;
+		audpreproc_update_audrec_info(&audio->session_info);
 		rc = audamrnb_in_disable(audio);
 		rc = msm_snddev_withdraw_freq(audio->enc_id,
 					SNDDEV_CAP_TX, AUDDEV_CLNT_ENC);
@@ -729,12 +743,20 @@ static int audamrnb_in_release(struct inode *inode, struct file *file)
 	msm_snddev_withdraw_freq(audio->enc_id, SNDDEV_CAP_TX,
 					AUDDEV_CLNT_ENC);
 	auddev_unregister_evt_listner(AUDDEV_CLNT_ENC, audio->enc_id);
+	/*reset the sampling frequency information at audpreproc layer*/
+	audio->session_info.sampling_freq = 0;
+	audpreproc_update_audrec_info(&audio->session_info);
 	audamrnb_in_disable(audio);
 	audamrnb_in_flush(audio);
 	msm_adsp_put(audio->audrec);
 	audpreproc_aenc_free(audio->enc_id);
 	audio->audrec = NULL;
 	audio->opened = 0;
+	if (audio->data) {
+		iounmap(audio->data);
+		pmem_kfree(audio->phys);
+		audio->data = NULL;
+	}
 	mutex_unlock(&audio->lock);
 	return 0;
 }
@@ -750,6 +772,23 @@ static int audamrnb_in_open(struct inode *inode, struct file *file)
 		rc = -EBUSY;
 		goto done;
 	}
+	audio->phys = pmem_kalloc(DMASZ, PMEM_MEMTYPE_EBI1|
+					PMEM_ALIGNMENT_4K);
+	if (!IS_ERR((void *)audio->phys)) {
+		audio->data = ioremap(audio->phys, DMASZ);
+		if (!audio->data) {
+			MM_ERR("could not allocate DMA buffers\n");
+			rc = -ENOMEM;
+			pmem_kfree(audio->phys);
+			goto done;
+		}
+	} else {
+		MM_ERR("could not allocate DMA buffers\n");
+		rc = -ENOMEM;
+		goto done;
+	}
+	MM_DBG("Memory addr = 0x%8x  phy addr = 0x%8x\n",\
+		(int) audio->data, (int) audio->phys);
 	if ((file->f_mode & FMODE_WRITE) &&
 			(file->f_mode & FMODE_READ)) {
 		rc = -EACCES;
@@ -836,15 +875,6 @@ struct miscdevice audio_amrnb_in_misc = {
 
 static int __init audamrnb_in_init(void)
 {
-	the_audio_amrnb_in.data = dma_alloc_coherent(NULL, DMASZ,
-				       &the_audio_amrnb_in.phys, GFP_KERNEL);
-	MM_DBG("Memory addr = 0x%8x  Phy addr= 0x%8x ---- \n", \
-		(int) the_audio_amrnb_in.data, (int) the_audio_amrnb_in.phys);
-
-	if (!the_audio_amrnb_in.data) {
-		MM_ERR("Unable to allocate DMA buffer\n");
-		return -ENOMEM;
-	}
 	mutex_init(&the_audio_amrnb_in.lock);
 	mutex_init(&the_audio_amrnb_in.read_lock);
 	spin_lock_init(&the_audio_amrnb_in.dsp_lock);
