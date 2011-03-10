@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009,2011 Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -63,6 +63,7 @@ static int snddev_ecodec_open_rx(struct snddev_ecodec_state *ecodec)
   int pin;     
 	struct snddev_ecodec_drv_state *drv = &snddev_ecodec_drv;
 	struct msm_afe_config afe_config;
+	int ret = 0;
 
 	MM_DBG("snddev_ecodec_open_rx\n");
 
@@ -88,6 +89,39 @@ static int snddev_ecodec_open_rx(struct snddev_ecodec_state *ecodec)
     
 		/* config clocks */
 		clk_enable(drv->lpa_core_clk);
+
+		/*if long sync is selected in aux PCM interface
+		ecodec clock is updated to work with 128KHz,
+		if short sync is selected ecodec clock is updated to
+		work with 2.048MHz frequency, actual clock output is
+		different than the SW configuration by factor of two*/
+		if (!(ecodec->data->conf_aux_codec_intf &
+			AUX_CODEC_CTL__AUX_CODEC_MODE__I2S_V)) {
+			if (ecodec->data->conf_aux_codec_intf &
+				AUX_CODEC_CTL__AUX_PCM_MODE__AUX_MASTER_V) {
+				MM_DBG("Update ecodec clock to 128 KHz, long "
+					"sync in master mode is selected\n");
+				ret = clk_set_rate(drv->ecodec_clk, 256000);
+				if (ret < 0)
+					MM_ERR("Error updating ecodec clock"
+							" to 128KHz\n");
+			} else if (ecodec->data->conf_aux_codec_intf &
+				AUX_CODEC_CTL__AUX_PCM_MODE__PRIM_SLAVE_V) {
+				MM_DBG("Update ecodec clock to 2 MHz, short"
+					" sync in slave mode is selected\n");
+				ret = clk_set_rate(drv->ecodec_clk, 4096000);
+				if (ret < 0)
+					MM_ERR("Error updating ecodec clock"
+							" to 2.048MHz\n");
+			} else {
+				MM_DBG("Update ecodec clock to 2 MHz, short"
+					" sync in master mode is selected\n");
+				ret = clk_set_rate(drv->ecodec_clk, 4096000);
+				if (ret < 0)
+					MM_ERR("Error updating ecodec clock"
+							" to 2.048MHz\n");
+			}
+		}
 
 		/* enable ecodec clk */
 		clk_enable(drv->ecodec_clk);
@@ -160,6 +194,7 @@ static int snddev_ecodec_open_tx(struct snddev_ecodec_state *ecodec)
 	int rc = 0;
 	struct snddev_ecodec_drv_state *drv = &snddev_ecodec_drv;
 	struct msm_afe_config afe_config;
+	int ret = 0;
 
 	MM_DBG("snddev_ecodec_open_tx\n");
 
@@ -172,6 +207,39 @@ static int snddev_ecodec_open_tx(struct snddev_ecodec_state *ecodec)
 		}
 		/* config clocks */
 		clk_enable(drv->lpa_core_clk);
+
+		/*if long sync is selected in aux PCM interface
+		ecodec clock is updated to work with 128KHz,
+		if short sync is selected ecodec clock is updated to
+		work with 2.048MHz frequency, actual clock output is
+		different than the SW configuration by factor of two*/
+		if (!(ecodec->data->conf_aux_codec_intf &
+			AUX_CODEC_CTL__AUX_CODEC_MODE__I2S_V)) {
+			if (ecodec->data->conf_aux_codec_intf &
+				AUX_CODEC_CTL__AUX_PCM_MODE__AUX_MASTER_V) {
+				MM_DBG("Update ecodec clock to 128 KHz, long "
+					"sync in master mode is selected\n");
+				ret = clk_set_rate(drv->ecodec_clk, 256000);
+				if (ret < 0)
+					MM_ERR("Error updating ecodec clock"
+							" to 128KHz\n");
+			} else if (ecodec->data->conf_aux_codec_intf &
+				AUX_CODEC_CTL__AUX_PCM_MODE__PRIM_SLAVE_V) {
+				MM_DBG("Update ecodec clock to 2 MHz, short"
+					" sync in slave mode is selected\n");
+				ret = clk_set_rate(drv->ecodec_clk, 4096000);
+				if (ret < 0)
+					MM_ERR("Error updating ecodec clock"
+							" to 2.048MHz\n");
+			} else {
+				MM_DBG("Update ecodec clock to 2 MHz, short"
+					" sync in master mode is selected\n");
+				ret = clk_set_rate(drv->ecodec_clk, 4096000);
+				if (ret < 0)
+					MM_ERR("Error updating ecodec clock"
+							" to 2.048MHz\n");
+			}
+		}
 
 		/* enable ecodec clk */
 		clk_enable(drv->ecodec_clk);
