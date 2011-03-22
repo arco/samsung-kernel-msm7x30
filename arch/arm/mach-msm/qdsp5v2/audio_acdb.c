@@ -470,7 +470,7 @@ static void extract_mbadrc(u32 *phy_addr, struct header *prs_hdr, u32 *index)
 					sizeof(struct header);
 		memcpy(acdb_data.mbadrc_block.ext_buf,
 				(acdb_data.virt_addr + *index +
-					sizeof(struct header)), 197*2);
+					sizeof(struct header)), 196*2);
 		MM_DBG("phy_addr = %x\n", *phy_addr);
 		*index += prs_hdr->data_len + sizeof(struct header);
 	} else if (prs_hdr->iid == IID_MBADRC_BAND_CONFIG) {
