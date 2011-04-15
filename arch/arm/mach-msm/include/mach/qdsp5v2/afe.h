@@ -60,6 +60,7 @@ int afe_config_fm_volume(uint16_t volume);
 int afe_config_fm_calibration_gain(uint16_t device_id,
 			uint16_t calibration_gain);
 void afe_loopback(int enable);
+void afe_ext_loopback(int enable, int rx_copp_id, int tx_copp_id);
 
 void afe_device_volume_ctrl(u16 device_id, u16 device_volume);
 
