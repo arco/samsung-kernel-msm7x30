@@ -583,28 +583,42 @@ int msm_snddev_request_freq(int *freq, u32 session_id,
 			set_freq = MAX(*freq, info->set_sample_rate);
 
 
-			if (clnt_type == AUDDEV_CLNT_DEC) {
-				routing_info.dec_freq[session_id].evt = 1;
+			if (clnt_type == AUDDEV_CLNT_DEC)
 				routing_info.dec_freq[session_id].freq
 						= set_freq;
-			} else if (clnt_type == AUDDEV_CLNT_ENC) {
-				routing_info.enc_freq[session_id].evt = 1;
+			else if (clnt_type == AUDDEV_CLNT_ENC)
 				routing_info.enc_freq[session_id].freq
 						= set_freq;
-			} else if (capability == SNDDEV_CAP_TX)
+			else if (capability == SNDDEV_CAP_TX)
 				routing_info.voice_tx_sample_rate = set_freq;
 
 			rc = set_freq;
-			info->set_sample_rate = set_freq;
-			*freq = info->set_sample_rate;
-
-			if (info->opened) {
-				broadcast_event(AUDDEV_EVT_FREQ_CHG, i,
-							SESSION_IGNORE);
-				set_freq = info->dev_ops.set_freq(info,
+			*freq = set_freq;
+			/* There is difference in device sample rate to
+			 * requested sample rate. So update device sample rate
+			 * and propagate sample rate change event to active
+			 * sessions of the device.
+			 */
+			if (info->set_sample_rate != set_freq) {
+				info->set_sample_rate = set_freq;
+				if (info->opened) {
+					/* Ignore propagating sample rate
+					 * change event to requested client
+					 * session
+					 */
+					if (clnt_type == AUDDEV_CLNT_DEC)
+						routing_info.\
+						dec_freq[session_id].evt = 1;
+					else if (clnt_type == AUDDEV_CLNT_ENC)
+						routing_info.\
+						enc_freq[session_id].evt = 1;
+					broadcast_event(AUDDEV_EVT_FREQ_CHG, i,
+								SESSION_IGNORE);
+					set_freq = info->dev_ops.set_freq(info,
 								set_freq);
-				broadcast_event(AUDDEV_EVT_DEV_RDY, i,
-							SESSION_IGNORE);
+					broadcast_event(AUDDEV_EVT_DEV_RDY, i,
+								SESSION_IGNORE);
+				}
 			}
 		}
 		MM_DBG("info->set_sample_rate = %d\n", info->set_sample_rate);
