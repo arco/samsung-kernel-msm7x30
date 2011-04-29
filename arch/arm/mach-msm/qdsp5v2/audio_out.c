@@ -630,25 +630,6 @@ static int audio_open(struct inode *inode, struct file *file)
 		goto done;
 	}
 
-	if (!audio->data) {
-		audio->phys = pmem_kalloc(DMASZ, PMEM_MEMTYPE_EBI1|
-						PMEM_ALIGNMENT_4K);
-		if (!IS_ERR((void *)audio->phys)) {
-			audio->data = ioremap(audio->phys, DMASZ);
-			if (!audio->data) {
-				MM_ERR("could not allocate DMA buffers\n");
-				rc = -ENOMEM;
-				pmem_kfree(audio->phys);
-				goto done;
-			}
-		} else {
-			MM_ERR("could not allocate DMA buffers\n");
-			rc = -ENOMEM;
-			goto done;
-		}
-		MM_DBG("Memory addr = 0x%8x  phy addr = 0x%8x\n",\
-		(int) audio->data, (int) audio->phys);
-	}
 
 	audio->dec_id = HOSTPCM_STREAM_ID;
 
@@ -715,6 +696,21 @@ struct miscdevice audio_misc = {
 
 static int __init audio_init(void)
 {
+	the_audio.phys = pmem_kalloc(DMASZ, PMEM_MEMTYPE_EBI1|
+					PMEM_ALIGNMENT_4K);
+	if (!IS_ERR((void *)the_audio.phys)) {
+		the_audio.data = ioremap(the_audio.phys, DMASZ);
+		if (!the_audio.data) {
+			MM_ERR("could not map pmem buffers\n");
+			pmem_kfree(the_audio.phys);
+			return -ENOMEM;
+		}
+	} else {
+			MM_ERR("could not allocate pmem buffers\n");
+			return -ENOMEM;
+	}
+	MM_DBG("Memory addr = 0x%8x  phy addr = 0x%8x\n",\
+		(int) the_audio.data, (int) the_audio.phys);
 	mutex_init(&the_audio.lock);
 	mutex_init(&the_audio.write_lock);
 	spin_lock_init(&the_audio.dsp_lock);
@@ -724,4 +720,4 @@ static int __init audio_init(void)
 	return misc_register(&audio_misc);
 }
 
-device_initcall(audio_init);
+late_initcall(audio_init);
