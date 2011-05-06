@@ -26,6 +26,8 @@
 #include "msm_gemini_platform.h"
 #include "msm_gemini_common.h"
 
+static int release_buf;
+
 /*************** queue helper ****************/
 inline void msm_gemini_q_init(char const *name, struct msm_gemini_q *q_p)
 {
@@ -184,9 +186,9 @@ int msm_gemini_framedone_irq(struct msm_gemini_device *pgmn_dev,
 
 	GMN_DBG("%s:%d] Enter\n", __func__, __LINE__);
 
-	buf_in->vbuf.framedone_len = buf_in->framedone_len;
-	buf_in->vbuf.type = MSM_GEMINI_EVT_FRAMEDONE;
 	if (buf_in) {
+		buf_in->vbuf.framedone_len = buf_in->framedone_len;
+		buf_in->vbuf.type = MSM_GEMINI_EVT_FRAMEDONE;
 		GMN_DBG("%s:%d] 0x%08x %d framedone_len %d\n",
 			__func__, __LINE__,
 			(int) buf_in->y_buffer_addr, buf_in->y_len,
@@ -571,7 +573,7 @@ int __msm_gemini_release(struct msm_gemini_device *pgmn_dev)
 	pgmn_dev->open_count--;
 	mutex_unlock(&pgmn_dev->lock);
 
-	msm_gemini_core_release();
+	msm_gemini_core_release(release_buf);
 	msm_gemini_q_cleanup(&pgmn_dev->evt_q);
 	msm_gemini_q_cleanup(&pgmn_dev->output_rtn_q);
 	msm_gemini_outbuf_q_cleanup(&pgmn_dev->output_buf_q);
@@ -659,10 +661,12 @@ int msm_gemini_ioctl_hw_cmds(struct msm_gemini_device *pgmn_dev,
 int msm_gemini_start(struct msm_gemini_device *pgmn_dev, void * __user arg)
 {
 	struct msm_gemini_core_buf *buf_out;
+	struct msm_gemini_core_buf *buf_out_free[2] = {NULL, NULL};
 	int i, rc;
 
 	GMN_DBG("%s:%d] Enter\n", __func__, __LINE__);
 
+	release_buf = 1;
 	for (i = 0; i < 2; i++) {
 		buf_out = msm_gemini_q_out(&pgmn_dev->input_buf_q);
 
@@ -676,17 +680,27 @@ int msm_gemini_start(struct msm_gemini_device *pgmn_dev, void * __user arg)
 	}
 
 	for (i = 0; i < 2; i++) {
-		buf_out = msm_gemini_q_out(&pgmn_dev->output_buf_q);
+		buf_out_free[i] = msm_gemini_q_out(&pgmn_dev->output_buf_q);
 
-		if (buf_out) {
-			msm_gemini_core_we_buf_update(buf_out);
-			kfree(buf_out);
+		if (buf_out_free[i]) {
+			msm_gemini_core_we_buf_update(buf_out_free[i]);
+		} else if (i == 1) {
+			/* set the pong to same address as ping */
+			buf_out_free[0]->y_len >>= 1;
+			buf_out_free[0]->y_buffer_addr +=
+				buf_out_free[0]->y_len;
+			msm_gemini_core_we_buf_update(buf_out_free[0]);
+			/* since ping and pong are same buf release only once*/
+			release_buf = 0;
 		} else {
 			GMN_DBG("%s:%d] no output buffer\n",
 			__func__, __LINE__);
 			break;
 		}
 	}
+
+	for (i = 0; i < 2; i++)
+		kfree(buf_out_free[i]);
 
 	rc = msm_gemini_ioctl_hw_cmds(pgmn_dev, arg);
 	GMN_DBG("%s:%d]\n", __func__, __LINE__);
