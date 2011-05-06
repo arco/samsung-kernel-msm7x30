@@ -271,6 +271,7 @@ void msm_snddev_register(struct msm_snddev_info *dev_info)
 		dev_info->dev_volume = 0; /* 0 db */
 		dev_info->sessions = 0x0;
 		dev_info->usage_count = 0;
+		dev_info->set_sample_rate = 0;
 		audio_dev_ctrl.num_dev++;
 	} else
 		MM_ERR("%s: device registry max out\n", __func__);
