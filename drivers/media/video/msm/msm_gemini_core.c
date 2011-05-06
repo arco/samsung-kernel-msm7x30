@@ -70,13 +70,13 @@ int msm_gemini_core_reset(uint8_t op_mode, void *base, int size)
 	return 0;
 }
 
-void msm_gemini_core_release(void)
+void msm_gemini_core_release(int release_buf)
 {
 	int i = 0;
 	for (i = 0; i < 2; i++) {
-		if (we_pingpong_buf.buf_status[i]) {
+		if (we_pingpong_buf.buf_status[i] && release_buf)
 			msm_gemini_platform_p2v(we_pingpong_buf.buf[i].file);
-		}
+		we_pingpong_buf.buf_status[i] = 0;
 	}
 }
 
@@ -144,10 +144,12 @@ void *msm_gemini_core_framedone_irq(int gemini_irq_status, void *context)
 	GMN_DBG("%s:%d]\n", __func__, __LINE__);
 
 	buf_p = msm_gemini_hw_pingpong_active_buffer(&we_pingpong_buf);
-	buf_p->framedone_len = msm_gemini_hw_encode_output_size();
+	if (buf_p) {
+		buf_p->framedone_len = msm_gemini_hw_encode_output_size();
+		GMN_DBG("%s:%d] framedone_len %d\n", __func__, __LINE__,
+			buf_p->framedone_len);
+	}
 
-	GMN_DBG("%s:%d] framedone_len %d\n", __func__, __LINE__,
-		buf_p->framedone_len);
 	return buf_p;
 }
 
