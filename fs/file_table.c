@@ -34,6 +34,7 @@ struct files_stat_struct files_stat = {
 
 /* public. Not pretty! */
 __cacheline_aligned_in_smp DEFINE_SPINLOCK(files_lock);
+EXPORT_SYMBOL(files_lock);
 
 /* SLAB cache for file structures */
 static struct kmem_cache *filp_cachep __read_mostly;
@@ -346,6 +347,7 @@ void file_kill(struct file *file)
 		file_list_unlock();
 	}
 }
+EXPORT_SYMBOL(file_kill);
 
 int fs_may_remount_ro(struct super_block *sb)
 {
