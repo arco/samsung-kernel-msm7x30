@@ -666,7 +666,6 @@ static int audio_open(struct inode *inode, struct file *file)
 					(void *)audio);
 	if (rc) {
 		MM_ERR("%s: failed to register listener\n", __func__);
-		dma_free_coherent(NULL, DMASZ, audio->data, audio->phys);
 		goto done;
 	}
 
