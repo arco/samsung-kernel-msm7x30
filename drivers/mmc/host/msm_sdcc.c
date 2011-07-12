@@ -87,9 +87,6 @@ unsigned int external_sd_status = 1;
 extern unsigned int board_hw_revision;
 
 
-#define DUMMY_52_STATE_NONE		0
-#define DUMMY_52_STATE_SENT		1
-
 static struct mmc_command dummy52cmd;
 static struct mmc_request dummy52mrq = {
 	.cmd = &dummy52cmd,
@@ -183,6 +180,8 @@ static void msmsdcc_reset_and_restore(struct msmsdcc_host *host)
 		pr_err("%s: Failed to set clk rate %u Hz. err %d\n",
 				mmc_hostname(host->mmc), host->clk_rate, ret);
 	dsb();
+	if (host->dummy_52_needed)
+		host->dummy_52_needed = 0;
 }
 
 static int
@@ -316,8 +315,15 @@ msmsdcc_dma_complete_tlet(unsigned long data)
 		 * If we've already gotten our DATAEND / DATABLKEND
 		 * for this request, then complete it through here.
 		 */
-		msmsdcc_stop_data(host);
 
+		if (host->dummy_52_needed) {
+			mrq->data->bytes_xfered = host->curr.data_xfered;
+			host->dummy_52_sent = 1;
+			msmsdcc_start_command(host, &dummy52cmd,
+					      MCI_CPSM_PROGENA);
+			goto out;
+		}
+		msmsdcc_stop_data(host);
 		if (!mrq->data->error)
 			host->curr.data_xfered = host->curr.xfer_size;
 		if (!mrq->data->stop || mrq->cmd->error) {
@@ -647,7 +653,7 @@ msmsdcc_data_err(struct msmsdcc_host *host, struct mmc_data *data,
 	}
 
 	/* Dummy CMD52 is not needed when CMD53 has errors */
-	if (host->plat->dummy52_required && host->dummy_52_needed)
+	if (host->dummy_52_needed)
 		host->dummy_52_needed = 0;
 }
 
@@ -870,12 +876,10 @@ static void msmsdcc_do_cmdirq(struct msmsdcc_host *host, uint32_t status)
 					host->prog_scan = 0;
 					host->prog_enable = 0;
 				}
-				if (cmd->data && cmd->error) {
+				if (host->dummy_52_needed)
+					host->dummy_52_needed = 0;
+				if (cmd->data && cmd->error)
 					msmsdcc_reset_and_restore(host);
-					if (host->plat->dummy52_required &&
-							host->dummy_52_needed)
-						host->dummy_52_needed = 0;
-				}
 				msmsdcc_request_end(host, cmd->mrq);
 			}
 		}
@@ -933,6 +937,7 @@ msmsdcc_irq(int irq, void *dev_id)
 #if IRQ_DEBUG
 		msmsdcc_print_status(host, "irq0-p", status);
 #endif
+
 #ifdef CONFIG_MMC_MSM_SDIO_SUPPORT
 		if (status & MCI_SDIOINTROPE) {
 			if (host->sdcc_suspending)
@@ -940,8 +945,9 @@ msmsdcc_irq(int irq, void *dev_id)
 			mmc_signal_sdio_irq(host->mmc);
 		}
 #endif
-		if ((host->plat->dummy52_required) &&
-		    (host->dummy_52_state == DUMMY_52_STATE_SENT)) {
+		data = host->curr.data;
+
+		if (host->dummy_52_sent) {
 			if (status & (MCI_PROGDONE | MCI_CMDCRCFAIL |
 					  MCI_CMDTIMEOUT)) {
 				if (status & MCI_CMDTIMEOUT)
@@ -950,20 +956,18 @@ msmsdcc_irq(int irq, void *dev_id)
 				if (status & MCI_CMDCRCFAIL)
 					pr_err("%s: dummy CMD52 CRC failed\n",
 						mmc_hostname(host->mmc));
-				host->dummy_52_state = DUMMY_52_STATE_NONE;
-				host->curr.cmd = NULL;
-				if (host->curr.mrq)
-					msmsdcc_request_start(host,
-							      host->curr.mrq);
-				else
-					complete(&host->dummy_52_comp);
+				host->dummy_52_sent = 0;
+				host->dummy_52_needed = 0;
+				if (data) {
+					msmsdcc_stop_data(host);
+					msmsdcc_request_end(host, data->mrq);
+				}
+				WARN(!data, "No data cmd for dummy CMD52\n");
 				spin_unlock(&host->lock);
 				return IRQ_HANDLED;
 			}
 			break;
 		}
-
-		data = host->curr.data;
 
 		/*
 		 * Check for proper command response
@@ -1024,18 +1028,27 @@ msmsdcc_irq(int irq, void *dev_id)
 					if (data->flags & MMC_DATA_READ)
 						msmsdcc_wait_for_rxdata(host,
 								data);
-					msmsdcc_stop_data(host);
 					if (!data->error)
 						host->curr.data_xfered =
 							host->curr.xfer_size;
 
-					if (!data->stop)
-						timer |= msmsdcc_request_end(
-							  host, data->mrq);
-					else {
+					if (!host->dummy_52_needed) {
+						msmsdcc_stop_data(host);
+						if (!data->stop) {
+							msmsdcc_request_end(
+								  host,
+								  data->mrq);
+						} else {
+							msmsdcc_start_command(
+								host,
+								data->stop, 0);
+							timer = 1;
+						}
+					} else {
+						host->dummy_52_sent = 1;
 						msmsdcc_start_command(host,
-							      data->stop, 0);
-						timer = 1;
+							&dummy52cmd,
+							MCI_CPSM_PROGENA);
 					}
 				}
 			}
@@ -1069,6 +1082,7 @@ msmsdcc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	/*
 	 * Get the SDIO AL client out of LPM.
 	 */
+	WARN(host->dummy_52_sent, "Dummy CMD52 in progress\n");
 	if (host->plat->is_sdio_al_client)
 		msmsdcc_sdio_al_lpm(mmc, false);
 
@@ -1094,24 +1108,11 @@ msmsdcc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->curr.mrq = mrq;
 
 	if (host->plat->dummy52_required) {
-		if (host->dummy_52_needed) {
-			host->dummy_52_state = DUMMY_52_STATE_SENT;
-			msmsdcc_start_command(host, &dummy52cmd,
-					      MCI_CPSM_PROGENA);
-			spin_unlock_irqrestore(&host->lock, flags);
-			if (mrq->data && mrq->data->flags == MMC_DATA_WRITE) {
-				if (mrq->cmd->opcode == SD_IO_RW_EXTENDED ||
-					mrq->cmd->opcode == 54)
-					host->dummy_52_needed = 1;
-			} else {
-				host->dummy_52_needed = 0;
-			}
-			return;
-		}
 		if (mrq->data && mrq->data->flags == MMC_DATA_WRITE) {
 			if (mrq->cmd->opcode == SD_IO_RW_EXTENDED ||
-				mrq->cmd->opcode == 54)
+				mrq->cmd->opcode == 54) {
 				host->dummy_52_needed = 1;
+			}
 		}
 	}
 	msmsdcc_request_start(host, mrq);
@@ -1591,11 +1592,10 @@ static void msmsdcc_req_tout_timer_hdlr(unsigned long data)
 	unsigned long flags;
 
 	spin_lock_irqsave(&host->lock, flags);
-	if ((host->plat->dummy52_required) &&
-		(host->dummy_52_state == DUMMY_52_STATE_SENT)) {
+	if (host->dummy_52_sent) {
 		pr_info("%s: %s: dummy CMD52 timeout\n",
 				mmc_hostname(host->mmc), __func__);
-		host->dummy_52_state = DUMMY_52_STATE_NONE;
+		host->dummy_52_sent = 0;
 	}
 
 	mrq = host->curr.mrq;
@@ -1605,7 +1605,7 @@ static void msmsdcc_req_tout_timer_hdlr(unsigned long data)
 				__func__, mrq->cmd->opcode);
 		if (!mrq->cmd->error)
 			mrq->cmd->error = -ETIMEDOUT;
-		if (host->plat->dummy52_required && host->dummy_52_needed)
+		if (host->dummy_52_needed)
 			host->dummy_52_needed = 0;
 		if (host->curr.data) {
 			pr_info("%s: %s Request timeout\n",
@@ -1935,9 +1935,6 @@ msmsdcc_probe(struct platform_device *pdev)
 	setup_timer(&host->req_tout_timer, msmsdcc_req_tout_timer_hdlr,
 			(unsigned long)host);
 
-	if (plat->dummy52_required)
-		init_completion(&host->dummy_52_comp);
-
 	mmc_add_host(mmc);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -2127,21 +2124,6 @@ int msmsdcc_sdio_al_lpm(struct mmc_host *mmc, bool enable)
 			enable ? "En" : "Dis");
 
 	if (enable) {
-		if (host->plat->dummy52_required && host->dummy_52_needed) {
-			BUG_ON(host->curr.mrq);
-
-			host->dummy_52_state = DUMMY_52_STATE_SENT;
-			host->dummy_52_needed = 0;
-			msmsdcc_start_command(host, &dummy52cmd,
-					      MCI_CPSM_PROGENA);
-
-			spin_unlock_irqrestore(&host->lock, flags);
-			wait_for_completion(&host->dummy_52_comp);
-			spin_lock_irqsave(&host->lock, flags);
-			pr_debug("Dummy CMD52 before LPM sent for card %d\n",
-				 mmc->index);
-		}
-
 		if (!host->sdcc_irq_disabled) {
 			writel_relaxed(0, host->base + MMCIMASK0);
 			disable_irq(host->irqres->start);
