@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -30,8 +30,8 @@
 #ifndef __RTC_PM8058_H__
 #define __RTC_PM8058_H__
 
-struct pm8058_rtc_pdata {
-	bool rtc_write_enable;
+struct pm8058_rtc_platform_data {
+	bool rtc_alarm_powerup;
 };
 
 #endif /* __RTC_PM8058_H__ */

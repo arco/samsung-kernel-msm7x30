@@ -25,6 +25,7 @@
 
 #include <linux/input/pmic8058-keypad.h>
 #include <linux/pmic8058-pwrkey.h>
+#include <linux/rtc/rtc-pm8058.h>
 #include <linux/pmic8058-vibrator.h>
 #include <linux/leds.h>
 #include <linux/pmic8058-othc.h>
@@ -4680,6 +4681,10 @@ static struct resource resources_rtc[] = {
        },
 };
 
+static struct pm8058_rtc_platform_data pm8058_rtc_pdata = {
+	.rtc_alarm_powerup	= false,
+};
+
 static struct pmic8058_led pmic8058_flash_leds[] = {
 	[0] = {
 		.name		= "camera:flash0",
@@ -4826,6 +4831,8 @@ static struct mfd_cell pm8058_subdevs[] = {
 		.id = -1,
 		.num_resources  = ARRAY_SIZE(resources_rtc),
 		.resources      = resources_rtc,
+		.platform_data = &pm8058_rtc_pdata,
+		.data_size = sizeof(pm8058_rtc_pdata),
 	},
 	{
 		.name = "pm8058-tm",

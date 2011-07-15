@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,7 +27,9 @@
 #define PM8058_RTC_CTRL		0x1E8
 	#define PM8058_RTC_ENABLE	BIT(7)
 	#define PM8058_RTC_ALARM_ENABLE	BIT(1)
+	#define PM8058_RTC_ABORT_ENABLE	BIT(0)
 #define PM8058_RTC_ALARM_CTRL	0x1E9
+	#define PM8058_RTC_ALARM_CLEAR	BIT(0)
 #define PM8058_RTC_TEST		0x1F6
 #define PM8058_RTC_READ_BASE	0x1EE
 #define PM8058_RTC_WRITE_BASE	0x1EA
@@ -35,6 +37,7 @@
 
 struct pm8058_rtc {
 	struct rtc_device *rtc0;
+	u8 rtc_ctrl_reg;
 	int rtc_irq;
 	int rtc_alarm_irq;
 	struct pm8058_chip *pm_chip;
@@ -96,6 +99,8 @@ pm8058_rtc0_set_time(struct device *dev, struct rtc_time *tm)
 	u8 value[4], reg = 0, alarm_enabled = 0, ctrl_reg = 0, i;
 	struct pm8058_rtc *rtc_dd = dev_get_drvdata(dev);
 
+	ctrl_reg = rtc_dd->rtc_ctrl_reg;
+
 	rtc_tm_to_time(tm, &secs);
 
 	value[0] = secs & 0xFF;
@@ -105,14 +110,7 @@ pm8058_rtc0_set_time(struct device *dev, struct rtc_time *tm)
 
 	pr_debug("%s: Seconds value to be written to RTC = %lu\n", __func__,
 								secs);
-
-	/* Disable alarm before updating RTC */
-	rc = pm8058_read(rtc_dd->pm_chip, PM8058_RTC_CTRL, &ctrl_reg, 1);
-	if (rc < 0) {
-		pr_err("%s: PM8058 read failed\n", __func__);
-		return rc;
-	}
-
+	 /* Disable alarm before updating RTC */
 	if (ctrl_reg & PM8058_RTC_ALARM_ENABLE) {
 		alarm_enabled = 1;
 		ctrl_reg &= ~PM8058_RTC_ALARM_ENABLE;
@@ -157,6 +155,8 @@ pm8058_rtc0_set_time(struct device *dev, struct rtc_time *tm)
 			return rc;
 		}
 	}
+
+	rtc_dd->rtc_ctrl_reg = ctrl_reg;
 
 	return 0;
 }
@@ -217,32 +217,45 @@ pm8058_rtc0_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	int rc;
 	u8 value[4], reg;
-	unsigned long secs = 0;
+	struct rtc_time rtc_tm;
+	unsigned long secs_alarm, secs_rtc;
 	struct pm8058_rtc *rtc_dd = dev_get_drvdata(dev);
 
-	/* Check if a alarm is valid */
+	reg = rtc_dd->rtc_ctrl_reg;
+
+	/* Check if the alarm is valid */
 	rc = rtc_valid_tm(&alarm->time);
 	if (rc < 0) {
 		pr_err("%s: Alarm time invalid\n", __func__);
 		return -EINVAL;
 	}
 
-	rtc_tm_to_time(&alarm->time, &secs);
+	rtc_tm_to_time(&alarm->time, &secs_alarm);
 
-	value[0] = secs & 0xFF;
-	value[1] = (secs >> 8) & 0xFF;
-	value[2] = (secs >> 16) & 0xFF;
-	value[3] = (secs >> 24) & 0xFF;
+	/*
+	 * Read the current RTC time and verify if the alarm time is in the
+	 * past. If yes, return invalid.
+	 */
+	rc = pm8058_rtc0_read_time(dev, &rtc_tm);
+	if (rc) {
+		pr_err("%s: Unable to read RTC time\n", __func__);
+		return -EINVAL;
+	}
+	rtc_tm_to_time(&rtc_tm, &secs_rtc);
+
+	if (secs_alarm < secs_rtc) {
+		pr_err("%s: Trying to set alarm in the past\n", __func__);
+		return -EINVAL;
+	}
+
+	value[0] = secs_alarm & 0xFF;
+	value[1] = (secs_alarm >> 8) & 0xFF;
+	value[2] = (secs_alarm >> 16) & 0xFF;
+	value[3] = (secs_alarm >> 24) & 0xFF;
 
 	rc = pm8058_rtc_write_bytes(rtc_dd, value, PM8058_RTC_ALARM_BASE);
 	if (rc < 0) {
 		pr_err("%s: Alarm could not be set\n", __func__);
-		return rc;
-	}
-
-	rc = pm8058_read(rtc_dd->pm_chip, PM8058_RTC_CTRL, &reg, 1);
-	if (rc < 0) {
-		pr_err("%s: PM8058 read failed\n", __func__);
 		return rc;
 	}
 
@@ -254,6 +267,8 @@ pm8058_rtc0_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		pr_err("%s: PM8058 write failed\n", __func__);
 		return rc;
 	}
+
+	rtc_dd->rtc_ctrl_reg = reg;
 
 	pr_debug("%s: Alarm Set for h:r:s=%d:%d:%d, d/m/y=%d/%d/%d\n",
 			__func__, alarm->time.tm_hour, alarm->time.tm_min,
@@ -271,12 +286,8 @@ pm8058_rtc0_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	unsigned long secs = 0;
 	struct pm8058_rtc *rtc_dd = dev_get_drvdata(dev);
 
-	/* Check if the alarm is enabled */
-	rc = pm8058_read(rtc_dd->pm_chip, PM8058_RTC_CTRL, &reg, 1);
-	if (rc < 0) {
-		pr_err("%s: PM8058 read failed\n", __func__);
-		return rc;
-	}
+	reg = rtc_dd->rtc_ctrl_reg;
+
 	alarm->enabled = !!(reg & PM8058_RTC_ALARM_ENABLE);
 
 	rc = pm8058_rtc_read_bytes(rtc_dd, value,
@@ -304,14 +315,40 @@ pm8058_rtc0_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	return 0;
 }
 
+
+static int
+pm8058_rtc0_alarm_irq_enable(struct device *dev, unsigned int enable)
+{
+	int rc;
+	struct pm8058_rtc *rtc_dd = dev_get_drvdata(dev);
+	u8 reg;
+
+	reg = rtc_dd->rtc_ctrl_reg;
+	reg = (enable) ? (reg | PM8058_RTC_ALARM_ENABLE) :
+				(reg & ~PM8058_RTC_ALARM_ENABLE);
+
+	rc = pm8058_write(rtc_dd->pm_chip, PM8058_RTC_CTRL, &reg, 1);
+	if (rc < 0) {
+		pr_err("%s: PM8058 write failed\n", __func__);
+		return rc;
+	}
+
+	rtc_dd->rtc_ctrl_reg = reg;
+
+	return rc;
+}
+
 static struct rtc_class_ops pm8058_rtc0_ops = {
 	.read_time	= pm8058_rtc0_read_time,
 	.set_alarm	= pm8058_rtc0_set_alarm,
 	.read_alarm	= pm8058_rtc0_read_alarm,
+	.alarm_irq_enable = pm8058_rtc0_alarm_irq_enable,
 };
 
 static irqreturn_t pm8058_alarm_trigger(int irq, void *dev_id)
 {
+	u8 reg;
+	int rc;
 	unsigned long events = 0;
 	struct pm8058_rtc *rtc_dd = dev_id;
 
@@ -320,13 +357,41 @@ static irqreturn_t pm8058_alarm_trigger(int irq, void *dev_id)
 
 	pr_debug("%s: Alarm Triggered !!\n", __func__);
 
+	/* Clear the alarm enable bit */
+	reg = rtc_dd->rtc_ctrl_reg;
+
+	reg &= ~PM8058_RTC_ALARM_ENABLE;
+	rc = pm8058_write(rtc_dd->pm_chip, PM8058_RTC_CTRL,
+						&reg, 1);
+	if (rc < 0) {
+		pr_err("%s: PM8058 write failed\n", __func__);
+		goto rtc_alarm_handled;
+	}
+
+	rtc_dd->rtc_ctrl_reg = reg;
+
+	/* Clear RTC alarm register */
+	rc = pm8058_read(rtc_dd->pm_chip, PM8058_RTC_ALARM_CTRL, &reg, 1);
+	if (rc < 0) {
+		pr_err("%s: PM8058 read failed\n", __func__);
+		goto rtc_alarm_handled;
+	}
+
+	reg &= ~PM8058_RTC_ALARM_CLEAR;
+	rc = pm8058_write(rtc_dd->pm_chip, PM8058_RTC_ALARM_CTRL, &reg, 1);
+	if (rc < 0) {
+		pr_err("%s: PM8058 write failed\n", __func__);
+		goto rtc_alarm_handled;
+	}
+
+rtc_alarm_handled:
 	return IRQ_HANDLED;
 }
 
 static int __devinit pm8058_rtc_probe(struct platform_device *pdev)
 {
 	int rc;
-	u8 reg;
+	u8 reg, reg_alarm;
 	struct pm8058_rtc *rtc_dd;
 	struct pm8058_chip *pm_chip;
 
@@ -358,25 +423,45 @@ static int __devinit pm8058_rtc_probe(struct platform_device *pdev)
 
 	rtc_dd->pm_chip = pm_chip;
 
-	/* Check if the RTC is on, else turn it on */
 	rc = pm8058_read(pm_chip, PM8058_RTC_CTRL, &reg, 1);
 	if (rc < 0) {
 		pr_err("%s: PM8058 read failed\n", __func__);
 		goto fail_rtc_enable;
 	}
 
-	if (!(reg & PM8058_RTC_ENABLE)) {
-		reg |= PM8058_RTC_ENABLE;
-		rc = pm8058_write(pm_chip, PM8058_RTC_CTRL, &reg, 1);
-		if (rc < 0) {
-			pr_err("%s: PM8058 write failed\n", __func__);
-			goto fail_rtc_enable;
-		}
+	/* Enable RTC, ABORT enable and disable alarm */
+	reg |= ((PM8058_RTC_ENABLE | PM8058_RTC_ABORT_ENABLE) &
+			~PM8058_RTC_ALARM_ENABLE);
+
+	rc = pm8058_write(pm_chip, PM8058_RTC_CTRL, &reg, 1);
+	if (rc < 0) {
+		pr_err("%s: PM8058 write failed\n", __func__);
+		goto fail_rtc_enable;
 	}
 
+	/* Clear RTC alarm control register */
+	rc = pm8058_read(rtc_dd->pm_chip, PM8058_RTC_ALARM_CTRL,
+							&reg_alarm, 1);
+	if (rc < 0) {
+		pr_err("%s: PM8058 read failed\n", __func__);
+		goto fail_rtc_enable;
+	}
+
+	reg_alarm &= ~PM8058_RTC_ALARM_CLEAR;
+	rc = pm8058_write(rtc_dd->pm_chip, PM8058_RTC_ALARM_CTRL,
+							&reg_alarm, 1);
+	if (rc < 0) {
+		pr_err("%s: PM8058 write failed\n", __func__);
+		goto fail_rtc_enable;
+	}
+
+	rtc_dd->rtc_ctrl_reg = reg;
+
 #ifdef CONFIG_RTC_PM8058_WRITE_ENABLE
-	pm8058_rtc0_ops.set_time	= pm8058_rtc0_set_time,
+	pm8058_rtc0_ops.set_time	= pm8058_rtc0_set_time;
 #endif
+
+	platform_set_drvdata(pdev, rtc_dd);
 
 	/* Register the RTC device */
 	rtc_dd->rtc0 = rtc_device_register("pm8058_rtc0", &pdev->dev,
@@ -388,7 +473,6 @@ static int __devinit pm8058_rtc_probe(struct platform_device *pdev)
 		goto fail_rtc_enable;
 	}
 
-	platform_set_drvdata(pdev, rtc_dd);
 
 	/* Request the alarm IRQ */
 	rc = request_threaded_irq(rtc_dd->rtc_alarm_irq, NULL,
@@ -456,9 +540,48 @@ static int __devexit pm8058_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void pm8058_rtc_shutdown(struct platform_device *pdev)
+{
+	u8 reg;
+	int rc, i;
+	bool rtc_alarm_powerup = false;
+	struct pm8058_rtc *rtc_dd = platform_get_drvdata(pdev);
+	struct pm8058_rtc_platform_data *pdata = pdev->dev.platform_data;
+
+	if (pdata != NULL)
+		rtc_alarm_powerup =  pdata->rtc_alarm_powerup;
+
+	if (!rtc_alarm_powerup) {
+
+		dev_dbg(&pdev->dev, "Disabling alarm interrupts\n");
+
+		/* Disable RTC alarms */
+		reg = rtc_dd->rtc_ctrl_reg;
+		reg &= ~PM8058_RTC_ALARM_ENABLE;
+		rc = pm8058_write(rtc_dd->pm_chip, PM8058_RTC_CTRL, &reg, 1);
+		if (rc < 0) {
+			pr_err("%s: PM8058 write failed\n", __func__);
+			return;
+		}
+
+		/* Clear Alarm register */
+		reg = 0x0;
+		for (i = 0; i < 4; i++) {
+			rc = pm8058_write(rtc_dd->pm_chip,
+					PM8058_RTC_ALARM_BASE + i, &reg, 1);
+			if (rc < 0) {
+				pr_err("%s: PM8058 write failed\n", __func__);
+				return;
+			}
+		}
+
+	}
+}
+
 static struct platform_driver pm8058_rtc_driver = {
 	.probe		= pm8058_rtc_probe,
 	.remove		= __devexit_p(pm8058_rtc_remove),
+	.shutdown	= pm8058_rtc_shutdown,
 	.driver	= {
 		.name	= "pm8058-rtc",
 		.owner	= THIS_MODULE,
