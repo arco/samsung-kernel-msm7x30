@@ -20,6 +20,7 @@ header-y += mfd/
 header-y += affs_hardblocks.h
 header-y += aio_abi.h
 header-y += arcfb.h
+header-y += ashmem.h
 header-y += atmapi.h
 header-y += atmarp.h
 header-y += atmbr2684.h
