@@ -1103,27 +1103,6 @@ void destroy_workqueue(struct workqueue_struct *wq)
 }
 EXPORT_SYMBOL_GPL(destroy_workqueue);
 
-int is_workqueue_empty(struct workqueue_struct *wq)
-{
-	int ret = 1, cpu;
-	struct cpu_workqueue_struct *cwq;
-
-	if (wq->singlethread) {
-		cwq = per_cpu_ptr(wq->cpu_wq, singlethread_cpu);
-		ret = list_empty(&cwq->worklist);
-	} else {
-		for_each_possible_cpu(cpu) {
-			cwq = per_cpu_ptr(wq->cpu_wq, cpu);
-			ret = list_empty(&cwq->worklist);
-			if (!ret)
-				break;
-		}
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(is_workqueue_empty);
-
 static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 						unsigned long action,
 						void *hcpu)
