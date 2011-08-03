@@ -2126,7 +2126,7 @@ int msmsdcc_sdio_al_lpm(struct mmc_host *mmc, bool enable)
 	if (enable) {
 		if (!host->sdcc_irq_disabled) {
 			writel_relaxed(0, host->base + MMCIMASK0);
-			disable_irq(host->irqres->start);
+			disable_irq_nosync(host->irqres->start);
 			host->sdcc_irq_disabled = 1;
 		}
 		if (host->clks_on) {
