@@ -535,8 +535,6 @@ struct sdio_al_device {
 
 	u32 signature;
 
-	unsigned int clock;
-
 	unsigned int is_suspended;
 
 	int use_default_conf;
@@ -775,13 +773,7 @@ static void sdio_al_sleep(struct sdio_al_device *sdio_al_dev,
 	sdio_al_dev->is_ok_to_sleep = 1;
 	write_lpm_info(sdio_al_dev);
 
-	/* Clock rate is required to enable the clock and set its rate.
-	 * Hence, save the clock rate before disabling it */
-	sdio_al_dev->clock = host->ios.clock;
-	/* Disable clocks here */
-	host->ios.clock = 0;
 	msmsdcc_lpm_enable(host);
-	msmsdcc_set_pwrsave(sdio_al_dev->card->host, 1);
 	pr_info(MODULE_NAME ":Finished sleep sequence for card %d. "
 			    "Sleep now.\n",
 		sdio_al_dev->card->host->index);
@@ -2031,10 +2023,6 @@ static int sdio_al_wake_up(struct sdio_al_device *sdio_al_dev,
 		return 0;
 	}
 
-	pr_debug(MODULE_NAME ":Turn clock on for card %d\n",
-		 sdio_al_dev->card->host->index);
-	/* Enable the clock and set its rate */
-	host->ios.clock = sdio_al_dev->clock;
 	msmsdcc_lpm_disable(host);
 	msmsdcc_set_pwrsave(sdio_al_dev->card->host, 0);
 	/* Poll the GPIO */
