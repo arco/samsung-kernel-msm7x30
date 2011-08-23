@@ -301,6 +301,7 @@ static void modem_reset_start_cleanup(void)
 			list_del(&reply->list);
 			kfree(reply);
 		}
+		ept->reply_cnt = 0;
 		spin_unlock(&ept->reply_q_lock);
 		if (ept->dst_pid == RPCROUTER_PID_REMOTE) {
 			spin_lock(&ept->incomplete_lock);
