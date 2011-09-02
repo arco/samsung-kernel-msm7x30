@@ -717,15 +717,17 @@ msmsdcc_pio_irq(int irq, void *dev_id)
 	void __iomem		*base = host->base;
 	uint32_t		status;
 
+	spin_lock(&host->lock);
+
 	status = readl(base + MMCISTATUS);
-	if (((readl(host->base + MMCIMASK0) & status) & (MCI_IRQ_PIO)) == 0)
+	if (((readl(host->base + MMCIMASK0) & status) & (MCI_IRQ_PIO)) == 0) {
+		spin_unlock(&host->lock);
 		return IRQ_NONE;
+	}
 
 #if IRQ_DEBUG
 	msmsdcc_print_status(host, "irq1-r", status);
 #endif
-
-	spin_lock(&host->lock);
 
 	do {
 		unsigned long flags;
@@ -1359,11 +1361,9 @@ static int msmsdcc_enable(struct mmc_host *mmc)
 	int rc;
 	struct device *dev = mmc->parent;
 
-	if (dev->power.runtime_status == RPM_SUSPENDING) {
-		if (mmc->suspend_task == current) {
-			pm_runtime_get_noresume(dev);
-			goto out;
-		}
+	if (atomic_read(&dev->power.usage_count) > 0) {
+		pm_runtime_get_noresume(dev);
+		goto out;
 	}
 
 	rc = pm_runtime_get_sync(dev);
