@@ -1359,9 +1359,11 @@ static int msmsdcc_enable(struct mmc_host *mmc)
 	int rc;
 	struct device *dev = mmc->parent;
 
-	if (atomic_read(&dev->power.usage_count) > 0) {
-		pm_runtime_get_noresume(dev);
-		goto out;
+	if (dev->power.runtime_status == RPM_SUSPENDING) {
+		if (mmc->suspend_task == current) {
+			pm_runtime_get_noresume(dev);
+			goto out;
+		}
 	}
 
 	rc = pm_runtime_get_sync(dev);
