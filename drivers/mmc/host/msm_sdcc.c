@@ -2190,7 +2190,6 @@ int msmsdcc_sdio_al_lpm(struct mmc_host *mmc, bool enable)
 			enable_irq(host->irqres->start);
 			host->sdcc_irq_disabled = 0;
 		}
-		wake_lock_timeout(&host->sdio_wlock, 1);
 	}
 	spin_unlock_irqrestore(&host->lock, flags);
 	return 0;
