@@ -63,7 +63,6 @@ EXPORT_SYMBOL(panic_blink);
  */
 #include "../arch/arm/mach-msm/smd_private.h" 
 #include "../arch/arm/mach-msm/proc_comm.h"
-#include <mach/msm_iomap-7xxx.h>
 #include <mach/msm_iomap.h>
 #include <asm/io.h>
 
