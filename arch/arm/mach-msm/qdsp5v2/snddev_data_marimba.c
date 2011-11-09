@@ -30,15 +30,15 @@
 #include <mach/qdsp5v2/snddev_mi2s.h>
 #include <mach/qdsp5v2/mi2s.h>
 #include <mach/qdsp5v2/audio_acdb_def.h>
-#ifdef CONFIG_MACH_ARIESVE
+#if defined(CONFIG_MACH_ARIESVE)
 #include <mach/qdsp5v2/marimba_profile_ariesve.h>
-#elif CONFIG_MACH_ANCORA_TMO
+#elif defined(CONFIG_MACH_ANCORA_TMO)
 #include <mach/qdsp5v2/marimba_profile_ancora_tmo.h>
-#elif CONFIG_MACH_ANCORA
+#elif defined(CONFIG_MACH_ANCORA)
 #include <mach/qdsp5v2/marimba_profile_ancora.h>
-#elif CONFIG_MACH_GODART
+#elif defined(CONFIG_MACH_GODART)
 #include <mach/qdsp5v2/marimba_profile_godart.h>
-#elif CONFIG_MACH_APACHE
+#elif defined(CONFIG_MACH_APACHE)
 #include <mach/qdsp5v2/marimba_profile_apache.h>
 #else
 #include <mach/qdsp5v2/marimba_profile.h>
@@ -4346,19 +4346,19 @@ void __ref msm_snddev_init(void)
 		ARRAY_SIZE(snd_devices_fluid));
 	else
 #if SAMSUNG_AUDIO_PATH
-#ifdef CONFIG_MACH_ARIESVE
+#if defined(CONFIG_MACH_ARIESVE)
    		platform_add_devices(snd_devices_ariesve,
 		ARRAY_SIZE(snd_devices_ariesve));
-#elif CONFIG_MACH_ANCORA
+#elif defined(CONFIG_MACH_ANCORA)
    		platform_add_devices(snd_devices_ancora,
 		ARRAY_SIZE(snd_devices_ancora));
-#elif CONFIG_MACH_ANCORA_TMO
+#elif defined(CONFIG_MACH_ANCORA_TMO)
    		platform_add_devices(snd_devices_ancora,
 		ARRAY_SIZE(snd_devices_ancora));
-#elif CONFIG_MACH_APACHE
+#elif defined(CONFIG_MACH_APACHE)
    		platform_add_devices(snd_devices_ancora,
 		ARRAY_SIZE(snd_devices_ancora));
-#elif CONFIG_MACH_GODART
+#elif defined(CONFIG_MACH_GODART)
    		platform_add_devices(snd_devices_godart,
 		ARRAY_SIZE(snd_devices_godart));
 #endif

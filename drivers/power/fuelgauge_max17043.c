@@ -272,7 +272,7 @@ void fuel_gauge_rcomp(void)
 
 	if (!client)
 		return ;
-#if CONFIG_MACH_APACHE
+#if defined(CONFIG_MACH_APACHE)
 	rst_cmd[0] = 0xC0; /* MAXIM recommend */
 #else
 	rst_cmd[0] = 0xB0;
