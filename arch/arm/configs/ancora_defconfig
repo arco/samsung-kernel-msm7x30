@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.35.14
-# Wed Nov  9 07:36:21 2011
+# Sat Nov 12 06:32:16 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -892,7 +892,7 @@ CONFIG_WEXT_PROC=y
 CONFIG_WEXT_SPY=y
 CONFIG_WEXT_PRIV=y
 # CONFIG_CFG80211 is not set
-CONFIG_WIRELESS_EXT_SYSFS=y
+# CONFIG_WIRELESS_EXT_SYSFS is not set
 # CONFIG_LIB80211 is not set
 
 #
@@ -1139,7 +1139,7 @@ CONFIG_SLHC=y
 # CONFIG_NETCONSOLE is not set
 # CONFIG_NETPOLL is not set
 # CONFIG_NET_POLL_CONTROLLER is not set
-# CONFIG_KINETO_GAN is not set
+CONFIG_KINETO_GAN=y
 # CONFIG_ISDN is not set
 # CONFIG_PHONE is not set
 
@@ -1159,7 +1159,7 @@ CONFIG_INPUT=y
 CONFIG_INPUT_EVDEV=y
 # CONFIG_INPUT_EVBUG is not set
 # CONFIG_INPUT_KEYRESET is not set
-# CONFIG_INPUT_SECBRIDGE is not set
+CONFIG_INPUT_SECBRIDGE=y
 
 #
 # Input Device Drivers
