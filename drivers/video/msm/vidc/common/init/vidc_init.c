@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -8,11 +8,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -32,6 +27,7 @@
 #include <linux/android_pmem.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/debugfs.h>
 #include <mach/internal_power_rail.h>
 #include <mach/clk.h>
 #include <linux/pm_runtime.h>
@@ -59,7 +55,7 @@ static const struct file_operations vidc_fops = {
 	.owner = THIS_MODULE,
 	.open = NULL,
 	.release = NULL,
-	.ioctl = NULL,
+	.unlocked_ioctl = NULL,
 };
 
 struct workqueue_struct *vidc_wq;
@@ -67,11 +63,33 @@ struct workqueue_struct *vidc_timer_wq;
 static irqreturn_t vidc_isr(int irq, void *dev);
 static spinlock_t vidc_spin_lock;
 
+u32 vidc_msg_timing, vidc_msg_pmem;
+
+#ifdef VIDC_ENABLE_DBGFS
+struct dentry *vidc_debugfs_root;
+
+struct dentry *vidc_get_debugfs_root(void)
+{
+	if (vidc_debugfs_root == NULL)
+		vidc_debugfs_root = debugfs_create_dir("vidc", NULL);
+	return vidc_debugfs_root;
+}
+
+void vidc_debugfs_file_create(struct dentry *root, const char *name,
+				u32 *var)
+{
+	struct dentry *vidc_debugfs_file =
+	    debugfs_create_u32(name, S_IRUGO | S_IWUSR, root, var);
+	if (!vidc_debugfs_file)
+		ERR("%s(): Error creating/opening file %s\n", __func__, name);
+}
+#endif
+
 static void vidc_timer_fn(unsigned long data)
 {
 	unsigned long flag;
 	struct vidc_timer *hw_timer = NULL;
-	DBG("%s() Timer expired\n", __func__);
+	ERR("%s() Timer expired\n", __func__);
 	spin_lock_irqsave(&vidc_spin_lock, flag);
 	hw_timer = (struct vidc_timer *)data;
 	list_add_tail(&hw_timer->list, &vidc_device_p->vidc_timer_queue);
@@ -86,7 +104,7 @@ static void vidc_timer_handler(struct work_struct *work)
 	u32 islist_empty = 0;
 	struct vidc_timer *hw_timer = NULL;
 
-	DBG("%s() Timer expired\n", __func__);
+	ERR("%s() Timer expired\n", __func__);
 	do {
 		spin_lock_irqsave(&vidc_spin_lock, flag);
 		islist_empty = list_empty(&vidc_device_p->vidc_timer_queue);
@@ -210,6 +228,9 @@ static int __init vidc_init(void)
 {
 	int rc = 0;
 	struct device *class_devp;
+#ifdef VIDC_ENABLE_DBGFS
+	struct dentry *root = NULL;
+#endif
 
 	vidc_device_p = kzalloc(sizeof(struct vidc_dev), GFP_KERNEL);
 	if (!vidc_device_p) {
@@ -264,14 +285,14 @@ static int __init vidc_init(void)
 
 	if (unlikely(rc)) {
 		ERR("%s() :request_irq failed\n", __func__);
-		goto error_vidc_platfom_register;
+		goto error_vidc_request_irq;
 	}
 	res_trk_init(vidc_device_p->device, vidc_device_p->irq);
 	vidc_timer_wq = create_singlethread_workqueue("vidc_timer_wq");
 	if (!vidc_timer_wq) {
 		ERR("%s: create workque failed\n", __func__);
 		rc = -ENOMEM;
-		goto error_vidc_platfom_register;
+		goto error_vidc_create_workqueue;
 	}
 	DBG("Disabling IRQ in %s()\n", __func__);
 	disable_irq_nosync(vidc_device_p->irq);
@@ -283,8 +304,21 @@ static int __init vidc_init(void)
 	vidc_device_p->ref_count = 0;
 	vidc_device_p->firmware_refcount = 0;
 	vidc_device_p->get_firmware = 0;
+#ifdef VIDC_ENABLE_DBGFS
+	root = vidc_get_debugfs_root();
+	if (root) {
+		vidc_debugfs_file_create(root, "vidc_msg_timing",
+				(u32 *) &vidc_msg_timing);
+		vidc_debugfs_file_create(root, "vidc_msg_pmem",
+				(u32 *) &vidc_msg_pmem);
+	}
+#endif
 	return 0;
 
+error_vidc_create_workqueue:
+	free_irq(vidc_device_p->irq, vidc_device_p->device);
+error_vidc_request_irq:
+	platform_driver_unregister(&msm_vidc_720p_platform_driver);
 error_vidc_platfom_register:
 	cdev_del(&(vidc_device_p->cdev));
 error_vidc_cdev_add:
@@ -349,7 +383,7 @@ u32 vidc_lookup_addr_table(struct video_client_ctx *client_ctx,
 
 	if (!client_ctx)
 		return false;
-
+	mutex_lock(&client_ctx->enrty_queue_lock);
 	if (buffer == BUFFER_TYPE_INPUT) {
 		buf_addr_table = client_ctx->input_buf_addr_table;
 		num_of_buffers = client_ctx->num_of_input_buffers;
@@ -399,6 +433,7 @@ u32 vidc_lookup_addr_table(struct video_client_ctx *client_ctx,
 			" pmem_fd = %d, struct *file	= %p "
 			"buffer_index = %d\n", *user_vaddr, *phy_addr,
 			*pmem_fd, *file, *buffer_index);
+		mutex_unlock(&client_ctx->enrty_queue_lock);
 		return true;
 	} else {
 		if (search_with_user_vaddr)
@@ -408,6 +443,7 @@ u32 vidc_lookup_addr_table(struct video_client_ctx *client_ctx,
 			DBG("%s() : client_ctx = %p kernel_virt_addr = 0x%08lx"
 			" Not Found.\n", __func__, client_ctx,
 			*kernel_vaddr);
+		mutex_unlock(&client_ctx->enrty_queue_lock);
 		return false;
 	}
 }
@@ -419,14 +455,14 @@ u32 vidc_insert_addr_table(struct video_client_ctx *client_ctx,
 	unsigned long buffer_addr_offset, unsigned int max_num_buffers)
 {
 	unsigned long len, phys_addr;
-	struct file *file;
+	struct file *file = NULL;
 	u32 *num_of_buffers = NULL;
 	u32 i;
 	struct buf_addr_table *buf_addr_table;
 
 	if (!client_ctx)
 		return false;
-
+	mutex_lock(&client_ctx->enrty_queue_lock);
 	if (buffer == BUFFER_TYPE_INPUT) {
 		buf_addr_table = client_ctx->input_buf_addr_table;
 		num_of_buffers = &client_ctx->num_of_input_buffers;
@@ -443,7 +479,7 @@ u32 vidc_insert_addr_table(struct video_client_ctx *client_ctx,
 	if (*num_of_buffers == max_num_buffers) {
 		ERR("%s(): Num of buffers reached max value : %d",
 			__func__, max_num_buffers);
-		return false;
+		goto bail_out_add;
 	}
 
 	i = 0;
@@ -454,12 +490,12 @@ u32 vidc_insert_addr_table(struct video_client_ctx *client_ctx,
 		DBG("%s() : client_ctx = %p."
 			" user_virt_addr = 0x%08lx already set",
 			__func__, client_ctx, user_vaddr);
-		return false;
+		goto bail_out_add;
 	} else {
 		if (get_pmem_file(pmem_fd, &phys_addr,
 				kernel_vaddr, &len, &file)) {
 			ERR("%s(): get_pmem_file failed\n", __func__);
-			return false;
+			goto bail_out_add;
 		}
 		put_pmem_file(file);
 		phys_addr += buffer_addr_offset;
@@ -474,7 +510,12 @@ u32 vidc_insert_addr_table(struct video_client_ctx *client_ctx,
 			"kernel_vaddr = 0x%08lx inserted!",	__func__,
 			client_ctx, user_vaddr, *kernel_vaddr);
 	}
+	mutex_unlock(&client_ctx->enrty_queue_lock);
 	return true;
+
+bail_out_add:
+	mutex_unlock(&client_ctx->enrty_queue_lock);
+	return false;
 }
 EXPORT_SYMBOL(vidc_insert_addr_table);
 
@@ -489,7 +530,7 @@ u32 vidc_delete_addr_table(struct video_client_ctx *client_ctx,
 
 	if (!client_ctx)
 		return false;
-
+	mutex_lock(&client_ctx->enrty_queue_lock);
 	if (buffer == BUFFER_TYPE_INPUT) {
 		buf_addr_table = client_ctx->input_buf_addr_table;
 		num_of_buffers = &client_ctx->num_of_input_buffers;
@@ -502,7 +543,7 @@ u32 vidc_delete_addr_table(struct video_client_ctx *client_ctx,
 	}
 
 	if (!*num_of_buffers)
-		return false;
+		goto bail_out_del;
 
 	i = 0;
 	while (i < *num_of_buffers &&
@@ -512,7 +553,7 @@ u32 vidc_delete_addr_table(struct video_client_ctx *client_ctx,
 		DBG("%s() : client_ctx = %p."
 			" user_virt_addr = 0x%08lx NOT found",
 			__func__, client_ctx, user_vaddr);
-		return false;
+		goto bail_out_del;
 	}
 	*kernel_vaddr = buf_addr_table[i].kernel_vaddr;
 	if (i < (*num_of_buffers - 1)) {
@@ -531,7 +572,11 @@ u32 vidc_delete_addr_table(struct video_client_ctx *client_ctx,
 	DBG("%s() : client_ctx = %p."
 		" user_virt_addr = 0x%08lx is found and deleted",
 		__func__, client_ctx, user_vaddr);
+	mutex_unlock(&client_ctx->enrty_queue_lock);
 	return true;
+bail_out_del:
+	mutex_unlock(&client_ctx->enrty_queue_lock);
+	return false;
 }
 EXPORT_SYMBOL(vidc_delete_addr_table);
 

@@ -9,11 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  */
 
 #include <linux/cdev.h>
@@ -318,6 +313,42 @@ u32 vid_enc_set_get_bitrate(struct video_client_ctx *client_ctx,
 	return true;
 }
 
+u32 vid_enc_set_get_extradata(struct video_client_ctx *client_ctx,
+		u32 *extradata_flag, u32 set_flag)
+{
+	struct vcd_property_hdr vcd_property_hdr;
+	struct vcd_property_meta_data_enable vcd_meta_data;
+	u32 vcd_status = VCD_ERR_FAIL;
+	if (!client_ctx || !extradata_flag)
+		return false;
+	vcd_property_hdr.prop_id = VCD_I_METADATA_ENABLE;
+	vcd_property_hdr.sz = sizeof(struct vcd_property_meta_data_enable);
+	if (set_flag) {
+		DBG("vcd_set_property: VCD_I_METADATA_ENABLE = %d\n",
+				*extradata_flag);
+		vcd_meta_data.meta_data_enable_flag = *extradata_flag;
+		vcd_status = vcd_set_property(client_ctx->vcd_handle,
+					&vcd_property_hdr, &vcd_meta_data);
+		if (vcd_status) {
+			ERR("%s(): Set VCD_I_METADATA_ENABLE Failed\n",
+				__func__);
+			return false;
+		}
+	} else {
+		vcd_status = vcd_get_property(client_ctx->vcd_handle,
+					&vcd_property_hdr, &vcd_meta_data);
+		if (vcd_status) {
+			ERR("%s(): Get VCD_I_METADATA_ENABLE Failed\n",
+				__func__);
+			return false;
+		}
+		*extradata_flag = vcd_meta_data.meta_data_enable_flag;
+		DBG("vcd_get_property: VCD_I_METADATA_ENABLE = %d\n",
+				*extradata_flag);
+	}
+	return true;
+}
+
 u32 vid_enc_set_get_framerate(struct video_client_ctx *client_ctx,
 		struct venc_framerate *frame_rate, u32 set_flag)
 {
@@ -599,6 +630,9 @@ u32 vid_enc_set_get_profile_level(struct video_client_ctx *client_ctx,
 		case VEN_LEVEL_H264_3p1:
 			level.level = VCD_LEVEL_H264_3p1;
 			break;
+		case VEN_LEVEL_H264_3p2:
+			level.level = VCD_LEVEL_H264_3p2;
+			break;
 		case VEN_LEVEL_H264_4:
 			level.level = VCD_LEVEL_H264_4;
 			break;
@@ -702,7 +736,7 @@ u32 vid_enc_set_get_profile_level(struct video_client_ctx *client_ctx,
 				profile_level->level = VEN_LEVEL_H264_3p1;
 				break;
 			case VCD_LEVEL_H264_3p2:
-				status = false;
+				profile_level->level = VEN_LEVEL_H264_3p2;
 				break;
 			case VCD_LEVEL_H264_4:
 				profile_level->level = VEN_LEVEL_H264_4;
@@ -855,23 +889,17 @@ u32 vid_enc_get_sequence_header(struct video_client_ctx *client_ctx,
 	u32 vcd_status = VCD_ERR_FAIL;
 	u32 status = true;
 
-	if (!client_ctx ||
-			!seq_header || !seq_header->bufsize)
+	if (!client_ctx || !seq_header || !seq_header->bufsize)
 		return false;
 
 	vcd_property_hdr.prop_id = VCD_I_SEQ_HEADER;
-	vcd_property_hdr.sz =
-		sizeof(struct vcd_sequence_hdr);
+	vcd_property_hdr.sz = sizeof(struct vcd_sequence_hdr);
 
-	hdr.sequence_header =
-		kzalloc(seq_header->bufsize, GFP_KERNEL);
-	seq_header->hdrbufptr = hdr.sequence_header;
-
-	if (!hdr.sequence_header)
-		return false;
+	hdr.sequence_header = seq_header->hdrbufptr;
 	hdr.sequence_header_len = seq_header->bufsize;
 	vcd_status = vcd_get_property(client_ctx->vcd_handle,
 			&vcd_property_hdr, &hdr);
+	seq_header->hdrlen = hdr.sequence_header_len;
 
 	if (vcd_status) {
 		ERR("%s(): Get VCD_I_SEQ_HEADER Failed\n",
@@ -1493,6 +1521,11 @@ u32 vid_enc_get_buffer_req(struct video_client_ctx *client_ctx,
 		venc_buf_req->alignment = buffer_req.align;
 		venc_buf_req->bufpoolid = buffer_req.buf_pool_id;
 		venc_buf_req->suffixsize = 0;
+		DBG("%s: actual_count=%d, align=%d, sz=%d, min_count=%d, "
+			"max_count=%d, buf_pool_id=%d\n", __func__,
+			buffer_req.actual_count, buffer_req.align,
+			buffer_req.sz, buffer_req.min_count,
+			buffer_req.max_count, buffer_req.buf_pool_id);
 	}
 	return status;
 }
@@ -1520,6 +1553,11 @@ u32 vid_enc_set_buffer_req(struct video_client_ctx *client_ctx,
 	buffer_req.align = venc_buf_req->alignment;
 	buffer_req.buf_pool_id = 0;
 
+	DBG("%s: actual_count=%d, align=%d, sz=%d, min_count=%d, "
+		"max_count=%d, buf_pool_id=%d\n", __func__,
+		buffer_req.actual_count, buffer_req.align, buffer_req.sz,
+		buffer_req.min_count, buffer_req.max_count,
+		buffer_req.buf_pool_id);
 	vcd_status = vcd_set_buffer_requirements(client_ctx->vcd_handle,
 				buffer, &buffer_req);
 

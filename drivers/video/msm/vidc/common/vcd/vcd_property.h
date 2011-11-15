@@ -1,29 +1,13 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above
- *       copyright notice, this list of conditions and the following
- *       disclaimer in the documentation and/or other materials provided
- *       with the distribution.
- *     * Neither the name of Code Aurora Forum, Inc. nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
  *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
  */
 #ifndef _VCD_DRIVER_PROPERTY_H_
@@ -61,6 +45,12 @@
 #define VCD_I_H264_MV_BUFFER   (VCD_START_BASE + 0x1D)
 #define VCD_I_FREE_H264_MV_BUFFER (VCD_START_BASE + 0x1E)
 #define VCD_I_GET_H264_MV_SIZE (VCD_START_BASE + 0x1F)
+#define VCD_I_DEC_PICTYPE (VCD_START_BASE + 0x20)
+#define VCD_I_CONT_ON_RECONFIG (VCD_START_BASE + 0x21)
+#define VCD_I_META_BUFFER_MODE (VCD_START_BASE + 0x22)
+#define VCD_I_DISABLE_DMX (VCD_START_BASE + 0x23)
+#define VCD_I_DISABLE_DMX_SUPPORT (VCD_START_BASE + 0x24)
+#define VCD_I_ENABLE_SPS_PPS_FOR_IDR (VCD_START_BASE + 0x25)
 
 #define VCD_START_REQ      (VCD_START_BASE + 0x1000)
 #define VCD_I_REQ_IFRAME   (VCD_START_REQ + 0x1)
@@ -320,6 +310,7 @@ struct vcd_frame_rect{
 
 struct vcd_property_dec_output_buffer {
 	struct vcd_frame_rect   disp_frm;
+	struct vcd_property_frame_size frm_size;
 };
 
 enum vcd_output_order {
@@ -350,6 +341,10 @@ struct vcd_property_buffer_size{
 	int height;
 	int size;
 	int alignment;
+};
+
+struct vcd_property_sps_pps_for_idr_enable {
+	u32 sps_pps_for_idr_enable_flag;
 };
 
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -8,11 +8,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -358,12 +353,25 @@ static u32 ddl_handle_core_recoverable_errors(struct ddl_context \
 	case INVALID_MMCO:
 	case INVALID_PIC_REORDERING:
 	case INVALID_POC_TYPE:
-	case ACTIVE_SPS_NOT_PRESENT:
-	case ACTIVE_PPS_NOT_PRESENT:
 		{
 			vcd_status = VCD_ERR_BITSTREAM_ERR;
 			break;
 		}
+	case ACTIVE_SPS_NOT_PRESENT:
+	case ACTIVE_PPS_NOT_PRESENT:
+		{
+			if (ddl->codec_data.decoder.idr_only_decoding) {
+				DBG("Consider warnings as errors in idr mode");
+				ddl_client_fatal_cb(ddl_context);
+				return true;
+			}
+			vcd_status = VCD_ERR_BITSTREAM_ERR;
+			break;
+		}
+	case PROFILE_UNKOWN:
+		if (ddl->decoding)
+			vcd_status = VCD_ERR_BITSTREAM_ERR;
+		break;
 	}
 
 	if (!vcd_status && vcd_event == VCD_EVT_RESP_INPUT_DONE)
@@ -383,8 +391,10 @@ static u32 ddl_handle_core_recoverable_errors(struct ddl_context \
 		ddl->decoding &&
 		!ddl->codec_data.decoder.header_in_start &&
 		!ddl->codec_data.decoder.dec_disp_info.img_size_x &&
-		!ddl->codec_data.decoder.dec_disp_info.img_size_y
-		) {
+		!ddl->codec_data.decoder.dec_disp_info.img_size_y &&
+		!eos) {
+		DBG("Treat header in start error %u as success",
+			vcd_status);
 		/* this is first frame seq. header only case */
 		vcd_status = VCD_S_SUCCESS;
 		ddl->input_frame.vcd_frm.flags |=
@@ -418,9 +428,10 @@ static u32 ddl_handle_core_recoverable_errors(struct ddl_context \
 	}
 
 	/* if it is decoder EOS case */
-	if (ddl->decoding && eos)
+	if (ddl->decoding && eos) {
+		DBG("DEC-EOS_RUN");
 		ddl_decode_eos_run(ddl);
-	else
+	} else
 		DDL_IDLE(ddl_context);
 
 	return true;
@@ -547,11 +558,23 @@ u32 ddl_handle_seqhdr_fail_error(struct ddl_context *ddl_context)
 		DDLCLIENT_STATE_IS(ddl, DDL_CLIENT_WAIT_FOR_INITCODECDONE)) {
 		switch (ddl_context->cmd_err_status) {
 		case UNSUPPORTED_FEATURE_IN_PROFILE:
-		case RESOLUTION_NOT_SUPPORTED:
 		case HEADER_NOT_FOUND:
 		case INVALID_SPS_ID:
 		case INVALID_PPS_ID:
+		case RESOLUTION_NOT_SUPPORTED:
+		case PROFILE_UNKOWN:
 			ERR("SEQ-HDR-FAILED!!!");
+			if ((ddl_context->cmd_err_status ==
+				 RESOLUTION_NOT_SUPPORTED) &&
+				(decoder->codec.codec == VCD_CODEC_H264 ||
+				decoder->codec.codec == VCD_CODEC_H263 ||
+				decoder->codec.codec == VCD_CODEC_MPEG4 ||
+				decoder->codec.codec == VCD_CODEC_VC1_RCV ||
+				decoder->codec.codec == VCD_CODEC_VC1)) {
+				ddl_client_fatal_cb(ddl_context);
+				status = true;
+				break;
+			}
 			if (decoder->header_in_start) {
 				decoder->header_in_start = false;
 				ddl_context->ddl_callback(VCD_EVT_RESP_START,

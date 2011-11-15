@@ -9,11 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  */
 
 #include <linux/cdev.h>
@@ -52,7 +47,7 @@
 static struct vid_enc_dev *vid_enc_device_p;
 static dev_t vid_enc_dev_num;
 static struct class *vid_enc_class;
-static int vid_enc_ioctl(struct inode *inode, struct file *file,
+static long vid_enc_ioctl(struct file *file,
 	unsigned cmd, unsigned long arg);
 static int stop_cmd;
 
@@ -416,21 +411,24 @@ static u32 vid_enc_msg_pending(struct video_client_ctx *client_ctx)
 	return !islist_empty;
 }
 
-static u32 vid_enc_get_next_msg(struct video_client_ctx *client_ctx,
+static int vid_enc_get_next_msg(struct video_client_ctx *client_ctx,
 		struct venc_msg *venc_msg_info)
 {
 	int rc;
 	struct vid_enc_msg *vid_enc_msg = NULL;
 
 	if (!client_ctx)
-		return false;
+		return -EIO;
 
 	rc = wait_event_interruptible(client_ctx->msg_wait,
 		vid_enc_msg_pending(client_ctx));
 
-	if (rc < 0 || client_ctx->stop_msg) {
-		DBG("rc = %d, stop_msg = %u\n", rc, client_ctx->stop_msg);
-		return false;
+	if (rc < 0) {
+		DBG("rc = %d,stop_msg= %u\n", rc, client_ctx->stop_msg);
+		return rc;
+	} else if (client_ctx->stop_msg) {
+		DBG("stopped stop_msg = %u\n", client_ctx->stop_msg);
+		return -EIO;
 	}
 
 	mutex_lock(&client_ctx->msg_queue_lock);
@@ -445,7 +443,7 @@ static u32 vid_enc_get_next_msg(struct video_client_ctx *client_ctx,
 		kfree(vid_enc_msg);
 	}
 	mutex_unlock(&client_ctx->msg_queue_lock);
-	return true;
+	return 0;
 }
 
 static u32 vid_enc_close_client(struct video_client_ctx *client_ctx)
@@ -546,6 +544,7 @@ static int vid_enc_open(struct inode *inode, struct file *file)
 
 	init_completion(&client_ctx->event);
 	mutex_init(&client_ctx->msg_queue_lock);
+	mutex_init(&client_ctx->enrty_queue_lock);
 	INIT_LIST_HEAD(&client_ctx->msg_queue);
 	init_waitqueue_head(&client_ctx->msg_wait);
 	vcd_status = vcd_open(vid_enc_device_p->device_handle, false,
@@ -587,7 +586,7 @@ static const struct file_operations vid_enc_fops = {
 	.owner = THIS_MODULE,
 	.open = vid_enc_open,
 	.release = vid_enc_release,
-	.ioctl = vid_enc_ioctl
+	.unlocked_ioctl = vid_enc_ioctl,
 };
 
 void vid_enc_interrupt_deregister(void)
@@ -725,13 +724,14 @@ static void __exit vid_enc_exit(void)
 	kfree(vid_enc_device_p);
 	INFO("\n msm_vidc_enc: Return from %s()", __func__);
 }
-static int vid_enc_ioctl(struct inode *inode, struct file *file,
+static long vid_enc_ioctl(struct file *file,
 		unsigned cmd, unsigned long u_arg)
 {
 	struct video_client_ctx *client_ctx = NULL;
 	struct venc_ioctl_msg venc_msg;
 	void __user *arg = (void __user *)u_arg;
 	u32 result = true;
+	int result_read = -1;
 
 	DBG("%s\n", __func__);
 
@@ -748,9 +748,9 @@ static int vid_enc_ioctl(struct inode *inode, struct file *file,
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 		DBG("VEN_IOCTL_CMD_READ_NEXT_MSG\n");
-		result = vid_enc_get_next_msg(client_ctx, &cb_msg);
-		if (!result)
-			return -EIO;
+		result_read = vid_enc_get_next_msg(client_ctx, &cb_msg);
+		if (result_read < 0)
+			return result_read;
 		if (copy_to_user(venc_msg.out, &cb_msg, sizeof(cb_msg)))
 			return -EFAULT;
 		break;
@@ -1287,26 +1287,28 @@ static int vid_enc_ioctl(struct inode *inode, struct file *file,
 	}
 	case VEN_IOCTL_GET_SEQUENCE_HDR:
 	{
-		struct venc_seqheader seq_header, seq_header_user;
+		struct venc_seqheader seq_header;
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 
-		DBG("VEN_IOCTL_GET_SEQUENCE_HDR\n");
-		if (copy_from_user(&seq_header_user, venc_msg.in,
-			sizeof(seq_header_user)))
+		if (copy_from_user(&seq_header, venc_msg.in,
+			sizeof(seq_header)))
 			return -EFAULT;
-		seq_header.hdrbufptr = NULL;
+
+		DBG("VEN_IOCTL_GET_SEQUENCE_HDR\n");
 		result = vid_enc_get_sequence_header(client_ctx,
 				&seq_header);
-		if (result && ((copy_to_user(seq_header_user.hdrbufptr,
-			seq_header.hdrbufptr, seq_header.hdrlen)) ||
-			(copy_to_user(&seq_header_user.hdrlen,
-			&seq_header.hdrlen,
-			sizeof(seq_header.hdrlen)))))
-				result = false;
-		kfree(seq_header.hdrbufptr);
-		if (!result)
+		if (!result) {
+			ERR("get sequence header failed\n");
 			return -EIO;
+		}
+		DBG("seq_header: buf=%x, sz=%d, hdrlen=%d\n",
+			(int)seq_header.hdrbufptr,
+			(int)seq_header.bufsize,
+			(int)seq_header.hdrlen);
+		if (copy_to_user(venc_msg.out, &seq_header,
+			sizeof(seq_header)))
+			return -EFAULT;
 		break;
 	}
 	case VEN_IOCTL_CMD_REQUEST_IFRAME:
@@ -1526,6 +1528,57 @@ static int vid_enc_ioctl(struct inode *inode, struct file *file,
 		if (copy_to_user(venc_msg.out,
 			&vid_enc_device_p->num_clients, sizeof(u32)))
 			return -EFAULT;
+		break;
+	}
+	case VEN_IOCTL_SET_METABUFFER_MODE:
+	{
+		u32 metabuffer_mode, vcd_status;
+		struct vcd_property_hdr vcd_property_hdr;
+		struct vcd_property_live live_mode;
+
+		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
+			return -EFAULT;
+		if (copy_from_user(&metabuffer_mode, venc_msg.in,
+			sizeof(metabuffer_mode)))
+			return -EFAULT;
+		vcd_property_hdr.prop_id = VCD_I_META_BUFFER_MODE;
+		vcd_property_hdr.sz =
+			sizeof(struct vcd_property_live);
+		live_mode.live = metabuffer_mode;
+		vcd_status = vcd_set_property(client_ctx->vcd_handle,
+					&vcd_property_hdr, &live_mode);
+		if (vcd_status) {
+			pr_err(" Setting metabuffer mode failed");
+			return -EIO;
+		}
+		break;
+	}
+	case VEN_IOCTL_SET_EXTRADATA:
+	case VEN_IOCTL_GET_EXTRADATA:
+	{
+		u32 extradata_flag;
+		DBG("VEN_IOCTL_(G)SET_EXTRADATA\n");
+		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
+			return -EFAULT;
+		if (cmd == VEN_IOCTL_SET_EXTRADATA) {
+			if (copy_from_user(&extradata_flag, venc_msg.in,
+					sizeof(u32)))
+				return -EFAULT;
+			result = vid_enc_set_get_extradata(client_ctx,
+					&extradata_flag, true);
+		} else {
+			result = vid_enc_set_get_extradata(client_ctx,
+					&extradata_flag, false);
+			if (result) {
+				if (copy_to_user(venc_msg.out, &extradata_flag,
+						sizeof(u32)))
+					return -EFAULT;
+			}
+		}
+		if (!result) {
+			ERR("setting VEN_IOCTL_(G)SET_LIVE_MODE failed\n");
+			return -EIO;
+		}
 		break;
 	}
 	case VEN_IOCTL_SET_AC_PREDICTION:

@@ -9,11 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  */
 
 #include "mdp.h"
@@ -640,8 +635,6 @@ void mdp_hw_init(void)
 	MDP_OUTP(MDP_BASE + 0xE0000, 0);
 	MDP_OUTP(MDP_BASE + 0x100, 0xffffffff);
 	MDP_OUTP(MDP_BASE + 0x90070, 0);
-	MDP_OUTP(MDP_BASE + 0x94010, 1);
-	MDP_OUTP(MDP_BASE + 0x9401c, 2);
 #endif
 
 	/*
@@ -716,7 +709,6 @@ void mdp_hw_init(void)
 		 ((16 << 6) << 16) | (16) << 6);
 #endif
 
-	wmb();
 	/* MDP cmd block disable */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 }

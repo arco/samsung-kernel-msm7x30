@@ -1,29 +1,13 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above
- *       copyright notice, this list of conditions and the following
- *       disclaimer in the documentation and/or other materials provided
- *       with the distribution.
- *     * Neither the name of Code Aurora Forum, Inc. nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
  *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
  */
 #ifndef _VCD_API_H_
@@ -33,11 +17,13 @@
 
 #define VCD_FRAME_FLAG_EOS 0x00000001
 #define VCD_FRAME_FLAG_DECODEONLY   0x00000004
+#define VCD_FRAME_FLAG_DATACORRUPT 0x00000008
 #define VCD_FRAME_FLAG_ENDOFFRAME 0x00000010
 #define VCD_FRAME_FLAG_SYNCFRAME 0x00000020
 #define VCD_FRAME_FLAG_EXTRADATA 0x00000040
 #define VCD_FRAME_FLAG_CODECCONFIG  0x00000080
 #define VCD_FRAME_FLAG_BFRAME 0x00100000
+#define VCD_FRAME_FLAG_EOSEQ 0x00200000
 
 #define VCD_FLUSH_INPUT   0x0001
 #define VCD_FLUSH_OUTPUT  0x0002
@@ -58,6 +44,7 @@ enum vcd_frame {
 	VCD_FRAME_P,
 	VCD_FRAME_B,
 	VCD_FRAME_NOTCODED,
+	VCD_FRAME_IDR,
 	VCD_FRAME_32BIT = 0x7fffffff
 };
 
@@ -80,6 +67,8 @@ struct vcd_frame_data {
 	enum vcd_frame frame;
 	u32 ip_frm_tag;
 	u32 intrlcd_ip_frm_tag;
+	u8 *desc_buf;
+	u32 desc_size;
 };
 
 struct vcd_sequence_hdr {

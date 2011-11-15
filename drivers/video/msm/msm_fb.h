@@ -1,29 +1,13 @@
-/* Copyright (c) 2008-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2008-2012, Code Aurora Forum. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above
- *       copyright notice, this list of conditions and the following
- *       disclaimer in the documentation and/or other materials provided
- *       with the distribution.
- *     * Neither the name of Code Aurora Forum, Inc. nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
  *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
  */
 
@@ -49,12 +33,19 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/hrtimer.h>
+#include <linux/wakelock.h>
 
 #include <linux/fb.h>
+#include <linux/list.h>
+#include <linux/types.h>
 
+#include <linux/msm_mdp.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
+
+/*  Idle wakelock to prevent PC between wake up and Vsync */
+extern struct wake_lock mdp_idle_wakelock;
 
 #include "msm_fb_panel.h"
 #include "mdp.h"
@@ -68,6 +59,17 @@ struct disp_info_type_suspend {
 	boolean sw_refreshing_enable;
 	boolean panel_power_on;
 };
+
+struct msmfb_writeback_data_list {
+	struct list_head registered_entry;
+	struct list_head active_entry;
+	void *addr;
+	struct file *pmem_file;
+	struct msmfb_data buf_info;
+	struct msmfb_img img;
+	int state;
+};
+
 
 struct msm_fb_data_type {
 	__u32 key;
@@ -147,6 +149,7 @@ struct msm_fb_data_type {
 	__u32 var_xres;
 	__u32 var_yres;
 	__u32 var_pixclock;
+	__u32 var_frame_rate;
 
 #ifdef MSM_FB_ENABLE_DBGFS
 	struct dentry *sub_dir;
@@ -163,6 +166,25 @@ struct msm_fb_data_type {
 
 	struct clk *ebi1_clk;
 	boolean dma_update_flag;
+	struct timer_list msmfb_no_update_notify_timer;
+	struct completion msmfb_update_notify;
+	struct completion msmfb_no_update_notify;
+	struct mutex writeback_mutex;
+	struct mutex unregister_mutex;
+	struct list_head writeback_busy_queue;
+	struct list_head writeback_free_queue;
+	struct list_head writeback_register_queue;
+	wait_queue_head_t wait_q;
+	struct ion_client *iclient;
+	struct mdp_buf_type *ov0_wb_buf;
+	struct mdp_buf_type *ov1_wb_buf;
+	u32 ov_start;
+	u32 mem_hid;
+	u32 mdp_rev;
+	u32 use_ov0_blt, ov0_blt_state;
+	u32 use_ov1_blt, ov1_blt_state;
+	u32 writeback_state;
+	int cont_splash_done;
 };
 
 struct dentry *msm_fb_get_debugfs_root(void);
@@ -171,8 +193,17 @@ void msm_fb_debugfs_file_create(struct dentry *root, const char *name,
 void msm_fb_set_backlight(struct msm_fb_data_type *mfd, __u32 bkl_lvl);
 
 struct platform_device *msm_fb_add_device(struct platform_device *pdev);
-
+struct fb_info *msm_fb_get_writeback_fb(void);
+int msm_fb_writeback_init(struct fb_info *info);
+int msm_fb_writeback_start(struct fb_info *info);
+int msm_fb_writeback_queue_buffer(struct fb_info *info,
+		struct msmfb_data *data);
+int msm_fb_writeback_dequeue_buffer(struct fb_info *info,
+		struct msmfb_data *data);
+int msm_fb_writeback_stop(struct fb_info *info);
+int msm_fb_writeback_terminate(struct fb_info *info);
 int msm_fb_detect_client(const char *name);
+int calc_fb_offset(struct msm_fb_data_type *mfd, struct fb_info *fbi, int bpp);
 
 #ifdef CONFIG_FB_BACKLIGHT
 void msm_fb_config_backlight(struct msm_fb_data_type *mfd);
@@ -180,5 +211,7 @@ void msm_fb_config_backlight(struct msm_fb_data_type *mfd);
 
 void fill_black_screen(void);
 void unfill_black_screen(void);
+int msm_fb_check_frame_rate(struct msm_fb_data_type *mfd,
+				struct fb_info *info);
 
 #endif /* MSM_FB_H */

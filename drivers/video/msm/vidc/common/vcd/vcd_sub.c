@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -8,11 +8,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -549,7 +544,7 @@ u32 vcd_free_one_buffer_internal(
 	VCD_FAILED_RETURN(rc, "Invalid buffer type provided");
 
 	first_frm_recvd &= cctxt->status.mask;
-	if (first_frm_recvd) {
+	if (first_frm_recvd && !cctxt->meta_mode) {
 		VCD_MSG_ERROR(
 			"VCD free buffer called when data path is active");
 		return VCD_ERR_BAD_STATE;
@@ -563,7 +558,8 @@ u32 vcd_free_one_buffer_internal(
 		return VCD_ERR_ILLEGAL_PARM;
 	}
 	if (buf_entry->in_use) {
-		VCD_MSG_ERROR("\n Buffer is in use and is not flushed");
+		VCD_MSG_ERROR("Buffer is in use and is not flushed: %p, %d\n",
+			buf_entry, buf_entry->in_use);
 		return VCD_ERR_ILLEGAL_OP;
 	}
 
@@ -862,6 +858,7 @@ u32 vcd_flush_buffers(struct vcd_clnt_ctxt *cctxt, u32 mode)
 {
 	u32 rc = VCD_S_SUCCESS;
 	struct vcd_buffer_entry *buf_entry;
+	struct vcd_buffer_entry *orig_frame = NULL;
 
 	VCD_MSG_LOW("vcd_flush_buffers:");
 
@@ -885,9 +882,19 @@ u32 vcd_flush_buffers(struct vcd_clnt_ctxt *cctxt, u32 mode)
 							 vcd_frame_data),
 						cctxt,
 						cctxt->client_data);
+				orig_frame = vcd_find_buffer_pool_entry(
+						&cctxt->in_buf_pool,
+						buf_entry->virtual);
 				}
 
-			buf_entry->in_use = false;
+			if (orig_frame) {
+				orig_frame->in_use--;
+				if (orig_frame != buf_entry)
+					kfree(buf_entry);
+			} else {
+				buf_entry->in_use = false;
+				VCD_MSG_ERROR("Original frame not found in buffer pool\n");
+			}
 			VCD_BUFFERPOOL_INUSE_DECREMENT(
 				cctxt->in_buf_pool.in_use);
 			buf_entry = NULL;
@@ -915,8 +922,7 @@ void vcd_flush_buffers_in_err_fatal(struct vcd_clnt_ctxt *cctxt)
 	vcd_flush_in_use_buffer_pool_entries(cctxt,
 		&cctxt->in_buf_pool, VCD_EVT_RESP_INPUT_FLUSHED);
 	vcd_flush_in_use_buffer_pool_entries(cctxt,
-		&cctxt->out_buf_pool,	VCD_EVT_RESP_OUTPUT_FLUSHED);
-	cctxt->status.mask |= VCD_FLUSH_ALL;
+		&cctxt->out_buf_pool, VCD_EVT_RESP_OUTPUT_FLUSHED);
 	vcd_send_flush_done(cctxt, VCD_S_SUCCESS);
 }
 
@@ -1314,6 +1320,7 @@ u32 vcd_submit_frame(struct vcd_dev_ctxt *dev_ctxt,
 	transc->op_buf_entry = op_buf_entry;
 	transc->ip_frm_tag = ip_frm_entry->ip_frm_tag;
 	transc->time_stamp = ip_frm_entry->time_stamp;
+	transc->flags = ip_frm_entry->flags;
 	ip_frm_entry->ip_frm_tag = (u32) transc;
 	memset(&ddl_ip_frm, 0, sizeof(ddl_ip_frm));
 	memset(&ddl_op_frm, 0, sizeof(ddl_op_frm));
@@ -1698,6 +1705,7 @@ u32 vcd_handle_input_done(
 	struct vcd_transc *transc;
 	struct ddl_frame_data_tag *frame =
 		(struct ddl_frame_data_tag *) payload;
+	struct vcd_buffer_entry *orig_frame = NULL;
 	u32 rc;
 
 	if (!cctxt->status.frame_submitted &&
@@ -1712,6 +1720,8 @@ u32 vcd_handle_input_done(
 	VCD_FAILED_RETURN(rc, "Bad input done payload");
 
 	transc = (struct vcd_transc *)frame->vcd_frm.ip_frm_tag;
+	orig_frame = vcd_find_buffer_pool_entry(&cctxt->in_buf_pool,
+					 transc->ip_buf_entry->virtual);
 
 	if ((transc->ip_buf_entry->frame.virtual !=
 		 frame->vcd_frm.virtual)
@@ -1730,8 +1740,17 @@ u32 vcd_handle_input_done(
 			sizeof(struct vcd_frame_data),
 			cctxt, cctxt->client_data);
 
-	transc->ip_buf_entry->in_use = false;
+	orig_frame->in_use--;
 	VCD_BUFFERPOOL_INUSE_DECREMENT(cctxt->in_buf_pool.in_use);
+
+	if (cctxt->decoding && orig_frame->in_use) {
+		VCD_MSG_ERROR("When decoding same input buffer not "
+				"supposed to be queued multiple times");
+		return VCD_ERR_FAIL;
+	}
+
+	if (orig_frame != transc->ip_buf_entry)
+		kfree(transc->ip_buf_entry);
 	transc->ip_buf_entry = NULL;
 	transc->input_done = true;
 
@@ -1788,11 +1807,14 @@ u32 vcd_handle_input_done_in_eos(
 		VCD_MSG_HIGH("Got input done for EOS initiator");
 		transc->input_done = false;
 		transc->in_use = true;
-		if (codec_config ||
-			((status == VCD_ERR_BITSTREAM_ERR) &&
+		if ((codec_config &&
+			 (status != VCD_ERR_BITSTREAM_ERR)) ||
+			(codec_config && (status == VCD_ERR_BITSTREAM_ERR) &&
 			 !(cctxt->status.mask & VCD_FIRST_IP_DONE) &&
-			 (core_type == VCD_CORE_720P)))
+			(core_type == VCD_CORE_720P))) {
+			VCD_MSG_HIGH("handle EOS for codec config");
 			vcd_handle_eos_done(cctxt, transc, VCD_S_SUCCESS);
+		}
 	}
 	return rc;
 }
@@ -1971,6 +1993,7 @@ u32 vcd_handle_frame_done(
 		(struct ddl_frame_data_tag *) payload;
 	struct vcd_transc *transc;
 	u32 rc;
+	s64 time_stamp;
 
 	rc = vcd_validate_io_done_pyld(cctxt, payload, status);
 	if (rc == VCD_ERR_CLIENT_FATAL)
@@ -2012,14 +2035,22 @@ u32 vcd_handle_frame_done(
 	VCD_FAILED_RETURN(rc, "Bad output buffer pointer");
 	op_frm->vcd_frm.time_stamp = transc->time_stamp;
 	op_frm->vcd_frm.ip_frm_tag = transc->ip_frm_tag;
+
+	if (transc->flags & VCD_FRAME_FLAG_EOSEQ)
+		op_frm->vcd_frm.flags |= VCD_FRAME_FLAG_EOSEQ;
+	else
+		op_frm->vcd_frm.flags &= ~VCD_FRAME_FLAG_EOSEQ;
+
 	if (cctxt->decoding)
 		op_frm->vcd_frm.frame = transc->frame;
 	else
 		transc->frame = op_frm->vcd_frm.frame;
 	transc->frame_done = true;
 
-	if (transc->input_done && transc->frame_done)
+	if (transc->input_done && transc->frame_done) {
+		time_stamp = transc->time_stamp;
 		vcd_release_trans_tbl_entry(transc);
+	}
 
 	if (status == VCD_ERR_INTRLCD_FIELD_DROP ||
 		(op_frm->vcd_frm.intrlcd_ip_frm_tag !=
@@ -2027,6 +2058,13 @@ u32 vcd_handle_frame_done(
 		op_frm->vcd_frm.intrlcd_ip_frm_tag)) {
 		vcd_handle_frame_done_for_interlacing(cctxt, transc,
 							  op_frm, status);
+		if (status == VCD_ERR_INTRLCD_FIELD_DROP) {
+			cctxt->callback(VCD_EVT_IND_INFO_FIELD_DROPPED,
+				VCD_S_SUCCESS,
+				&time_stamp,
+				sizeof(time_stamp),
+				cctxt, cctxt->client_data);
+		}
 	}
 
 	if (status != VCD_ERR_INTRLCD_FIELD_DROP) {
@@ -2434,7 +2472,7 @@ u32 vcd_handle_input_frame(
 	 struct vcd_frame_data *input_frame)
 {
 	struct vcd_dev_ctxt *dev_ctxt = cctxt->dev_ctxt;
-	struct vcd_buffer_entry *buf_entry;
+	struct vcd_buffer_entry *buf_entry, *orig_frame;
 	struct vcd_frame_data *frm_entry;
 	u32 rc = VCD_S_SUCCESS;
 	u32 eos_handled = false;
@@ -2480,18 +2518,49 @@ u32 vcd_handle_input_frame(
 	}
 	VCD_FAILED_RETURN(rc, "Failed: First frame handling");
 
-	buf_entry = vcd_find_buffer_pool_entry(&cctxt->in_buf_pool,
+	orig_frame = vcd_find_buffer_pool_entry(&cctxt->in_buf_pool,
 						 input_frame->virtual);
-	if (!buf_entry) {
+	if (!orig_frame) {
 		VCD_MSG_ERROR("Bad buffer addr: %p", input_frame->virtual);
 		return VCD_ERR_FAIL;
 	}
 
-	if (buf_entry->in_use) {
-		VCD_MSG_ERROR("An inuse input frame is being"
-			"re-queued to scheduler");
-		return VCD_ERR_FAIL;
-	}
+	if (orig_frame->in_use) {
+		/*
+		 * This path only allowed for enc., dec. not allowed
+		 * to queue same buffer multiple times
+		 */
+		if (cctxt->decoding) {
+			VCD_MSG_ERROR("An inuse input frame is being "
+					"re-queued to scheduler");
+			return VCD_ERR_FAIL;
+		}
+
+		buf_entry = kzalloc(sizeof(*buf_entry), GFP_KERNEL);
+		if (!buf_entry) {
+			VCD_MSG_ERROR("Unable to alloc memory");
+			return VCD_ERR_FAIL;
+		}
+
+		INIT_LIST_HEAD(&buf_entry->sched_list);
+		/*
+		 * Pre-emptively poisoning this, as these dupe entries
+		 * shouldn't get added to any list
+		 */
+		INIT_LIST_HEAD(&buf_entry->list);
+		buf_entry->list.next = LIST_POISON1;
+		buf_entry->list.prev = LIST_POISON2;
+
+		buf_entry->valid = orig_frame->valid;
+		buf_entry->alloc = orig_frame->alloc;
+		buf_entry->virtual = orig_frame->virtual;
+		buf_entry->physical = orig_frame->physical;
+		buf_entry->sz = orig_frame->sz;
+		buf_entry->allocated = orig_frame->allocated;
+		buf_entry->in_use = 1; /* meaningless for the dupe buffers */
+		buf_entry->frame = orig_frame->frame;
+	} else
+		buf_entry = orig_frame;
 
 	if (input_frame->alloc_len > buf_entry->sz) {
 		VCD_MSG_ERROR("Bad buffer Alloc_len %d, Actual sz=%d",
@@ -2520,7 +2589,7 @@ u32 vcd_handle_input_frame(
 		cctxt->sched_clnt_hdl, buf_entry, true);
 	VCD_FAILED_RETURN(rc, "Failed: vcd_sched_queue_buffer");
 
-	buf_entry->in_use = true;
+	orig_frame->in_use++;
 	cctxt->in_buf_pool.in_use++;
 	vcd_try_submit_frame(dev_ctxt);
 	return rc;
@@ -2787,8 +2856,9 @@ struct vcd_buffer_entry *vcd_check_fill_output_buffer
 		return NULL;
 	}
 
-	if (buffer->alloc_len < buf_pool->buf_req.sz ||
-		buffer->alloc_len > buf_entry->sz) {
+	if ((buffer->alloc_len < buf_pool->buf_req.sz ||
+		 buffer->alloc_len > buf_entry->sz) &&
+		 !(cctxt->status.mask & VCD_IN_RECONFIG)) {
 		VCD_MSG_ERROR
 			("Bad buffer Alloc_len = %d, Actual sz = %d, "
 			 " Min sz = %u",
@@ -3038,4 +3108,13 @@ void vcd_handle_clnt_fatal_input_done(struct vcd_clnt_ctxt *cctxt,
 	if (cctxt->status.frame_submitted > 0)
 		cctxt->status.frame_submitted--;
 	vcd_handle_clnt_fatal(cctxt, trans_end);
+}
+
+void vcd_handle_ind_info_output_reconfig(
+	struct vcd_clnt_ctxt *cctxt, u32 status)
+{
+	if (cctxt) {
+		cctxt->callback(VCD_EVT_IND_INFO_OUTPUT_RECONFIG, status, NULL,
+		 0, cctxt, cctxt->client_data);
+	}
 }

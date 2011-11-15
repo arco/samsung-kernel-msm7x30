@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -9,11 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  */
 #include <linux/firmware.h>
 #include <linux/pm_qos_params.h>
@@ -23,8 +18,9 @@
 #include <linux/pm_runtime.h>
 #include <mach/internal_power_rail.h>
 #include <mach/clk.h>
-#include <mach/msm_reqs.h>
 #include <linux/interrupt.h>
+#include <linux/memory_alloc.h>
+#include <asm/sizes.h>
 #include "vidc.h"
 #include "vcd_res_tracker.h"
 #include "vidc_init.h"
@@ -35,6 +31,7 @@ static unsigned int vidc_clk_table[3] = {
 static struct res_trk_context resource_context;
 
 #define VIDC_FW	"vidc_1080p.fw"
+#define VIDC_FW_SIZE SZ_1M
 
 unsigned char *vidc_video_codec_fw;
 u32 vidc_video_codec_fw_size;
@@ -130,6 +127,7 @@ u32 res_trk_enable_clocks(void)
 				VCDRES_MSG_ERROR("vidc core clk Enable fail\n");
 				goto vidc_disable_pclk;
 			}
+
 			VCDRES_MSG_LOW("%s(): Clocks enabled!\n", __func__);
 		} else {
 		   VCDRES_MSG_ERROR("%s(): Clocks enable failed!\n",
@@ -140,7 +138,6 @@ u32 res_trk_enable_clocks(void)
 	resource_context.clock_enabled = 1;
 	mutex_unlock(&resource_context.lock);
 	return true;
-
 vidc_disable_pclk:
 	clk_disable(resource_context.vcodec_pclk);
 bail_out:
@@ -231,7 +228,7 @@ u32 res_trk_power_up(void)
 	VCDRES_MSG_LOW("clk_regime_sel_rail_control");
 #ifdef CONFIG_MSM_BUS_SCALING
 	resource_context.pcl = msm_bus_scale_register_client(
-		&vidc_bus_client_pdata);
+		resource_context.vidc_bus_client_pdata);
 	VCDRES_MSG_LOW("%s(), resource_context.pcl = %x", __func__,
 		 resource_context.pcl);
 	if (resource_context.pcl == 0) {
@@ -290,6 +287,10 @@ int res_trk_update_bus_perf_level(struct vcd_dev_ctxt *dev_ctxt, u32 perf_level)
 		bus_clk_index = 1;
 	else
 		bus_clk_index = 2;
+
+	if (dev_ctxt->reqd_perf_lvl + dev_ctxt->curr_perf_lvl == 0)
+		bus_clk_index = 2;
+
 	bus_clk_index = (bus_clk_index << 1) + (client_type + 1);
 	VCDRES_MSG_LOW("%s(), bus_clk_index = %d", __func__, bus_clk_index);
 	VCDRES_MSG_LOW("%s(),context.pcl = %x", __func__, resource_context.pcl);
@@ -318,6 +319,9 @@ u32 res_trk_set_perf_level(u32 req_perf_lvl, u32 *pn_set_perf_lvl,
 	}
 
 #endif
+	if (dev_ctxt->reqd_perf_lvl + dev_ctxt->curr_perf_lvl == 0)
+		req_perf_lvl = RESTRK_1080P_MAX_PERF_LEVEL;
+
 	if (req_perf_lvl <= RESTRK_1080P_VGA_PERF_LEVEL) {
 		vidc_freq = vidc_clk_table[0];
 		*pn_set_perf_lvl = RESTRK_1080P_VGA_PERF_LEVEL;
@@ -329,11 +333,11 @@ u32 res_trk_set_perf_level(u32 req_perf_lvl, u32 *pn_set_perf_lvl,
 		*pn_set_perf_lvl = RESTRK_1080P_MAX_PERF_LEVEL;
 	}
 	resource_context.perf_level = *pn_set_perf_lvl;
-	VCDRES_MSG_HIGH("VIDC: vidc_freq = %u, req_perf_lvl = %u\n",
+	VCDRES_MSG_MED("VIDC: vidc_freq = %u, req_perf_lvl = %u\n",
 		vidc_freq, req_perf_lvl);
 #ifdef USE_RES_TRACKER
     if (req_perf_lvl != RESTRK_1080P_MIN_PERF_LEVEL) {
-		VCDRES_MSG_HIGH("%s(): Setting vidc freq to %u\n",
+		VCDRES_MSG_MED("%s(): Setting vidc freq to %u\n",
 			__func__, vidc_freq);
 		if (!res_trk_sel_clk_rate(vidc_freq)) {
 			VCDRES_MSG_ERROR("%s(): res_trk_sel_clk_rate FAILED\n",
@@ -343,7 +347,7 @@ u32 res_trk_set_perf_level(u32 req_perf_lvl, u32 *pn_set_perf_lvl,
 		}
 	}
 #endif
-	VCDRES_MSG_HIGH("%s() set perl level : %d", __func__, *pn_set_perf_lvl);
+	VCDRES_MSG_MED("%s() set perl level : %d", __func__, *pn_set_perf_lvl);
 	return true;
 }
 
@@ -395,6 +399,7 @@ bail_out:
 
 void res_trk_init(struct device *device, u32 irq)
 {
+	u32 memorytype = PMEM_MEMTYPE;
 	if (resource_context.device || resource_context.irq_num ||
 		!device) {
 		VCDRES_MSG_ERROR("%s() Resource Tracker Init error\n",
@@ -404,10 +409,45 @@ void res_trk_init(struct device *device, u32 irq)
 		mutex_init(&resource_context.lock);
 		resource_context.device = device;
 		resource_context.irq_num = irq;
+#ifdef CONFIG_MSM_BUS_SCALING
+		resource_context.vidc_bus_client_pdata =
+			(struct msm_bus_scale_pdata *)device->platform_data;
+#endif
 		resource_context.core_type = VCD_CORE_1080P;
+		if (memorytype == PMEM_MEMTYPE_EBI1) {
+			resource_context.device_addr =
+			(phys_addr_t)
+			allocate_contiguous_memory_nomap(VIDC_FW_SIZE,
+					resource_context.memtype, SZ_4K);
+			if (resource_context.device_addr) {
+				resource_context.base_addr = (u8 *)
+				ioremap((unsigned long)
+				resource_context.device_addr, VIDC_FW_SIZE);
+				if (!resource_context.base_addr) {
+					free_contiguous_memory_by_paddr(
+					(unsigned long)
+					resource_context.device_addr);
+					resource_context.device_addr =
+						(phys_addr_t)NULL;
+				}
+			}
+		}
 	}
 }
 
 u32 res_trk_get_core_type(void){
 	return resource_context.core_type;
+}
+
+u32 res_trk_get_firmware_addr(struct res_trk_firmware_addr *firm_addr)
+{
+	int status = -1;
+	if (firm_addr && resource_context.base_addr &&
+		resource_context.device_addr) {
+		firm_addr->base_addr = resource_context.base_addr;
+		firm_addr->device_addr = resource_context.device_addr;
+		firm_addr->buf_size = VIDC_FW_SIZE;
+		status = 0;
+	}
+	return status;
 }

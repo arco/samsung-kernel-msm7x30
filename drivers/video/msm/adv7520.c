@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010,2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -8,11 +8,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  */
 
 #include <linux/i2c.h>
@@ -22,6 +17,7 @@
 #include <linux/time.h>
 #include <linux/completion.h>
 #include <linux/wakelock.h>
+#include <linux/clk.h>
 #include <asm/atomic.h>
 #include "msm_fb.h"
 
@@ -38,6 +34,7 @@
 static struct external_common_state_type hdmi_common;
 
 static struct i2c_client *hclient;
+static struct clk *tv_enc_clk;
 
 static bool chip_power_on = FALSE;	/* For chip power on/off */
 static bool enable_5v_on = FALSE;
@@ -82,12 +79,15 @@ static void change_hdmi_state(int online)
 	if (!external_common_state->uevent_kobj)
 		return;
 
-	if (online)
+	if (online) {
 		kobject_uevent(external_common_state->uevent_kobj,
 			KOBJ_ONLINE);
-	else
+		switch_set_state(&external_common_state->sdev, 1);
+	} else {
 		kobject_uevent(external_common_state->uevent_kobj,
 			KOBJ_OFFLINE);
+		switch_set_state(&external_common_state->sdev, 0);
+	}
 	DEV_INFO("adv7520_uevent: %d [suspend# %d]\n", online, suspend_count);
 }
 
@@ -344,6 +344,7 @@ static int adv7520_power_on(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd = platform_get_drvdata(pdev);
 
+	clk_enable(tv_enc_clk);
 	external_common_state->dev = &pdev->dev;
 	if (mfd != NULL) {
 		DEV_INFO("adv7520_power: ON (%dx%d %d)\n",
@@ -377,7 +378,7 @@ static int adv7520_power_off(struct platform_device *pdev)
 	adv7520_chip_off();
 	wake_unlock(&wlock);
 	adv7520_comm_power(0, 1);
-
+	clk_disable(tv_enc_clk);
 	return 0;
 }
 
@@ -873,6 +874,14 @@ static int __devinit
 	} else
 		DEV_ERR("adv7520_probe: failed to add fb device\n");
 
+#ifdef CONFIG_FB_MSM_HDMI_AS_PRIMARY
+	external_common_state->sdev.name = "hdmi_as_primary";
+#else
+	external_common_state->sdev.name = "hdmi";
+#endif
+	if (switch_dev_register(&external_common_state->sdev) < 0)
+		DEV_ERR("Hdmi switch registration failed\n");
+
 	return 0;
 
 probe_free:
@@ -889,6 +898,7 @@ static int __devexit adv7520_remove(struct i2c_client *client)
 		DEV_ERR("%s: No HDMI Device\n", __func__);
 		return -ENODEV;
 	}
+	switch_dev_unregister(&external_common_state->sdev);
 	wake_lock_destroy(&wlock);
 	kfree(dd);
 	dd = NULL;
@@ -968,6 +978,13 @@ static int __init adv7520_init(void)
 	pr_info("%s\n", __func__);
 	external_common_state = &hdmi_common;
 	external_common_state->video_resolution = HDMI_VFRMT_1280x720p60_16_9;
+
+	tv_enc_clk = clk_get(NULL, "tv_enc_clk");
+	if (IS_ERR(tv_enc_clk)) {
+		printk(KERN_ERR "error: can't get tv_enc_clk!\n");
+		return IS_ERR(tv_enc_clk);
+	}
+
 	HDMI_SETUP_LUT(640x480p60_4_3);		/* 25.20MHz */
 	HDMI_SETUP_LUT(720x480p60_16_9);	/* 27.03MHz */
 	HDMI_SETUP_LUT(1280x720p60_16_9);	/* 74.25MHz */
@@ -994,6 +1011,8 @@ static int __init adv7520_init(void)
 	return 0;
 
 init_exit:
+	if (tv_enc_clk)
+		clk_put(tv_enc_clk);
 	return rc;
 }
 

@@ -1,29 +1,13 @@
-/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above
- *       copyright notice, this list of conditions and the following
- *       disclaimer in the documentation and/or other materials provided
- *       with the distribution.
- *     * Neither the name of Code Aurora Forum, Inc. nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
  *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
  */
 
@@ -244,6 +228,7 @@ struct ddl_encoder_data{
 	struct vcd_property_intra_refresh_mb_number  intra_refresh;
 	struct vcd_property_buffer_format  buf_format;
 	struct vcd_property_buffer_format  recon_buf_format;
+	struct vcd_property_sps_pps_for_idr_enable sps_pps;
 	struct ddl_buf_addr  seq_header;
 	struct vcd_buffer_requirement  input_buf_req;
 	struct vcd_buffer_requirement  output_buf_req;
@@ -265,6 +250,7 @@ struct ddl_encoder_data{
 	u32  mb_info_enable;
 	u32  ext_enc_control_val;
 	u32  num_references_for_p_frame;
+	u32  closed_gop;
 };
 struct ddl_decoder_data {
 	struct ddl_codec_data_hdr  hdr;
@@ -300,6 +286,11 @@ struct ddl_decoder_data {
 	u32  dynmic_prop_change_req;
 	u32  flush_pending;
 	u32  meta_data_exists;
+	u32  idr_only_decoding;
+	u32  field_needed_for_prev_ip;
+	u32  prev_ip_frm_tag;
+	u32  cont_mode;
+	u32  reconfig_detected;
 };
 union ddl_codec_data{
 	struct ddl_codec_data_hdr  hdr;
@@ -330,7 +321,7 @@ struct ddl_context{
 	void (*interrupt_clr) (void);
 	void (*vidc_decode_seq_start[2])
 		(struct vidc_1080p_dec_seq_start_param *param);
-	void (*vidc_set_divx3_resolution[2])
+	void (*vidc_set_dec_resolution[2])
 		(u32 width, u32 height);
 	void(*vidc_decode_init_buffers[2])
 		(struct vidc_1080p_dec_init_buffers_param *param);
@@ -436,6 +427,10 @@ u32 ddl_get_input_frame_from_pool(struct ddl_client_context *ddl,
 	u8 *input_buffer_address);
 u32 ddl_insert_input_frame_to_pool(struct ddl_client_context *ddl,
 	struct ddl_frame_data_tag *ddl_input_frame);
+
+void ddl_decoder_chroma_dpb_change(struct ddl_client_context *ddl);
+u32  ddl_check_reconfig(struct ddl_client_context *ddl);
+void ddl_handle_reconfig(u32 res_change, struct ddl_client_context *ddl);
 
 #ifdef DDL_BUF_LOG
 void ddl_list_buffers(struct ddl_client_context *ddl);

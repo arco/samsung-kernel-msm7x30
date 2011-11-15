@@ -9,11 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  */
 
 #include <linux/module.h>
@@ -51,9 +46,6 @@
 extern spinlock_t mdp_spin_lock;
 #ifndef CONFIG_FB_MSM_MDP40
 extern uint32 mdp_intr_mask;
-#endif
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
-extern unsigned int board_lcd_hw_revision;
 #endif
 
 int first_pixel_start_x;
@@ -101,6 +93,7 @@ int mdp_lcdc_on(struct platform_device *pdev)
 	uint32 timer_base = LCDC_BASE;
 	uint32 block = MDP_DMA2_BLOCK;
 	int ret;
+	uint32_t mask, curr;
 
 	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
 
@@ -118,7 +111,8 @@ int mdp_lcdc_on(struct platform_device *pdev)
 
 	bpp = fbi->var.bits_per_pixel / 8;
 	buf = (uint8 *) fbi->fix.smem_start;
-	buf += fbi->var.xoffset * bpp + fbi->var.yoffset * fbi->fix.line_length;
+
+	buf += calc_fb_offset(mfd, fbi, bpp);
 
 	dma2_cfg_reg = DMA_PACK_ALIGN_LSB | DMA_OUT_SEL_LCDC;
 
@@ -177,6 +171,9 @@ int mdp_lcdc_on(struct platform_device *pdev)
 	/* x/y coordinate = always 0 for lcdc */
 	MDP_OUTP(MDP_BASE + dma_base + 0x10, 0);
 	/* dma config */
+	curr = inpdw(MDP_BASE + DMA_P_BASE);
+	mask = 0x0FFFFFFF;
+	dma2_cfg_reg = (dma2_cfg_reg & mask) | (curr & ~mask);
 	MDP_OUTP(MDP_BASE + dma_base, dma2_cfg_reg);
 
 	/*
@@ -244,21 +241,8 @@ int mdp_lcdc_on(struct platform_device *pdev)
 
 	lcdc_underflow_clr |= 0x80000000;	/* enable recovery */
 #else
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
-	if( board_lcd_hw_revision==3){//for HYDIS.. -0 - active low 
-		hsync_polarity = 0;
-		vsync_polarity = 0;
-	}
-	else{// 1 - active high
-		hsync_polarity = 1;
-		vsync_polarity = 1;
-
-	}
-#else
 	hsync_polarity = 0;
 	vsync_polarity = 0;
-
-#endif
 #endif
 	data_en_polarity = 0;
 
@@ -353,8 +337,8 @@ void mdp_lcdc_update(struct msm_fb_data_type *mfd)
 	/* no need to power on cmd block since it's lcdc mode */
 	bpp = fbi->var.bits_per_pixel / 8;
 	buf = (uint8 *) fbi->fix.smem_start;
-	buf += fbi->var.xoffset * bpp +
-		fbi->var.yoffset * fbi->fix.line_length;
+
+	buf += calc_fb_offset(mfd, fbi, bpp);
 
 	dma_base = DMA_P_BASE;
 

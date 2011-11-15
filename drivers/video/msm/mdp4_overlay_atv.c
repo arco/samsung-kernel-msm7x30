@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010, 2012 Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -8,11 +8,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -62,12 +57,11 @@ int mdp4_atv_on(struct platform_device *pdev)
 
 	bpp = fbi->var.bits_per_pixel / 8;
 	buf = (uint8 *) fbi->fix.smem_start;
-	buf += fbi->var.xoffset * bpp +
-		fbi->var.yoffset * fbi->fix.line_length;
+	buf += calc_fb_offset(mfd, fbi, bpp);
 
 	if (atv_pipe == NULL) {
 		ptype = mdp4_overlay_format2type(mfd->fb_imgType);
-		pipe = mdp4_overlay_pipe_alloc(ptype, MDP4_MIXER1, 0);
+		pipe = mdp4_overlay_pipe_alloc(ptype, MDP4_MIXER1);
 		if (pipe == NULL)
 			return -EBUSY;
 		pipe->pipe_used++;
@@ -113,6 +107,8 @@ int mdp4_atv_on(struct platform_device *pdev)
 	mdp4_mixer_stage_up(pipe);
 
 	mdp4_overlayproc_cfg(pipe);
+
+	mdp4_overlay_reg_flush(pipe, 1);
 
 	if (ret == 0)
 		mdp_pipe_ctrl(MDP_OVERLAY1_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
@@ -163,15 +159,15 @@ void mdp4_atv_overlay(struct msm_fb_data_type *mfd)
 	/* no need to power on cmd block since it's lcdc mode */
 	bpp = fbi->var.bits_per_pixel / 8;
 	buf = (uint8 *) fbi->fix.smem_start;
-	buf += fbi->var.xoffset * bpp +
-		fbi->var.yoffset * fbi->fix.line_length;
+	buf += calc_fb_offset(mfd, fbi, bpp);
 
 	mutex_lock(&mfd->dma->ov_mutex);
 
 	pipe = atv_pipe;
 	pipe->srcp0_addr = (uint32) buf;
 	mdp4_overlay_rgb_setup(pipe);
-	mdp4_overlay_reg_flush(pipe, 1); /* rgb2 and mixer1 */
+	mdp4_mixer_stage_up(pipe);
+	mdp4_overlay_reg_flush(pipe, 0);
 
 	printk(KERN_INFO "mdp4_atv_overlay: pipe=%x ndx=%d\n",
 					(int)pipe, pipe->pipe_ndx);
@@ -188,7 +184,9 @@ void mdp4_atv_overlay(struct msm_fb_data_type *mfd)
 	wait_for_completion_killable(&atv_pipe->comp);
 	mdp_disable_irq(MDP_OVERLAY1_TERM);
 
+	/* change mdp clk while mdp is idle` */
+	mdp4_set_perf_level();
+
 	mdp4_stat.kickoff_atv++;
-	mdp4_overlay_resource_release();
 	mutex_unlock(&mfd->dma->ov_mutex);
 }

@@ -1,29 +1,13 @@
 /* Copyright (c) 2008-2011, Code Aurora Forum. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above
- *       copyright notice, this list of conditions and the following
- *       disclaimer in the documentation and/or other materials provided
- *       with the distribution.
- *     * Neither the name of Code Aurora Forum, Inc. nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
  *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
  */
 
@@ -53,6 +37,7 @@ typedef struct panel_id_s {
 #define DTV_PANEL		7	/* DTV */
 #define MIPI_VIDEO_PANEL	8	/* MIPI */
 #define MIPI_CMD_PANEL		9	/* MIPI */
+#define WRITEBACK_PANEL		10	/* Wifi display */
 
 /* panel class */
 typedef enum {
@@ -66,6 +51,7 @@ typedef enum {
 typedef enum {
 	DISPLAY_1 = 0,		/* attached as first device */
 	DISPLAY_2,		/* attached on second device */
+	DISPLAY_3,              /* attached on third writeback device */
 	MAX_PHYS_TARGET_NUM,
 } DISP_TARGET_PHYS;
 
@@ -95,11 +81,12 @@ struct lcdc_panel_info {
 
 struct mddi_panel_info {
 	__u32 vdopkt;
+	boolean is_type1;
 };
 
 /* DSI PHY configuration */
 struct mipi_dsi_phy_ctrl {
-	uint32 regulator[4];
+	uint32 regulator[5];
 	uint32 timing[12];
 	uint32 ctrl[4];
 	uint32 strength[4];
@@ -146,6 +133,14 @@ struct mipi_panel_info {
 	char mdp_trigger;
 	char dma_trigger;
 	uint32 dsi_pclk_rate;
+	/* The packet-size should not bet changed */
+	char no_max_pkt_size;
+	/* Clock required during LP commands */
+	char force_clk_lane_hs;
+	/* Pad width */
+	uint32 xres_pad;
+	/* Pad height */
+	uint32 yres_pad;
 };
 
 struct msm_panel_info {
@@ -165,6 +160,8 @@ struct msm_panel_info {
 	__u32 clk_min;
 	__u32 clk_max;
 	__u32 frame_count;
+	__u32 is_3d_panel;
+	__u32 frame_rate;
 
 
 	struct mddi_panel_info mddi;
@@ -190,6 +187,7 @@ struct msm_fb_panel_data {
 	/* function entry chain */
 	int (*on) (struct platform_device *pdev);
 	int (*off) (struct platform_device *pdev);
+	int (*power_ctrl) (boolean enable);
 	struct platform_device *next;
 	int (*clk_func) (int enable);
 };

@@ -9,11 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  */
 
 #include <linux/module.h>
@@ -1081,6 +1076,8 @@ static void mddi_process_rev_packets(void)
 				if (mddi_enable_reg_read_retry_once)
 					mddi_reg_read_retry =
 					    mddi_reg_read_retry_max;
+				else
+					mddi_reg_read_retry++;
 				pmhctl->rev_state = MDDI_REV_REG_READ_SENT;
 				pmhctl->stats.reg_read_failure++;
 			} else {

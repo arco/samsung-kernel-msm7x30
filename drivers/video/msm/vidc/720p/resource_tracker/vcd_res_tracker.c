@@ -9,18 +9,12 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  */
 #include <linux/firmware.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <mach/internal_power_rail.h>
 #include <mach/clk.h>
-#include <mach/msm_reqs.h>
 #include <linux/interrupt.h>
 #include "vidc_type.h"
 #include "vcd_res_tracker.h"
@@ -37,23 +31,12 @@ static unsigned int mfc_clk_freq_table[3] = {
 	61440000, 122880000, 170667000
 };
 
-#ifndef CONFIG_MSM_NPA_SYSTEM_BUS
 static unsigned int axi_clk_freq_table_enc[2] = {
 	122880, 192000
 };
 static unsigned int axi_clk_freq_table_dec[2] = {
 	122880, 192000
 };
-#else
-static unsigned int axi_clk_freq_table_enc[2] = {
-	MSM_AXI_FLOW_VIDEO_RECORDING_720P,
-	MSM_AXI_FLOW_VIDEO_RECORDING_720P
-};
-static unsigned int axi_clk_freq_table_dec[2] = {
-	MSM_AXI_FLOW_VIDEO_PLAYBACK_720P,
-	MSM_AXI_FLOW_VIDEO_PLAYBACK_720P
-};
-#endif
 
 static struct res_trk_context resource_context;
 
@@ -516,7 +499,7 @@ u32 res_trk_set_perf_level(u32 req_perf_lvl, u32 *pn_set_perf_lvl,
 			mfc_freq = mfc_clk_freq_table[0];
 			axi_freq = axi_clk_freq_table_enc[0];
 		}
-		VCDRES_MSG_HIGH("\n ENCODER: axi_freq = %u"
+		VCDRES_MSG_MED("\n ENCODER: axi_freq = %u"
 			", mfc_freq = %u, calc_mfc_freq = %u,"
 			" req_perf_lvl = %u", axi_freq,
 			mfc_freq, calc_mfc_freq,
@@ -536,7 +519,7 @@ u32 res_trk_set_perf_level(u32 req_perf_lvl, u32 *pn_set_perf_lvl,
 				axi_freq = axi_clk_freq_table_dec[1];
 			}
 		}
-		VCDRES_MSG_HIGH("\n DECODER: axi_freq = %u"
+		VCDRES_MSG_MED("\n DECODER: axi_freq = %u"
 			", mfc_freq = %u, calc_mfc_freq = %u,"
 			" req_perf_lvl = %u", axi_freq,
 			mfc_freq, calc_mfc_freq,
@@ -545,7 +528,7 @@ u32 res_trk_set_perf_level(u32 req_perf_lvl, u32 *pn_set_perf_lvl,
 
 #ifdef AXI_CLK_SCALING
     if (req_perf_lvl != VCD_RESTRK_MIN_PERF_LEVEL) {
-		VCDRES_MSG_HIGH("\n %s(): Setting AXI freq to %u",
+		VCDRES_MSG_MED("\n %s(): Setting AXI freq to %u",
 			__func__, axi_freq);
 		clk_set_rate(ebi1_clk, axi_freq * 1000);
 	}
@@ -553,7 +536,7 @@ u32 res_trk_set_perf_level(u32 req_perf_lvl, u32 *pn_set_perf_lvl,
 
 #ifdef USE_RES_TRACKER
     if (req_perf_lvl != VCD_RESTRK_MIN_PERF_LEVEL) {
-		VCDRES_MSG_HIGH("\n %s(): Setting MFC freq to %u",
+		VCDRES_MSG_MED("\n %s(): Setting MFC freq to %u",
 			__func__, mfc_freq);
 		if (!res_trk_sel_clk_rate(mfc_freq)) {
 			VCDRES_MSG_ERROR("%s(): res_trk_sel_clk_rate FAILED\n",

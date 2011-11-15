@@ -9,11 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  */
 
 #include <linux/module.h>
@@ -34,7 +29,6 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
-#include <mach/msm_reqs.h>
 
 #include "msm_fb.h"
 
@@ -81,8 +75,14 @@ static int lcdc_off(struct platform_device *pdev)
 		ret = lcdc_pdata->lcdc_gpio_config(0);
 
 #ifndef CONFIG_MSM_BUS_SCALING
-	if (mfd->ebi1_clk)
+	if (mfd->ebi1_clk) {
+		if (mdp_rev == MDP_REV_303) {
+			if (clk_set_rate(mfd->ebi1_clk, 0))
+				pr_err("%s: ebi1_lcdc_clk set rate failed\n",
+					__func__);
+		}
 		clk_disable(mfd->ebi1_clk);
+	}
 #else
 	mdp_bus_scale_update_request(0);
 #endif
@@ -108,20 +108,23 @@ static int lcdc_on(struct platform_device *pdev)
 #ifdef CONFIG_MSM_BUS_SCALING
 	mdp_bus_scale_update_request(2);
 #else
-#ifdef CONFIG_MSM_NPA_SYSTEM_BUS
-	pm_qos_rate = MSM_AXI_FLOW_MDP_LCDC_WVGA_2BPP;
-#else
 	if (panel_pixclock_freq > 65000000)
 		/* pm_qos_rate should be in Khz */
 		pm_qos_rate = panel_pixclock_freq / 1000 ;
 	else
 		pm_qos_rate = 65000;
-#endif
 
 	if (mfd->ebi1_clk) {
-		clk_set_rate(mfd->ebi1_clk, pm_qos_rate * 1000);
+		if (mdp_rev == MDP_REV_303) {
+			if (clk_set_rate(mfd->ebi1_clk, 65000000))
+				pr_err("%s: ebi1_lcdc_clk set rate failed\n",
+					__func__);
+		} else {
+			clk_set_rate(mfd->ebi1_clk, pm_qos_rate * 1000);
+		}
 		clk_enable(mfd->ebi1_clk);
 	}
+
 #endif
 	mfd = platform_get_drvdata(pdev);
 

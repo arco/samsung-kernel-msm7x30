@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -8,11 +8,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -528,8 +523,8 @@ static u32 vcd_init_cmn
 		config->map_dev_base_addr
 		|| dev_ctxt->config.un_map_dev_base_addr !=
 		config->un_map_dev_base_addr) {
-		VCD_MSG_ERROR("Device config mismatch");
-		VCD_MSG_HIGH("VCD will be using config from 1st vcd_init");
+		VCD_MSG_HIGH("Device config mismatch. "
+			"VCD will be using config from 1st vcd_init");
 	}
 
 	*driver_handle = 0;

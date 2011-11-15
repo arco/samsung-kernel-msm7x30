@@ -9,11 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  */
 
 #include <linux/module.h>
@@ -112,7 +107,7 @@ void mddi_init(void)
 
 	mddi_host_initialized = TRUE;
 
-	init_MUTEX(&mddi_host_mutex);
+	sema_init(&mddi_host_mutex, 1);
 
 	if (!mddi_host_powered) {
 		down(&mddi_host_mutex);
@@ -506,9 +501,10 @@ int mddi_host_register_multiwrite(uint32 reg_addr,
 	memcpy((void *)&regacc_pkt_ptr->register_data_list[0], value_list_ptr,
 		   curr_llist_ptr->packet_data_count);
 
+	regacc_pkt_ptr = &curr_llist_dma_ptr->packet_header.register_pkt;
 	curr_llist_ptr->packet_data_pointer =
 		(void *)(&regacc_pkt_ptr->register_data_list[0]);
-	MDDI_MSG_DEBUG("Reg Access write reg=0x%x, value=0x%x\n",
+	MDDI_MSG_DEBUG("MultiReg Access write reg=0x%x, value[0]=0x%x\n",
 		       regacc_pkt_ptr->register_address,
 		       regacc_pkt_ptr->register_data_list[0]);
 
@@ -623,7 +619,7 @@ int mddi_host_register_multiread(uint32 reg_addr,
 		}
 	}
 
-	MDDI_MSG_DEBUG("Reg Read value=0x%x\n", *value_list_ptr);
+	MDDI_MSG_DEBUG("MultiReg Read value[0]=0x%x\n", *value_list_ptr);
 
 	return ret;
 }

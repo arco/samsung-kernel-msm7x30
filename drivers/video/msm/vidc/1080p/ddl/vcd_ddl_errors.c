@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -8,11 +8,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -28,10 +23,11 @@ static void ddl_input_failed_cb(struct ddl_client_context *ddl,
 static u32 ddl_handle_core_recoverable_errors(
 	struct ddl_client_context *ddl);
 static u32 ddl_handle_core_warnings(u32 error_code);
-static void ddl_handle_npf_decoding_error(
+static void ddl_release_prev_field(
 	struct ddl_client_context *ddl);
 static u32 ddl_handle_dec_seq_hdr_fail_error(struct ddl_client_context *ddl);
 static void print_core_errors(u32 error_code);
+static void print_core_recoverable_errors(u32 error_code);
 
 void ddl_hw_fatal_cb(struct ddl_client_context *ddl)
 {
@@ -185,39 +181,44 @@ static u32 ddl_handle_core_recoverable_errors(
 		(ddl->cmd_state != DDL_CMD_ENCODE_FRAME))
 		return false;
 
+	if (ddl->decoding &&
+		(ddl->codec_data.decoder.field_needed_for_prev_ip == 1)) {
+		ddl->codec_data.decoder.field_needed_for_prev_ip = 0;
+		ddl_release_prev_field(ddl);
 		if (ddl_context->cmd_err_status ==
-			VIDC_1080P_ERROR_NON_PAIRED_FIELD_NOT_SUPPORTED) {
-			ddl_handle_npf_decoding_error(ddl);
-		return true;
-				}
+		 VIDC_1080P_ERROR_NON_PAIRED_FIELD_NOT_SUPPORTED) {
+			ddl_vidc_decode_frame_run(ddl);
+			return true;
+		}
+	}
 
-			switch (ddl_context->cmd_err_status) {
-			case VIDC_1080P_ERROR_SYNC_POINT_NOT_RECEIVED:
-				vcd_status = VCD_ERR_IFRAME_EXPECTED;
-			break;
-			case VIDC_1080P_ERROR_NO_BUFFER_RELEASED_FROM_HOST:
-			{
-				u32 pending_display = 0, release_mask;
+	switch (ddl_context->cmd_err_status) {
+	case VIDC_1080P_ERROR_SYNC_POINT_NOT_RECEIVED:
+		vcd_status = VCD_ERR_IFRAME_EXPECTED;
+		break;
+	case VIDC_1080P_ERROR_NO_BUFFER_RELEASED_FROM_HOST:
+		{
+			u32 pending_display = 0, release_mask;
 
-				release_mask =
-					ddl->codec_data.decoder.\
-					dpb_mask.hw_mask;
-				while (release_mask > 0) {
-					if (release_mask & 0x1)
-						pending_display++;
-					release_mask >>= 1;
-				}
-				if (pending_display >= ddl->codec_data.\
-					decoder.min_dpb_num) {
-					DDL_MSG_ERROR("VIDC_FW_ISSUE_REQ_BUF");
-					ddl_client_fatal_cb(ddl);
-					status = true;
-				} else {
-					vcd_event = VCD_EVT_RESP_OUTPUT_REQ;
-					DDL_MSG_LOW("VIDC_OUTPUT_BUF_REQ!!");
-				}
-			break;
+			release_mask =
+				ddl->codec_data.decoder.\
+				dpb_mask.hw_mask;
+			while (release_mask > 0) {
+				if (release_mask & 0x1)
+					pending_display++;
+				release_mask >>= 1;
 			}
+			if (pending_display >= ddl->codec_data.\
+				decoder.min_dpb_num) {
+				DDL_MSG_ERROR("VIDC_FW_ISSUE_REQ_BUF");
+				ddl_client_fatal_cb(ddl);
+				status = true;
+			} else {
+				vcd_event = VCD_EVT_RESP_OUTPUT_REQ;
+				DDL_MSG_LOW("VIDC_OUTPUT_BUF_REQ!!");
+			}
+			break;
+		}
 	case VIDC_1080P_ERROR_BIT_STREAM_BUF_EXHAUST:
 	case VIDC_1080P_ERROR_DESCRIPTOR_TABLE_ENTRY_INVALID:
 	case VIDC_1080P_ERROR_MB_COEFF_NOT_DONE:
@@ -235,16 +236,16 @@ static u32 ddl_handle_core_recoverable_errors(
 	case VIDC_1080P_ERROR_PICTURE_STRUCTURE_ERR:
 	case VIDC_1080P_ERROR_SLICE_ADDR_INVALID:
 	case VIDC_1080P_ERROR_NON_FRAME_DATA_RECEIVED:
-	case VIDC_1080P_ERROR_INCOMPLETE_FRAME:
 	case VIDC_1080P_ERROR_NALU_HEADER_ERROR:
 	case VIDC_1080P_ERROR_SPS_PARSE_ERROR:
 	case VIDC_1080P_ERROR_PPS_PARSE_ERROR:
 	case VIDC_1080P_ERROR_HEADER_NOT_FOUND:
 	case VIDC_1080P_ERROR_SLICE_PARSE_ERROR:
 	case VIDC_1080P_ERROR_NON_PAIRED_FIELD_NOT_SUPPORTED:
-				vcd_status = VCD_ERR_BITSTREAM_ERR;
-				DDL_MSG_ERROR("VIDC_BIT_STREAM_ERR");
-			break;
+		vcd_status = VCD_ERR_BITSTREAM_ERR;
+		DDL_MSG_ERROR("VIDC_BIT_STREAM_ERR");
+		break;
+	case VIDC_1080P_ERROR_B_FRAME_NOT_SUPPORTED:
 	case VIDC_1080P_ERROR_UNSUPPORTED_FEATURE_IN_PROFILE:
 	case VIDC_1080P_ERROR_RESOLUTION_NOT_SUPPORTED:
 		if (ddl->decoding) {
@@ -254,7 +255,7 @@ static u32 ddl_handle_core_recoverable_errors(
 		break;
 	default:
 		break;
-			}
+	}
 
 	if (((vcd_status) || (vcd_event != VCD_EVT_RESP_INPUT_DONE)) &&
 		!status) {
@@ -307,6 +308,8 @@ static u32 ddl_handle_core_warnings(u32 err_status)
 	case VIDC_1080P_WARN_BIT_RATE_NOT_SUPPORTED:
 	case VIDC_1080P_WARN_COLOR_DIFF_FORMAT_NOT_SUPPORTED:
 	case VIDC_1080P_WARN_NULL_EXTRA_METADATA_POINTER:
+	case VIDC_1080P_WARN_DEBLOCKING_NOT_DONE:
+	case VIDC_1080P_WARN_INCOMPLETE_FRAME:
 	case VIDC_1080P_ERROR_NULL_FW_DEBUG_INFO_POINTER:
 	case VIDC_1080P_ERROR_ALLOC_DEBUG_INFO_SIZE_INSUFFICIENT:
 	case VIDC_1080P_WARN_METADATA_NO_SPACE_NUM_CONCEAL_MB:
@@ -320,6 +323,9 @@ static u32 ddl_handle_core_warnings(u32 err_status)
 	case VIDC_1080P_WARN_METADATA_NO_SPACE_MB_INFO:
 	case VIDC_1080P_WARN_METADATA_NO_SPACE_SLICE_SIZE:
 	case VIDC_1080P_WARN_RESOLUTION_WARNING:
+	case VIDC_1080P_WARN_NO_LONG_TERM_REFERENCE:
+	case VIDC_1080P_WARN_NO_SPACE_MPEG2_DATA_DUMP:
+	case VIDC_1080P_WARN_METADATA_NO_SPACE_MISSING_MB:
 		status = true;
 		DDL_MSG_ERROR("VIDC_WARNING_IGNORED");
 	break;
@@ -348,8 +354,10 @@ u32 ddl_handle_core_errors(struct ddl_context *ddl_context)
 		DDL_MSG_ERROR("VIDC_SPURIOUS_INTERRUPT_ERROR");
 		return true;
 	}
-	if (ddl_context->cmd_err_status)
+	if (ddl_context->cmd_err_status) {
 		print_core_errors(ddl_context->cmd_err_status);
+		print_core_recoverable_errors(ddl_context->cmd_err_status);
+	}
 	if (ddl_context->disp_pic_err_status)
 		print_core_errors(ddl_context->disp_pic_err_status);
 	status = ddl_handle_core_warnings(ddl_context->cmd_err_status);
@@ -366,22 +374,10 @@ u32 ddl_handle_core_errors(struct ddl_context *ddl_context)
 	return status;
 }
 
-static void ddl_handle_npf_decoding_error(struct ddl_client_context *ddl)
+static void ddl_release_prev_field(struct ddl_client_context *ddl)
 {
-	struct vidc_1080p_dec_disp_info *dec_disp_info =
-		&(ddl->codec_data.decoder.dec_disp_info);
-
-	if (!ddl->decoding) {
-		DDL_MSG_ERROR("VIDC_FW_ISSUE_ENC_NPF");
-		ddl_client_fatal_cb(ddl);
-	} else {
-		vidc_sm_get_frame_tags(
-			&ddl->shared_mem[ddl->command_channel],
-			&dec_disp_info->tag_top,
-			&dec_disp_info->tag_bottom);
-		ddl_vidc_decode_dynamic_property(ddl, false);
-		ddl->output_frame.vcd_frm.ip_frm_tag =
-			dec_disp_info->tag_top;
+	ddl->output_frame.vcd_frm.ip_frm_tag =
+		ddl->codec_data.decoder.prev_ip_frm_tag;
 		ddl->output_frame.vcd_frm.physical = NULL;
 		ddl->output_frame.vcd_frm.virtual = NULL;
 		ddl->output_frame.frm_trans_end = false;
@@ -389,8 +385,6 @@ static void ddl_handle_npf_decoding_error(struct ddl_client_context *ddl)
 			VCD_ERR_INTRLCD_FIELD_DROP, &(ddl->output_frame),
 			sizeof(struct ddl_frame_data_tag),
 			(u32 *) ddl, ddl->client_data);
-		ddl_vidc_decode_frame_run(ddl);
-	}
 }
 
 static u32 ddl_handle_dec_seq_hdr_fail_error(struct ddl_client_context *ddl)
@@ -416,6 +410,17 @@ static u32 ddl_handle_dec_seq_hdr_fail_error(struct ddl_client_context *ddl)
 			VIDC_1080P_ERROR_UNSUPPORTED_FEATURE_IN_PROFILE
 			&& decoder->codec.codec == VCD_CODEC_H264) {
 			DDL_MSG_ERROR("Unsupported Feature for H264");
+			ddl_client_fatal_cb(ddl);
+			return true;
+		}
+		if ((ddl_context->cmd_err_status ==
+			VIDC_1080P_ERROR_RESOLUTION_NOT_SUPPORTED)
+			&& (decoder->codec.codec == VCD_CODEC_H263
+			|| decoder->codec.codec == VCD_CODEC_H264
+			|| decoder->codec.codec == VCD_CODEC_MPEG4
+			|| decoder->codec.codec == VCD_CODEC_VC1
+			|| decoder->codec.codec == VCD_CODEC_VC1_RCV)) {
+			DDL_MSG_ERROR("Unsupported resolution");
 			ddl_client_fatal_cb(ddl);
 			return true;
 		}
@@ -583,6 +588,113 @@ void print_core_errors(u32 error_code)
 	case VIDC_1080P_ERROR_NON_PAIRED_FIELD_NOT_SUPPORTED:
 		string = "VIDC_1080P_ERROR_NON_PAIRED_FIELD_NOT_SUPPORTED";
 	break;
+	case VIDC_1080P_WARN_COMMAND_FLUSHED:
+		string = "VIDC_1080P_WARN_COMMAND_FLUSHED";
+	break;
+	case VIDC_1080P_WARN_FRAME_RATE_UNKNOWN:
+		string = "VIDC_1080P_WARN_FRAME_RATE_UNKNOWN";
+	break;
+	case VIDC_1080P_WARN_ASPECT_RATIO_UNKNOWN:
+		string = "VIDC_1080P_WARN_ASPECT_RATIO_UNKNOWN";
+	break;
+	case VIDC_1080P_WARN_COLOR_PRIMARIES_UNKNOWN:
+		string = "VIDC_1080P_WARN_COLOR_PRIMARIES_UNKNOWN";
+	break;
+	case VIDC_1080P_WARN_TRANSFER_CHAR_UNKNOWN:
+		string = "VIDC_1080P_WARN_TRANSFER_CHAR_UNKNOWN";
+	break;
+	case VIDC_1080P_WARN_MATRIX_COEFF_UNKNOWN:
+		string = "VIDC_1080P_WARN_MATRIX_COEFF_UNKNOWN";
+	break;
+	case VIDC_1080P_WARN_NON_SEQ_SLICE_ADDR:
+		string = "VIDC_1080P_WARN_NON_SEQ_SLICE_ADDR";
+	break;
+	case VIDC_1080P_WARN_BROKEN_LINK:
+		string = "VIDC_1080P_WARN_BROKEN_LINK";
+	break;
+	case VIDC_1080P_WARN_FRAME_CONCEALED:
+		string = "VIDC_1080P_WARN_FRAME_CONCEALED";
+	break;
+	case VIDC_1080P_WARN_PROFILE_UNKNOWN:
+		string = "VIDC_1080P_WARN_PROFILE_UNKNOWN";
+	break;
+	case VIDC_1080P_WARN_LEVEL_UNKNOWN:
+		string = "VIDC_1080P_WARN_LEVEL_UNKNOWN";
+	break;
+	case VIDC_1080P_WARN_BIT_RATE_NOT_SUPPORTED:
+		string = "VIDC_1080P_WARN_BIT_RATE_NOT_SUPPORTED";
+	break;
+	case VIDC_1080P_WARN_COLOR_DIFF_FORMAT_NOT_SUPPORTED:
+		string = "VIDC_1080P_WARN_COLOR_DIFF_FORMAT_NOT_SUPPORTED";
+	break;
+	case VIDC_1080P_WARN_NULL_EXTRA_METADATA_POINTER:
+		string = "VIDC_1080P_WARN_NULL_EXTRA_METADATA_POINTER";
+	break;
+	case VIDC_1080P_WARN_DEBLOCKING_NOT_DONE:
+		string = "VIDC_1080P_WARN_DEBLOCKING_NOT_DONE";
+	break;
+	case VIDC_1080P_WARN_INCOMPLETE_FRAME:
+		string = "VIDC_1080P_WARN_INCOMPLETE_FRAME";
+	break;
+	case VIDC_1080P_ERROR_NULL_FW_DEBUG_INFO_POINTER:
+		string = "VIDC_1080P_ERROR_NULL_FW_DEBUG_INFO_POINTER";
+	break;
+	case VIDC_1080P_ERROR_ALLOC_DEBUG_INFO_SIZE_INSUFFICIENT:
+		string =
+		"VIDC_1080P_ERROR_ALLOC_DEBUG_INFO_SIZE_INSUFFICIENT";
+	break;
+	case VIDC_1080P_WARN_METADATA_NO_SPACE_NUM_CONCEAL_MB:
+		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_NUM_CONCEAL_MB";
+	break;
+	case VIDC_1080P_WARN_METADATA_NO_SPACE_QP:
+		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_QP";
+	break;
+	case VIDC_1080P_WARN_METADATA_NO_SPACE_CONCEAL_MB:
+		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_CONCEAL_MB";
+	break;
+	case VIDC_1080P_WARN_METADATA_NO_SPACE_VC1_PARAM:
+		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_VC1_PARAM";
+	break;
+	case VIDC_1080P_WARN_METADATA_NO_SPACE_SEI:
+		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_SEI";
+	break;
+	case VIDC_1080P_WARN_METADATA_NO_SPACE_VUI:
+		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_VUI";
+	break;
+	case VIDC_1080P_WARN_METADATA_NO_SPACE_EXTRA:
+		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_EXTRA";
+	break;
+	case VIDC_1080P_WARN_METADATA_NO_SPACE_DATA_NONE:
+		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_DATA_NONE";
+	break;
+	case VIDC_1080P_WARN_METADATA_NO_SPACE_MB_INFO:
+		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_MB_INFO";
+	break;
+	case VIDC_1080P_WARN_METADATA_NO_SPACE_SLICE_SIZE:
+		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_SLICE_SIZE";
+	break;
+	case VIDC_1080P_WARN_RESOLUTION_WARNING:
+		string = "VIDC_1080P_WARN_RESOLUTION_WARNING";
+	break;
+	case VIDC_1080P_WARN_NO_LONG_TERM_REFERENCE:
+		string = "VIDC_1080P_WARN_NO_LONG_TERM_REFERENCE";
+	break;
+	case VIDC_1080P_WARN_NO_SPACE_MPEG2_DATA_DUMP:
+		string = "VIDC_1080P_WARN_NO_SPACE_MPEG2_DATA_DUMP";
+	break;
+	case VIDC_1080P_WARN_METADATA_NO_SPACE_MISSING_MB:
+		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_MISSING_MB";
+	break;
+	}
+	if (string)
+		DDL_MSG_ERROR("Error code = 0x%x : %s", error_code, string);
+}
+
+void print_core_recoverable_errors(u32 error_code)
+{
+	s8 *string = NULL;
+
+	switch (error_code) {
 	case VIDC_1080P_ERROR_SYNC_POINT_NOT_RECEIVED:
 		string = "VIDC_1080P_ERROR_SYNC_POINT_NOT_RECEIVED";
 	break;
@@ -640,9 +752,6 @@ void print_core_errors(u32 error_code)
 	case VIDC_1080P_ERROR_NON_FRAME_DATA_RECEIVED:
 		string = "VIDC_1080P_ERROR_NON_FRAME_DATA_RECEIVED";
 	break;
-	case VIDC_1080P_ERROR_INCOMPLETE_FRAME:
-		string = "VIDC_1080P_ERROR_INCOMPLETE_FRAME";
-	break;
 	case VIDC_1080P_ERROR_NALU_HEADER_ERROR:
 		string = "VIDC_1080P_ERROR_NALU_HEADER_ERROR";
 	break;
@@ -655,89 +764,8 @@ void print_core_errors(u32 error_code)
 	case VIDC_1080P_ERROR_SLICE_PARSE_ERROR:
 		string = "VIDC_1080P_ERROR_SLICE_PARSE_ERROR";
 	break;
-	case VIDC_1080P_WARN_COMMAND_FLUSHED:
-		string = "VIDC_1080P_WARN_COMMAND_FLUSHED";
-	break;
-	case VIDC_1080P_WARN_FRAME_RATE_UNKNOWN:
-		string = "VIDC_1080P_WARN_FRAME_RATE_UNKNOWN";
-	break;
-	case VIDC_1080P_WARN_ASPECT_RATIO_UNKNOWN:
-		string = "VIDC_1080P_WARN_ASPECT_RATIO_UNKNOWN";
-	break;
-	case VIDC_1080P_WARN_COLOR_PRIMARIES_UNKNOWN:
-		string = "VIDC_1080P_WARN_COLOR_PRIMARIES_UNKNOWN";
-	break;
-	case VIDC_1080P_WARN_TRANSFER_CHAR_UNKNOWN:
-		string = "VIDC_1080P_WARN_TRANSFER_CHAR_UNKNOWN";
-	break;
-	case VIDC_1080P_WARN_MATRIX_COEFF_UNKNOWN:
-		string = "VIDC_1080P_WARN_MATRIX_COEFF_UNKNOWN";
-	break;
-	case VIDC_1080P_WARN_NON_SEQ_SLICE_ADDR:
-		string = "VIDC_1080P_WARN_NON_SEQ_SLICE_ADDR";
-	break;
-	case VIDC_1080P_WARN_BROKEN_LINK:
-		string = "VIDC_1080P_WARN_BROKEN_LINK";
-	break;
-	case VIDC_1080P_WARN_FRAME_CONCEALED:
-		string = "VIDC_1080P_WARN_FRAME_CONCEALED";
-	break;
-	case VIDC_1080P_WARN_PROFILE_UNKNOWN:
-		string = "VIDC_1080P_WARN_PROFILE_UNKNOWN";
-	break;
-	case VIDC_1080P_WARN_LEVEL_UNKNOWN:
-		string = "VIDC_1080P_WARN_LEVEL_UNKNOWN";
-	break;
-	case VIDC_1080P_WARN_BIT_RATE_NOT_SUPPORTED:
-		string = "VIDC_1080P_WARN_BIT_RATE_NOT_SUPPORTED";
-	break;
-	case VIDC_1080P_WARN_COLOR_DIFF_FORMAT_NOT_SUPPORTED:
-		string = "VIDC_1080P_WARN_COLOR_DIFF_FORMAT_NOT_SUPPORTED";
-	break;
-	case VIDC_1080P_WARN_NULL_EXTRA_METADATA_POINTER:
-		string = "VIDC_1080P_WARN_NULL_EXTRA_METADATA_POINTER";
-	break;
-	case VIDC_1080P_ERROR_NULL_FW_DEBUG_INFO_POINTER:
-		string = "VIDC_1080P_ERROR_NULL_FW_DEBUG_INFO_POINTER";
-	break;
-	case VIDC_1080P_ERROR_ALLOC_DEBUG_INFO_SIZE_INSUFFICIENT:
-		string =
-		"VIDC_1080P_ERROR_ALLOC_DEBUG_INFO_SIZE_INSUFFICIENT";
-	break;
-	case VIDC_1080P_WARN_METADATA_NO_SPACE_NUM_CONCEAL_MB:
-		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_NUM_CONCEAL_MB";
-	break;
-	case VIDC_1080P_WARN_METADATA_NO_SPACE_QP:
-		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_QP";
-	break;
-	case VIDC_1080P_WARN_METADATA_NO_SPACE_CONCEAL_MB:
-		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_CONCEAL_MB";
-	break;
-	case VIDC_1080P_WARN_METADATA_NO_SPACE_VC1_PARAM:
-		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_VC1_PARAM";
-	break;
-	case VIDC_1080P_WARN_METADATA_NO_SPACE_SEI:
-		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_SEI";
-	break;
-	case VIDC_1080P_WARN_METADATA_NO_SPACE_VUI:
-		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_VUI";
-	break;
-	case VIDC_1080P_WARN_METADATA_NO_SPACE_EXTRA:
-		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_EXTRA";
-	break;
-	case VIDC_1080P_WARN_METADATA_NO_SPACE_DATA_NONE:
-		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_DATA_NONE";
-	break;
-	case VIDC_1080P_WARN_METADATA_NO_SPACE_MB_INFO:
-		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_MB_INFO";
-	break;
-	case VIDC_1080P_WARN_METADATA_NO_SPACE_SLICE_SIZE:
-		string = "VIDC_1080P_WARN_METADATA_NO_SPACE_SLICE_SIZE";
-	break;
-	case VIDC_1080P_WARN_RESOLUTION_WARNING:
-		string = "VIDC_1080P_WARN_RESOLUTION_WARNING";
-	break;
 	}
 	if (string)
-		DDL_MSG_ERROR("Error code = 0x%x : %s", error_code, string);
+		DDL_MSG_ERROR("Recoverable Error code = 0x%x : %s",
+					  error_code, string);
 }

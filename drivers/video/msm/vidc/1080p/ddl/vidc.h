@@ -1,29 +1,13 @@
-/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above
- *       copyright notice, this list of conditions and the following
- *       disclaimer in the documentation and/or other materials provided
- *       with the distribution.
- *     * Neither the name of Code Aurora Forum, Inc. nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
  *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
  */
 
@@ -110,7 +94,6 @@
 #define VIDC_1080P_ERROR_SLICE_ADDR_INVALID       121
 #define VIDC_1080P_ERROR_NON_PAIRED_FIELD_NOT_SUPPORTED         122
 #define VIDC_1080P_ERROR_NON_FRAME_DATA_RECEIVED                123
-#define VIDC_1080P_ERROR_INCOMPLETE_FRAME                       124
 #define VIDC_1080P_ERROR_NO_BUFFER_RELEASED_FROM_HOST           125
 #define VIDC_1080P_ERROR_NULL_FW_DEBUG_INFO_POINTER             126
 #define VIDC_1080P_ERROR_ALLOC_DEBUG_INFO_SIZE_INSUFFICIENT     127
@@ -142,9 +125,15 @@
 #define VIDC_1080P_WARN_BIT_RATE_NOT_SUPPORTED           168
 #define VIDC_1080P_WARN_COLOR_DIFF_FORMAT_NOT_SUPPORTED  169
 #define VIDC_1080P_WARN_NULL_EXTRA_METADATA_POINTER      170
+#define VIDC_1080P_WARN_DEBLOCKING_NOT_DONE              178
+#define VIDC_1080P_WARN_INCOMPLETE_FRAME                 179
 #define VIDC_1080P_WARN_METADATA_NO_SPACE_MB_INFO        180
 #define VIDC_1080P_WARN_METADATA_NO_SPACE_SLICE_SIZE     181
 #define VIDC_1080P_WARN_RESOLUTION_WARNING               182
+
+#define VIDC_1080P_WARN_NO_LONG_TERM_REFERENCE           183
+#define VIDC_1080P_WARN_NO_SPACE_MPEG2_DATA_DUMP         190
+#define VIDC_1080P_WARN_METADATA_NO_SPACE_MISSING_MB     191
 
 #define VIDC_1080P_H264_ENC_TYPE_P       0
 #define VIDC_1080P_H264_ENC_TYPE_B       1
@@ -286,6 +275,12 @@ enum vidc_1080p_decode_frame{
 	VIDC_1080P_DECODE_FRAMETYPE_OTHERS     = 4,
 	VIDC_1080P_DECODE_FRAMETYPE_32BIT      = 0x7FFFFFFF
 };
+enum vidc_1080P_decode_frame_correct_type {
+	VIDC_1080P_DECODE_NOT_CORRECT = 0,
+	VIDC_1080P_DECODE_CORRECT = 1,
+	VIDC_1080P_DECODE_APPROX_CORRECT = 2,
+	VIDC_1080P_DECODE_CORRECTTYPE_32BIT = 0x7FFFFFFF
+};
 enum vidc_1080p_encode_frame{
 	VIDC_1080P_ENCODE_FRAMETYPE_NOT_CODED  = 0,
 	VIDC_1080P_ENCODE_FRAMETYPE_I          = 1,
@@ -295,6 +290,15 @@ enum vidc_1080p_encode_frame{
 	VIDC_1080P_ENCODE_FRAMETYPE_OTHERS     = 5,
 	VIDC_1080P_ENCODE_FRAMETYPE_32BIT      = 0x7FFFFFFF
 
+};
+
+enum vidc_1080p_decode_idc_format {
+	VIDC_1080P_IDCFORMAT_MONOCHROME = 0,
+	VIDC_1080P_IDCFORMAT_420 = 1,
+	VIDC_1080P_IDCFORMAT_422 = 2,
+	VIDC_1080P_IDCFORMAT_444 = 3,
+	VIDC_1080P_IDCFORMAT_OTHERS = 4,
+	VIDC_1080P_IDCFORMAT_32BIT = 0x7FFFFFFF
 };
 
 #define VIDC_1080P_PROFILE_MPEG4_SIMPLE      0x00000000
@@ -309,6 +313,8 @@ enum vidc_1080p_decode{
 	VIDC_1080P_DEC_TYPE_SEQ_HEADER       = 0x00010000,
 	VIDC_1080P_DEC_TYPE_FRAME_DATA       = 0x00020000,
 	VIDC_1080P_DEC_TYPE_LAST_FRAME_DATA  = 0x00030000,
+	VIDC_1080P_DEC_TYPE_INIT_BUFFERS     = 0x00040000,
+	VIDC_1080P_DEC_TYPE_FRAME_START_REALLOC = 0x00050000,
 	VIDC_1080P_DEC_TYPE_32BIT            = 0x7FFFFFFF
 };
 enum vidc_1080p_encode{
@@ -364,6 +370,7 @@ struct vidc_1080p_seq_hdr_info{
 	u32 crop_left_offset;
 	u32 crop_bottom_offset;
 	u32 crop_top_offset;
+	u32 data_partition;
 };
 struct vidc_1080p_enc_seq_start_param{
 	u32 cmd_seq_num;
@@ -421,6 +428,8 @@ struct vidc_1080p_dec_disp_info{
 	enum vidc_1080p_display_status decode_status;
 	enum vidc_1080p_display_coding display_coding;
 	enum vidc_1080p_display_coding decode_coding;
+	enum vidc_1080P_decode_frame_correct_type display_correct;
+	enum vidc_1080P_decode_frame_correct_type decode_correct;
 	enum vidc_1080p_decode_frame input_frame;
 };
 void vidc_1080p_do_sw_reset(enum vidc_1080p_reset init_flag);
@@ -496,8 +505,8 @@ void vidc_1080p_decode_frame_start_ch0(
 	struct vidc_1080p_dec_frame_start_param *param);
 void vidc_1080p_decode_frame_start_ch1(
 	struct vidc_1080p_dec_frame_start_param *param);
-void vidc_1080p_set_divx3_resolution_ch0(u32 width, u32 height);
-void vidc_1080p_set_divx3_resolution_ch1(u32 width, u32 height);
+void vidc_1080p_set_dec_resolution_ch0(u32 width, u32 height);
+void vidc_1080p_set_dec_resolution_ch1(u32 width, u32 height);
 void vidc_1080p_get_encode_frame_info(
 	struct vidc_1080p_enc_frame_info *frame_info);
 void vidc_1080p_encode_seq_start_ch0(
@@ -544,4 +553,5 @@ void vidc_1080p_get_encoder_sequence_header_size(u32 *seq_header_size);
 void vidc_1080p_get_intermedia_stage_debug_counter(
 	u32 *intermediate_stage_counter);
 void vidc_1080p_get_exception_status(u32 *exception_status);
+void vidc_1080p_frame_start_realloc(u32 instance_id);
 #endif
