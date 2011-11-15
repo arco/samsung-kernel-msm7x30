@@ -269,8 +269,6 @@ int mdp4_dtv_off(struct platform_device *pdev)
 {
 	int ret = 0;
 
-	ret = panel_next_off(pdev);
-
 	/* MDP cmd block enable */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 	MDP_OUTP(MDP_BASE + DTV_BASE, 0);
@@ -278,15 +276,24 @@ int mdp4_dtv_off(struct platform_device *pdev)
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 	mdp_pipe_ctrl(MDP_OVERLAY1_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 
-
-	/* delay to make sure the last frame finishes */
-	msleep(100);
-
+	/*
+	 * wait for vsync == 16.6 ms to make sure
+	 * the last frame finishes
+	*/
+	msleep(20);
 	pr_info("%s\n", __func__);
+
+	ret = panel_next_off(pdev);
 
 	/* dis-engage rgb2 from mixer1 */
 	if (dtv_pipe)
 		mdp4_mixer_stage_down(dtv_pipe);
+
+	/*
+	 * wait for another vsync == 16.6 ms to make sure
+	 * rgb2 dis-engaged
+	*/
+	msleep(20);
 
 	return ret;
 }
@@ -317,6 +324,9 @@ void mdp4_overlay_dtv_vsync_push(struct msm_fb_data_type *mfd,
 		return;
 
 	mdp4_overlay_dtv_wait4vsync(mfd);
+
+	/* change mdp clk while mdp is idle` */
+	mdp4_set_perf_level();
 }
 
 static void mdp4_overlay_dtv_wait4_ov_done(struct msm_fb_data_type *mfd)
@@ -345,6 +355,9 @@ void mdp4_overlay_dtv_ov_done_push(struct msm_fb_data_type *mfd,
 		return;
 
 	mdp4_overlay_dtv_wait4_ov_done(mfd);
+
+	/* change mdp clk while mdp is idle` */
+	mdp4_set_perf_level();
 }
 
 void mdp4_external_vsync_dtv()
@@ -397,6 +410,5 @@ void mdp4_dtv_overlay(struct msm_fb_data_type *mfd)
 	mdp_disable_irq(MDP_OVERLAY1_TERM);
 
 	mdp4_stat.kickoff_dtv++;
-	mdp4_overlay_resource_release();
 	mutex_unlock(&mfd->dma->ov_mutex);
 }

@@ -47,13 +47,15 @@
 uint32 mdp4_extn_disp;
 static struct clk *mdp_clk;
 static struct clk *mdp_pclk;
+int mdp_rev;
+
 struct regulator *footswitch;
 
 struct completion mdp_ppp_comp;
 struct semaphore mdp_ppp_mutex;
 struct semaphore mdp_pipe_ctrl_mutex;
 
-unsigned long mdp_timer_duration = (HZ);   /* 1 second */
+unsigned long mdp_timer_duration = (HZ/20);   /* 50 msecond */
 
 boolean mdp_ppp_waiting = FALSE;
 uint32 mdp_tv_underflow_cnt;
@@ -213,17 +215,15 @@ static void mdp_lut_enable(void)
 	mutex_unlock(&mdp_lut_push_sem);
 }
 
-#define MDP_HIST_MAX_BIN 32
-static __u32 mdp_hist_r[MDP_HIST_MAX_BIN];
-static __u32 mdp_hist_g[MDP_HIST_MAX_BIN];
-static __u32 mdp_hist_b[MDP_HIST_MAX_BIN];
+#define MDP_REV42_HIST_MAX_BIN 128
+#define MDP_REV41_HIST_MAX_BIN 32
 
 #ifdef CONFIG_FB_MSM_MDP40
-struct mdp_histogram mdp_hist;
+unsigned int mdp_hist_frame_cnt;
 struct completion mdp_hist_comp;
 boolean mdp_is_hist_start = FALSE;
 #else
-static struct mdp_histogram mdp_hist;
+static unsigned int mdp_hist_frame_cnt;
 static struct completion mdp_hist_comp;
 static boolean mdp_is_hist_start = FALSE;
 #endif
@@ -240,7 +240,7 @@ int mdp_histogram_ctrl(boolean en)
 	if (hist_start == TRUE) {
 		if (en == TRUE) {
 			mdp_enable_irq(MDP_HISTOGRAM_TERM);
-			mdp_hist.frame_cnt = 1;
+			mdp_hist_frame_cnt = 1;
 			mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 #ifdef CONFIG_FB_MSM_MDP40
 			MDP_OUTP(MDP_BASE + 0x95010, 1);
@@ -275,6 +275,7 @@ int mdp_start_histogram(struct fb_info *info)
 	mdp_is_hist_start = TRUE;
 	spin_unlock_irqrestore(&mdp_spin_lock, flag);
 	mdp_enable_irq(MDP_HISTOGRAM_TERM);
+	mdp_hist_frame_cnt = 1;
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 #ifdef CONFIG_FB_MSM_MDP40
 	MDP_OUTP(MDP_BASE + 0x95004, 1);
@@ -312,13 +313,72 @@ mdp_hist_stop_err:
 	return ret;
 }
 
-static int mdp_do_histogram(struct fb_info *info, struct mdp_histogram *hist)
+static int mdp_copy_hist_data(struct mdp_histogram *hist)
 {
+	char *mdp_hist_base;
+	uint32 r_data_offset = 0x100, g_data_offset = 0x200;
+	uint32 b_data_offset = 0x300;
 	int ret = 0;
 
-	if (!hist->frame_cnt || (hist->bin_cnt == 0) ||
-				 (hist->bin_cnt > MDP_HIST_MAX_BIN))
+	mutex_lock(&mdp_hist_mutex);
+	if (mdp_rev >= MDP_REV_42) {
+		mdp_hist_base = MDP_BASE + 0x95000;
+		r_data_offset = 0x400;
+		g_data_offset = 0x800;
+		b_data_offset = 0xc00;
+	} else if (mdp_rev >= MDP_REV_40 && mdp_rev <= MDP_REV_41) {
+		mdp_hist_base = MDP_BASE + 0x95000;
+	} else if (mdp_rev >= MDP_REV_30 && mdp_rev <= MDP_REV_31) {
+		mdp_hist_base = MDP_BASE + 0x94000;
+	} else {
+		pr_err("%s(): Unsupported MDP rev %u\n", __func__, mdp_rev);
+		return -EPERM;
+	}
+
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+	if (hist->r) {
+		ret = copy_to_user(hist->r, mdp_hist_base + r_data_offset,
+			hist->bin_cnt * 4);
+		if (ret)
+			goto hist_err;
+	}
+	if (hist->g) {
+		ret = copy_to_user(hist->g, mdp_hist_base + g_data_offset,
+			hist->bin_cnt * 4);
+		if (ret)
+			goto hist_err;
+	}
+	if (hist->b) {
+		ret = copy_to_user(hist->b, mdp_hist_base + b_data_offset,
+			hist->bin_cnt * 4);
+		if (ret)
+			goto hist_err;
+	}
+
+	if (mdp_is_hist_start == TRUE) {
+		MDP_OUTP(mdp_hist_base + 0x004,
+				mdp_hist_frame_cnt);
+		MDP_OUTP(mdp_hist_base, 1);
+	}
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+	mutex_unlock(&mdp_hist_mutex);
+	return 0;
+
+hist_err:
+	printk(KERN_ERR "%s: invalid hist buffer\n", __func__);
+	return ret;
+}
+
+static int mdp_do_histogram(struct fb_info *info, struct mdp_histogram *hist)
+{
+	if (!hist->frame_cnt || (hist->bin_cnt == 0))
 		return -EINVAL;
+
+	if ((mdp_rev <= MDP_REV_41 && hist->bin_cnt > MDP_REV41_HIST_MAX_BIN)
+		|| (mdp_rev == MDP_REV_42 &&
+		hist->bin_cnt > MDP_REV42_HIST_MAX_BIN))
+		return -EINVAL;
+
 	mutex_lock(&mdp_hist_mutex);
 	if (!mdp_is_hist_start) {
 		printk(KERN_ERR "%s histogram not started\n", __func__);
@@ -328,35 +388,10 @@ static int mdp_do_histogram(struct fb_info *info, struct mdp_histogram *hist)
 	mutex_unlock(&mdp_hist_mutex);
 
 	INIT_COMPLETION(mdp_hist_comp);
-
-	mdp_hist.bin_cnt = hist->bin_cnt;
-	mdp_hist.frame_cnt = hist->frame_cnt;
-	mdp_hist.r = (hist->r) ? mdp_hist_r : 0;
-	mdp_hist.g = (hist->g) ? mdp_hist_g : 0;
-	mdp_hist.b = (hist->b) ? mdp_hist_b : 0;
-
+	mdp_hist_frame_cnt = hist->frame_cnt;
 	wait_for_completion_killable(&mdp_hist_comp);
 
-	if (hist->r) {
-		ret = copy_to_user(hist->r, mdp_hist.r, hist->bin_cnt*4);
-		if (ret)
-			goto hist_err;
-	}
-	if (hist->g) {
-		ret = copy_to_user(hist->g, mdp_hist.g, hist->bin_cnt*4);
-		if (ret)
-			goto hist_err;
-	}
-	if (hist->b) {
-		ret = copy_to_user(hist->b, mdp_hist.b, hist->bin_cnt*4);
-		if (ret)
-			goto hist_err;
-	}
-	return 0;
-
-hist_err:
-	printk(KERN_ERR "%s: invalid hist buffer\n", __func__);
-	return ret;
+	return mdp_copy_hist_data(hist);
 }
 #endif
 
@@ -429,6 +464,7 @@ void mdp_disable_irq(uint32 term)
 
 void mdp_disable_irq_nosync(uint32 term)
 {
+	spin_lock(&mdp_lock);
 	if (!(mdp_irq_mask & term)) {
 		printk(KERN_ERR "%s: MDP IRQ term-0x%x is NOT set, mask=%x irq=%d\n",
 				__func__, term, mdp_irq_mask, mdp_irq_enabled);
@@ -439,6 +475,7 @@ void mdp_disable_irq_nosync(uint32 term)
 			disable_irq_nosync(INT_MDP);
 		}
 	}
+	spin_unlock(&mdp_lock);
 }
 
 void mdp_pipe_kickoff(uint32 term, struct msm_fb_data_type *mfd)
@@ -467,12 +504,12 @@ void mdp_pipe_kickoff(uint32 term, struct msm_fb_data_type *mfd)
 			jiffies_to_timeval(jiffies, &now);
 			mdp_ppp_timeval.tv_usec =
 			    now.tv_usec - mdp_ppp_timeval.tv_usec;
-			MSM_FB_INFO("MDP-PPP: %d\n",
+			MSM_FB_DEBUG("MDP-PPP: %d\n",
 				    (int)mdp_ppp_timeval.tv_usec);
 		}
 	} else if (term == MDP_DMA2_TERM) {
 		if (mdp_debug[MDP_DMA2_BLOCK]) {
-			MSM_FB_INFO("MDP-DMA2: %d\n",
+			MSM_FB_DEBUG("MDP-DMA2: %d\n",
 				    (int)mdp_dma2_timeval.tv_usec);
 			jiffies_to_timeval(jiffies, &mdp_dma2_timeval);
 		}
@@ -720,21 +757,7 @@ irqreturn_t mdp_isr(int irq, void *ptr)
 		if (mdp_interrupt & MDP_HIST_DONE) {
 			outp32(MDP_BASE + 0x94018, 0x3);
 			outp32(MDP_INTR_CLEAR, MDP_HIST_DONE);
-			if (mdp_hist.r)
-				memcpy(mdp_hist.r, MDP_BASE + 0x94100,
-						mdp_hist.bin_cnt*4);
-			if (mdp_hist.g)
-				memcpy(mdp_hist.g, MDP_BASE + 0x94200,
-						mdp_hist.bin_cnt*4);
-			if (mdp_hist.b)
-				memcpy(mdp_hist.b, MDP_BASE + 0x94300,
-						mdp_hist.bin_cnt*4);
 			complete(&mdp_hist_comp);
-			if (mdp_is_hist_start == TRUE) {
-				MDP_OUTP(MDP_BASE + 0x94004,
-						 mdp_hist.frame_cnt);
-				MDP_OUTP(MDP_BASE + 0x94000, 1);
-			}
 		}
 
 		/* LCDC UnderFlow */
@@ -747,7 +770,7 @@ irqreturn_t mdp_isr(int irq, void *ptr)
 			MDP_OUTP(MDP_BASE + 0x9401c, 2);
 			if (mdp_is_hist_start == TRUE) {
 				MDP_OUTP(MDP_BASE + 0x94004,
-						 mdp_hist.frame_cnt);
+						 mdp_hist_frame_cnt);
 				MDP_OUTP(MDP_BASE + 0x94000, 1);
 			}
 		}
@@ -1024,8 +1047,20 @@ void mdp_hw_version(void)
 	mdp_hw_revision >>= 28;	/* bit 31:28 */
 	mdp_hw_revision &= 0x0f;
 
-	printk(KERN_INFO "%s: mdp_hw_revision=%x\n",
+	MSM_FB_DEBUG("%s: mdp_hw_revision=%x\n",
 				__func__, mdp_hw_revision);
+}
+
+int mdp4_writeback_offset(void)
+{
+	int off = 0;
+
+	if (mdp_pdata->writeback_offset)
+		off = mdp_pdata->writeback_offset();
+
+	pr_debug("%s: writeback_offset=%d %x\n", __func__, off, off);
+
+	return off;
 }
 
 #ifdef CONFIG_FB_MSM_MDP40
@@ -1083,8 +1118,6 @@ int mdp_set_core_clk(uint16 perf_level)
 			printk(KERN_ERR "%s invalid perf level\n", __func__);
 		else {
 			mutex_lock(&mdp_clk_lock);
-			if (mdp4_extn_disp)
-				perf_level = 1;
 			ret = clk_set_rate(mdp_clk,
 				mdp_pdata->
 				mdp_core_clk_table[mdp_pdata->num_mdp_clk
@@ -1120,8 +1153,6 @@ unsigned long mdp_perf_level2clk_rate(uint32 perf_level)
 			printk(KERN_ERR "%s invalid perf level\n", __func__);
 			clk_rate = mdp_get_core_clk();
 		} else {
-			if (mdp4_extn_disp)
-				perf_level = 1;
 			clk_rate = mdp_pdata->
 				mdp_core_clk_table[mdp_pdata->num_mdp_clk
 					- perf_level];
@@ -1174,7 +1205,7 @@ static int mdp_irq_clk_setup(void)
 		clk_set_rate(mdp_clk, mdp_pdata->mdp_core_clk_rate);
 		mutex_unlock(&mdp_clk_lock);
 	}
-	printk(KERN_INFO "mdp_clk: mdp_clk=%d\n", (int)clk_get_rate(mdp_clk));
+	MSM_FB_DEBUG("mdp_clk: mdp_clk=%d\n", (int)clk_get_rate(mdp_clk));
 #endif
 
 	return 0;
@@ -1202,12 +1233,13 @@ static int mdp_probe(struct platform_device *pdev)
 		size =  resource_size(&pdev->resource[0]);
 		msm_mdp_base = ioremap(pdev->resource[0].start, size);
 
-		MSM_FB_INFO("MDP HW Base phy_Address = 0x%x virt = 0x%x\n",
+		MSM_FB_DEBUG("MDP HW Base phy_Address = 0x%x virt = 0x%x\n",
 			(int)pdev->resource[0].start, (int)msm_mdp_base);
 
 		if (unlikely(!msm_mdp_base))
 			return -ENOMEM;
 
+		mdp_rev = mdp_pdata->mdp_rev;
 		rc = mdp_irq_clk_setup();
 
 		if (rc)
@@ -1291,6 +1323,7 @@ static int mdp_probe(struct platform_device *pdev)
 		if (mfd->panel_info.pdest == DISPLAY_1) {
 #if defined(CONFIG_FB_MSM_OVERLAY) && defined(CONFIG_FB_MSM_MDDI)
 			mfd->dma_fnc = mdp4_mddi_overlay;
+			mfd->cursor_update = mdp4_mddi_overlay_cursor;
 #else
 			mfd->dma_fnc = mdp_dma2_update;
 #endif
@@ -1325,9 +1358,6 @@ static int mdp_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_FB_MSM_MIPI_DSI
 	case MIPI_VIDEO_PANEL:
-#ifdef CONFIG_FB_MSM_MDP40
-		mdp_timer_duration = 0;
-#endif
 		pdata->on = mdp4_dsi_video_on;
 		pdata->off = mdp4_dsi_video_off;
 		mfd->hw_refresh = TRUE;
@@ -1345,7 +1375,6 @@ static int mdp_probe(struct platform_device *pdev)
 	case MIPI_CMD_PANEL:
 		mfd->dma_fnc = mdp4_dsi_cmd_overlay;
 #ifdef CONFIG_FB_MSM_MDP40
-		mdp_timer_duration = 0;
 		mipi = &mfd->panel_info.mipi;
 		configure_mdp_core_clk_table((mipi->dsi_pclk_rate) * 3 / 2);
 #endif
@@ -1356,6 +1385,8 @@ static int mdp_probe(struct platform_device *pdev)
 			if_no = SECONDARY_INTF_SEL;
 			mfd->dma = &dma_s_data;
 		}
+		mfd->lut_update = mdp_lut_update_nonlcdc;
+		mfd->do_histogram = mdp_do_histogram;
 		mdp4_display_intf_sel(if_no, DSI_CMD_INTF);
 
 		mdp_config_vsync(mfd);

@@ -161,7 +161,7 @@ static int __devinit samsung_probe(struct platform_device *pdev)
 		bl_pwm1 = NULL;
 	}
 
-	printk(KERN_INFO "samsung_probe: bl_pwm0=%p LPG_chan0=%d "
+	pr_debug("samsung_probe: bl_pwm0=%p LPG_chan0=%d "
 			"bl_pwm1=%p LPG_chan1=%d\n",
 			bl_pwm0, (int)dd->pdata->gpio_num[0],
 			bl_pwm1, (int)dd->pdata->gpio_num[1]
