@@ -286,6 +286,12 @@ enum vidc_1080p_decode_frame{
 	VIDC_1080P_DECODE_FRAMETYPE_OTHERS     = 4,
 	VIDC_1080P_DECODE_FRAMETYPE_32BIT      = 0x7FFFFFFF
 };
+enum vidc_1080P_decode_frame_correct_type {
+	VIDC_1080P_DECODE_NOT_CORRECT = 0,
+	VIDC_1080P_DECODE_CORRECT = 1,
+	VIDC_1080P_DECODE_APPROX_CORRECT = 2,
+	VIDC_1080P_DECODE_CORRECTTYPE_32BIT = 0x7FFFFFFF
+};
 enum vidc_1080p_encode_frame{
 	VIDC_1080P_ENCODE_FRAMETYPE_NOT_CODED  = 0,
 	VIDC_1080P_ENCODE_FRAMETYPE_I          = 1,
@@ -295,6 +301,15 @@ enum vidc_1080p_encode_frame{
 	VIDC_1080P_ENCODE_FRAMETYPE_OTHERS     = 5,
 	VIDC_1080P_ENCODE_FRAMETYPE_32BIT      = 0x7FFFFFFF
 
+};
+
+enum vidc_1080p_decode_idc_format {
+	VIDC_1080P_IDCFORMAT_MONOCHROME = 0,
+	VIDC_1080P_IDCFORMAT_420 = 1,
+	VIDC_1080P_IDCFORMAT_422 = 2,
+	VIDC_1080P_IDCFORMAT_444 = 3,
+	VIDC_1080P_IDCFORMAT_OTHERS = 4,
+	VIDC_1080P_IDCFORMAT_32BIT = 0x7FFFFFFF
 };
 
 #define VIDC_1080P_PROFILE_MPEG4_SIMPLE      0x00000000
@@ -309,6 +324,8 @@ enum vidc_1080p_decode{
 	VIDC_1080P_DEC_TYPE_SEQ_HEADER       = 0x00010000,
 	VIDC_1080P_DEC_TYPE_FRAME_DATA       = 0x00020000,
 	VIDC_1080P_DEC_TYPE_LAST_FRAME_DATA  = 0x00030000,
+	VIDC_1080P_DEC_TYPE_INIT_BUFFERS     = 0x00040000,
+	VIDC_1080P_DEC_TYPE_FRAME_START_REALLOC = 0x00050000,
 	VIDC_1080P_DEC_TYPE_32BIT            = 0x7FFFFFFF
 };
 enum vidc_1080p_encode{
@@ -364,6 +381,7 @@ struct vidc_1080p_seq_hdr_info{
 	u32 crop_left_offset;
 	u32 crop_bottom_offset;
 	u32 crop_top_offset;
+	u32 data_partition;
 };
 struct vidc_1080p_enc_seq_start_param{
 	u32 cmd_seq_num;
@@ -421,6 +439,8 @@ struct vidc_1080p_dec_disp_info{
 	enum vidc_1080p_display_status decode_status;
 	enum vidc_1080p_display_coding display_coding;
 	enum vidc_1080p_display_coding decode_coding;
+	enum vidc_1080P_decode_frame_correct_type display_correct;
+	enum vidc_1080P_decode_frame_correct_type decode_correct;
 	enum vidc_1080p_decode_frame input_frame;
 };
 void vidc_1080p_do_sw_reset(enum vidc_1080p_reset init_flag);
@@ -496,8 +516,8 @@ void vidc_1080p_decode_frame_start_ch0(
 	struct vidc_1080p_dec_frame_start_param *param);
 void vidc_1080p_decode_frame_start_ch1(
 	struct vidc_1080p_dec_frame_start_param *param);
-void vidc_1080p_set_divx3_resolution_ch0(u32 width, u32 height);
-void vidc_1080p_set_divx3_resolution_ch1(u32 width, u32 height);
+void vidc_1080p_set_dec_resolution_ch0(u32 width, u32 height);
+void vidc_1080p_set_dec_resolution_ch1(u32 width, u32 height);
 void vidc_1080p_get_encode_frame_info(
 	struct vidc_1080p_enc_frame_info *frame_info);
 void vidc_1080p_encode_seq_start_ch0(
@@ -544,4 +564,5 @@ void vidc_1080p_get_encoder_sequence_header_size(u32 *seq_header_size);
 void vidc_1080p_get_intermedia_stage_debug_counter(
 	u32 *intermediate_stage_counter);
 void vidc_1080p_get_exception_status(u32 *exception_status);
+void vidc_1080p_frame_start_realloc(u32 instance_id);
 #endif

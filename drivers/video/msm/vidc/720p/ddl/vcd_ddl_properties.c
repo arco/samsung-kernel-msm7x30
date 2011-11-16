@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -412,10 +412,13 @@ static u32 ddl_set_enc_property(struct ddl_client_context *ddl,
 				(struct vcd_property_frame_size *)
 				property_value;
 
-			if ((sizeof(struct vcd_property_frame_size)
-				== property_hdr->sz) &&
-				(DDL_ALLOW_ENC_FRAMESIZE(framesize->width,
-				framesize->height))
+			if (sizeof(struct vcd_property_frame_size)
+				== property_hdr->sz &&
+				DDL_ALLOW_ENC_FRAMESIZE(framesize->width,
+				framesize->height) &&
+				(encoder->codec.codec == VCD_CODEC_H264 ||
+				 DDL_VALIDATE_ENC_FRAMESIZE(framesize->width,
+				 framesize->height))
 				) {
 				encoder->frame_size = *framesize;
 				ddl_calculate_stride(&encoder->frame_size,
@@ -848,15 +851,27 @@ static u32 ddl_get_dec_property
 	switch (property_hdr->prop_id) {
 	case VCD_I_FRAME_SIZE:
 		{
+			struct vcd_property_frame_size *fz_size;
 			if (sizeof(struct vcd_property_frame_size) ==
 			    property_hdr->sz) {
 					ddl_calculate_stride(
 					&decoder->client_frame_size,
 					!decoder->progressive_only,
 					decoder->codec.codec);
+					if (decoder->buf_format.buffer_format
+						== VCD_BUFFER_FORMAT_TILE_4x2) {
+						fz_size =
+						&decoder->client_frame_size;
+						fz_size->stride =
+						DDL_TILE_ALIGN(fz_size->width,
+							DDL_TILE_ALIGN_WIDTH);
+						fz_size->scan_lines =
+						DDL_TILE_ALIGN(fz_size->height,
+							DDL_TILE_ALIGN_HEIGHT);
+					}
 					*(struct vcd_property_frame_size *)
-					    property_value =
-					    decoder->client_frame_size;
+						property_value =
+						decoder->client_frame_size;
 					vcd_status = VCD_S_SUCCESS;
 			}
 			break;
@@ -1708,7 +1723,7 @@ void ddl_set_default_decoder_buffer_req(struct ddl_decoder_data *decoder,
 	input_buf_req->min_count = 1;
 	input_buf_req->actual_count = input_buf_req->min_count + 3;
 	input_buf_req->max_count = DDL_MAX_BUFFER_COUNT;
-	input_buf_req->sz = (1280*720*3*3) >> 3;
+	input_buf_req->sz = (1280*720*3) >> 2;
 	input_buf_req->align = DDL_LINEAR_BUFFER_ALIGN_BYTES;
 
 	decoder->min_input_buf_req = *input_buf_req;
