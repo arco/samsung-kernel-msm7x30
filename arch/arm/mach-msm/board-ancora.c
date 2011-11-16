@@ -5644,6 +5644,7 @@ static struct msm_panel_common_pdata mdp_pdata = {
 	.mdp_core_clk_rate = 122880000,
 	.mdp_core_clk_table = mdp_core_clk_rate_table,
 	.num_mdp_clk = ARRAY_SIZE(mdp_core_clk_rate_table),
+	.mdp_rev = MDP_REV_40,
 };
 
 static struct msm_gpio lcd_panel_on_gpios[] = {
