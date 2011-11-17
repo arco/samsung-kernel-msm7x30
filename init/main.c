@@ -464,6 +464,7 @@ static noinline void __init_refok rest_init(void)
 }
 
 unsigned int charging_boot=0;
+EXPORT_SYMBOL(charging_boot);
 unsigned int board_hw_revision;
 #if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
 unsigned int board_lcd_hw_revision;

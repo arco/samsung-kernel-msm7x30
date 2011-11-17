@@ -1270,7 +1270,7 @@ int sr030pc30_sensor_ext_config(void __user *argp)
 		    {
 		        SR030PC30_WRITE_LIST(sr030pc30_flip_none);
 		    }
-			
+		msleep(300);
 	        break;        
         case EXT_CFG_GET_EXIF_INFO:
         {

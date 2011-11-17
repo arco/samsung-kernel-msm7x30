@@ -181,7 +181,9 @@ static void input_bridge_event(struct input_handle *handle, unsigned int type,
     switch (type) {
     case EV_KEY:
         if (value & rep_check) {
+#ifdef KEY_LOG_TEST
             printk(KERN_INFO "sec-input-bridge: KEY input intercepted, type: %d, code: %d, value: %d\n", type, code, value);
+#endif
 
             if (sec_bridge->pdata->mkey_map[sec_bridge->check_index].code == code) {
                 sec_bridge->check_index++;

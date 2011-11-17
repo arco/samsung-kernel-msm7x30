@@ -52,6 +52,10 @@ static int writeback_offset;
 static struct mdp4_overlay_pipe *lcdc_pipe;
 static struct completion lcdc_comp;
 
+#if defined (CONFIG_MACH_ANCORA)
+extern unsigned int board_lcd_hw_revision;
+#endif
+
 int mdp_lcdc_on(struct platform_device *pdev)
 {
 	int lcdc_width;
@@ -261,7 +265,19 @@ int mdp_lcdc_on(struct platform_device *pdev)
 	mdp_histogram_ctrl(TRUE);
 
 #if defined (CONFIG_MACH_ANCORA) //  1) vsync 2) panel on and : LSI LDI Requirement
-
+	if(board_lcd_hw_revision==3) //for HYDIS
+	{
+		ret = panel_next_on(pdev);
+		if (ret == 0) {
+			/* enable LCDC block */
+			MDP_OUTP(MDP_BASE + LCDC_BASE, 1);
+			mdp_pipe_ctrl(MDP_OVERLAY0_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+		}
+		/* MDP cmd block disable */
+		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+	}
+	else
+	{
 	/* enable LCDC block */
 	MDP_OUTP(MDP_BASE + LCDC_BASE, 1);
 	mdp_pipe_ctrl(MDP_OVERLAY0_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
@@ -269,10 +285,12 @@ int mdp_lcdc_on(struct platform_device *pdev)
 	/* MDP cmd block disable */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 
-	ret = panel_next_on(pdev);
+		ret = panel_next_on(pdev);
 
-	if (ret != 0) {
-		  MDP_OUTP(MDP_BASE + LCDC_BASE, 0);
+		if (ret != 0) {
+			  MDP_OUTP(MDP_BASE + LCDC_BASE, 0);
+		}
+
 	}
 #else //  1) panel on and 2) vsync
 	ret = panel_next_on(pdev);

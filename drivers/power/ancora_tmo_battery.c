@@ -1634,7 +1634,7 @@ static int msm_batt_average_temperature(int temp_adc)
 		return 0;
 
 	if (count == 0 && temp_adc == 150)
-		return 0;
+		return 0;	// hanapark:  ʱ vbatt task ʱȭ   ϵ  ڵ ߰ 
 
 #ifdef __BATT_TEST_DEVICE__
 		if (temp_test_adc)

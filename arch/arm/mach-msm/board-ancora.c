@@ -180,7 +180,10 @@ EXPORT_SYMBOL(switch_dev);
 #define PMIC_GPIO_SD_DET	36
 #define PMIC_GPIO_SDC4_EN_N	17  /* PMIC GPIO Number 18 */
 #define PMIC_GPIO_HDMI_5V_EN	32  /* PMIC GPIO Number 33 */
-#if 0 // for ancora LCD ESC DET.. 
+
+#define LCD_ESD_DET_ENABLE	1
+
+#if LCD_ESD_DET_ENABLE // for ancora LCD ESC DET..
 #define PMIC_GPIO_LCD_ESD_DET	25 /* PMIC GPIO Number 26*/
 #endif
 #ifdef CONFIG_SENSORS_YAS529_MAGNETIC
@@ -553,7 +556,7 @@ static int pm8058_gpios_init(void)
 		.out_strength   = PM_GPIO_STRENGTH_LOW,
 		.output_value   = 0,
 	};
-#if 0 // for ancora LCD ESC DET.. 
+#if LCD_ESD_DET_ENABLE // for ancora LCD ESC DET..
 	struct pm8058_gpio lcd_det = {
 		.direction      = PM_GPIO_DIR_IN,
 		.pull 			= PM_GPIO_PULL_UP_1P5, /* Pull up */ 
@@ -674,11 +677,12 @@ static int pm8058_gpios_init(void)
 		return rc;
 	}
 	gpio_set_value_cansleep(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_EARPATH_SEL), 1);
-#if 0 // for ancora LCD ESC DET.. 
+#if LCD_ESD_DET_ENABLE // for ancora LCD ESC DET..
 	rc = pm8058_gpio_config(PMIC_GPIO_LCD_ESD_DET , &lcd_det);
 	if (rc) {
 		pr_err("%s PMIC_GPIO_LCD_ESD_DET config failed\n", __func__);
 		return rc;
+	}
 #endif
 /* 2011-06-27 hyeokseon.yu */
 #ifdef CONFIG_CHARGER_SMB328A
@@ -2044,8 +2048,8 @@ static struct snd_set_ampgain init_ampgain[] = {
 	[0] = {
 		.in1_gain = 2,
 		.in2_gain = 2,
-		.hp_att = 26,
-		.hp_gainup = 0,
+		.hp_att = 31,
+		.hp_gainup = 2,
 		.sp_att = 31,
 		.sp_gainup = 0,
 	},
@@ -3786,7 +3790,7 @@ static struct usb_mass_storage_platform_data usb_mass_storage_pdata = {
 	.nluns          = 0x02,
 //	.buf_size       = 16384,
 	.vendor         = "SAMSUNG",
-	.product        = "GT-I8150 Card",
+	.product        = "GT-I8150 Card",  //FSW JeongJaeWook 2011-07-25 [P110722-0385] phone name display error.
 	.release        = 0xffff,
 };
 

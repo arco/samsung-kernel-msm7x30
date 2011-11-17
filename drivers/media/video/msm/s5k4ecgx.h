@@ -5522,7 +5522,7 @@ s5k4ecgx_short_t s5k4ecgx_1280_Preview_E[] = {
 {0x0F120611},	//0C10	//70000A16	//_yuviirnr_iMaxThreshH_UV   [7:0] AFIT8_yuviirnr_iYNRStrengthL  
 {0x0F121A02},	//1A0C	//70000A18	//_yuviirnr_iYNRStrengthH   [7:0] AFIT8_yuviirnr_iUVNRStrengthL  
 {0x0F123000},	//5500  4A18	//70000A1A	//_yuviirnr_iUVNRStrengthH   [7:0] AFIT8_byr_gras_iShadingPower  
-{0x0F1200B0},	//0080	//70000A1C	//_RGBGamma2_iLinearity   [7:0] AFIT8_RGBGamma2_iDarkReduce      
+{0x0F1200AE},	//0080	//70000A1C	//_RGBGamma2_iLinearity   [7:0] AFIT8_RGBGamma2_iDarkReduce      
 {0x0F121080},	//0350	//70000A1E	//_ccm_oscar_iSaturation   [7:0] AFIT8_RGB2YUV_iYOffset
 {0x0F120180},	//0180	//70000A20	//_RGB2YUV_iRGBGain   [7:0] AFIT8_bnr_nClustLevel_H   
 {0x0F120A0A},	//0A0A	//70000A22	//_bnr_iClustMulT_H   [7:0] AFIT8_bnr_iClustMulT_C    

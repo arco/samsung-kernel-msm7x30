@@ -956,8 +956,6 @@ static void melfas_ts_work_func(struct work_struct *work)
 #if DEBUG_PRINT
             printk(KERN_ERR "melfas_ts_work_func: Touch ID: %d, x: %d, y: %d, z: %d w: %d\n",
                    i, g_Mtouch_info[i].posX, g_Mtouch_info[i].posY, g_Mtouch_info[i].strength, g_Mtouch_info[i].width);
-#else // for CTS
-            printk(KERN_ERR "[TSP] ID: %d, z: %d, w: %d\n", i, g_Mtouch_info[i].strength, g_Mtouch_info[i].width);
 #endif
         }
 #if DEBUG_PRINT
@@ -997,7 +995,9 @@ static void melfas_ts_work_func(struct work_struct *work)
                 preKeyID = keyID;
 			}
 #endif
+#if DEBUG_PRINT
             printk(KERN_ERR "[TKEY] ID : %d, keyState: %d\n", keyID, keyState);
+#endif
         }
 
         input_sync(melfas_mcs8000_ts->input_dev);

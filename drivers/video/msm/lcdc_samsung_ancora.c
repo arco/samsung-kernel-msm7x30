@@ -49,7 +49,7 @@ extern unsigned int board_lcd_hw_revision;
 #define LCD_SCLK_LOW	gpio_set_value(spi_sclk, 0);
 #define LCD_SDI_HIGH	gpio_set_value(spi_mosi, 1);
 #define LCD_SDI_LOW		gpio_set_value(spi_mosi, 0);
-#if defined(CONFIG_MACH_ANCORA_TMO)
+#if defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_ANCORA)
 #define LCD_DET_ENABLE
 #endif
 #ifdef LCD_DET_ENABLE
@@ -348,26 +348,29 @@ struct brt_value brt_table_aat_hysys[] = {
 };
 
 struct brt_value brt_table_aat_smd[] = {
-		{ 255, 	13	}, // Max
-		{ 241, 	14	}, 
-		{ 227, 	15	}, 
-		{ 213, 	16	}, 
-		{ 199, 	17	}, 
-		{ 185, 	18	}, 
-		{ 171, 	19	}, 
-		{ 157, 	20	}, 
-		{ 142, 	21	}, 
-		{ 131, 	22	}, 
-		{ 120, 	23	}, 
-		{ 109, 	24	}, 
-		{ 98, 	25	}, // Ancro Hysys Default 
-		{ 87, 	26	}, 
-		{ 76, 	27	}, 
-		{ 65, 	28	}, 
-		{ 54, 	29	}, 
-		{ 43, 	30	}, 
-		{ 30,   31  }, 
-		{ 20, 	31	}, 
+		{ 255, 	10	}, // Max
+		{ 242, 	11	}, 
+		{ 230, 	12	}, 
+		{ 217, 	13	}, 
+		{ 205, 	14	}, 
+		{ 192, 	15	}, 
+		{ 180, 	16	},
+		{ 167, 	17	}, 
+		{ 155, 	18	}, 
+		{ 142, 	19	},  // Ancro smd Default   
+		{ 132, 	20	}, 
+		{ 123, 	21	}, 
+		{ 114, 	22	},
+		{ 104, 	23	}, 
+		{ 95, 	24	},
+		{ 86, 	25	},  
+		{ 76, 	26	}, 
+		{ 67, 	27	}, 
+		{ 58, 	28	}, 
+		{ 48,	29	}, 
+		{ 39, 	30	}, 
+		{ 30,	31	}, 
+		{ 20, 	31	},
 		{ 0, 	32	}, // Off
 };
 
@@ -762,17 +765,20 @@ static int lcdc_samsung_panel_on(struct platform_device *pdev)
 		samsung_disp_on();
 		samsung_state.disp_initialized = TRUE;
 #ifdef LCD_DET_ENABLE
-		if (irq_disabled) 
-		{      
-			enable_irq ( LCD_DET_ENABLE_IRQ );
-			irq_disabled = FALSE;
-			pr_info("%s - enable_irq, ESD_count is %d\n", __func__, ESD_count );
-		}
+		if(board_lcd_hw_revision==3) //for HYDIS
+		{
+			if (irq_disabled) 
+			{      
+				enable_irq ( LCD_DET_ENABLE_IRQ );
+				irq_disabled = FALSE;
+				pr_info("%s - enable_irq, ESD_count is %d\n", __func__, ESD_count );
+			}
 		
-        	init_timer(&lcd_esd_timer);
-	        lcd_esd_timer.function = lcd_esd_timer_handler;
-	        lcd_esd_timer.expires = jiffies + 2*HZ;  // make panel_initialized true after 2 sec
-	        add_timer(&lcd_esd_timer);
+			init_timer(&lcd_esd_timer);
+			lcd_esd_timer.function = lcd_esd_timer_handler;
+			lcd_esd_timer.expires = jiffies + 2*HZ;  // make panel_initialized true after 2 sec
+			add_timer(&lcd_esd_timer);
+		}
 #endif
 	}
 
@@ -785,15 +791,21 @@ static int lcdc_samsung_panel_off(struct platform_device *pdev)
 	pr_info("%s\n", __func__);
 
 #ifdef LCD_DET_ENABLE
+	if(board_lcd_hw_revision==3) //for HYDIS
+	{
   		disable_irq_nosync ( LCD_DET_ENABLE_IRQ);
   		irq_disabled = TRUE;
 		pr_info("%s - disable_irq_nosync\n", __func__ );
+	}
 #endif
 
 	if (samsung_state.disp_powered_up && samsung_state.display_on) {
 #ifdef LCD_DET_ENABLE
-		del_timer(&lcd_esd_timer);
-                panel_initialized = FALSE;
+		if(board_lcd_hw_revision==3) //for HYDIS
+		{
+			del_timer(&lcd_esd_timer);
+      	          panel_initialized = FALSE;
+		}
 #endif
 		/* 0x10: Sleep In */
 		samsung_write_cmd(0x10);
@@ -817,6 +829,7 @@ static ssize_t smd_lcd_connect_show(struct device *dev,
     return snprintf(buf, PAGE_SIZE, "%d\n", smd_lcd_connected);
 }
 static DEVICE_ATTR(lcd_connected, S_IRUGO | S_IWUGO, smd_lcd_connect_show, NULL);
+
 #endif
 
 #ifdef SYSFS_DEBUG_CMD
@@ -948,15 +961,18 @@ static int samsung_probe(struct platform_device *pdev)
 
 
 #ifdef LCD_DET_ENABLE
-	set_irq_type(LCD_DET_ENABLE_IRQ, IRQ_TYPE_EDGE_FALLING);
-	err = request_threaded_irq(LCD_DET_ENABLE_IRQ, NULL,s6d16a0x_esd_irq_handler, IRQF_TRIGGER_FALLING, "LCD_ESD_DET", (void*)pdev->dev.platform_data);
-
-	if (err)
+	if(board_lcd_hw_revision==3) //for HYDIS
 	{
-	pr_info ( "%s, request_irq failed ESD_DET, ret= %d\n", __func__, err);
-	}
-	else{
-	pr_info ( "%s - irq is requested normally\n", __func__ );
+		set_irq_type(LCD_DET_ENABLE_IRQ, IRQ_TYPE_EDGE_FALLING);
+		err = request_threaded_irq(LCD_DET_ENABLE_IRQ, NULL,s6d16a0x_esd_irq_handler, IRQF_TRIGGER_FALLING, "LCD_ESD_DET", (void*)pdev->dev.platform_data);
+
+		if (err)
+		{
+		pr_info ( "%s, request_irq failed ESD_DET, ret= %d\n", __func__, err);
+		}
+		else{
+		pr_info ( "%s - irq is requested normally\n", __func__ );
+		}
 	}
 #endif
 		return 0;
