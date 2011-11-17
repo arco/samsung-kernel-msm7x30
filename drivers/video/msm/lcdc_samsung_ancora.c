@@ -765,7 +765,7 @@ static int lcdc_samsung_panel_on(struct platform_device *pdev)
 		samsung_disp_on();
 		samsung_state.disp_initialized = TRUE;
 #ifdef LCD_DET_ENABLE
-		if(board_lcd_hw_revision==3) //for HYDIS
+		if((board_lcd_hw_revision==3)||(board_lcd_hw_revision==1))  //for HYDIS and SMD
 		{
 			if (irq_disabled) 
 			{      
@@ -791,7 +791,7 @@ static int lcdc_samsung_panel_off(struct platform_device *pdev)
 	pr_info("%s\n", __func__);
 
 #ifdef LCD_DET_ENABLE
-	if(board_lcd_hw_revision==3) //for HYDIS
+	if((board_lcd_hw_revision==3)||(board_lcd_hw_revision==1))  //for HYDIS and SMD
 	{
   		disable_irq_nosync ( LCD_DET_ENABLE_IRQ);
   		irq_disabled = TRUE;
@@ -801,7 +801,7 @@ static int lcdc_samsung_panel_off(struct platform_device *pdev)
 
 	if (samsung_state.disp_powered_up && samsung_state.display_on) {
 #ifdef LCD_DET_ENABLE
-		if(board_lcd_hw_revision==3) //for HYDIS
+		if((board_lcd_hw_revision==3)||(board_lcd_hw_revision==1))  //for HYDIS and SMD
 		{
 			del_timer(&lcd_esd_timer);
       	          panel_initialized = FALSE;
@@ -829,7 +829,6 @@ static ssize_t smd_lcd_connect_show(struct device *dev,
     return snprintf(buf, PAGE_SIZE, "%d\n", smd_lcd_connected);
 }
 static DEVICE_ATTR(lcd_connected, S_IRUGO | S_IWUGO, smd_lcd_connect_show, NULL);
-
 #endif
 
 #ifdef SYSFS_DEBUG_CMD
@@ -961,7 +960,7 @@ static int samsung_probe(struct platform_device *pdev)
 
 
 #ifdef LCD_DET_ENABLE
-	if(board_lcd_hw_revision==3) //for HYDIS
+	if((board_lcd_hw_revision==3)||(board_lcd_hw_revision==1))  //for HYDIS and SMD
 	{
 		set_irq_type(LCD_DET_ENABLE_IRQ, IRQ_TYPE_EDGE_FALLING);
 		err = request_threaded_irq(LCD_DET_ENABLE_IRQ, NULL,s6d16a0x_esd_irq_handler, IRQF_TRIGGER_FALLING, "LCD_ESD_DET", (void*)pdev->dev.platform_data);

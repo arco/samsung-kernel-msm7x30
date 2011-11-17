@@ -3887,6 +3887,9 @@ s5k5ccaf_short_t s5k5ccaf_fps_15fix[] =
 
 };
 
+s5k5ccaf_short_t s5k5ccaf_fps_20fix[] =
+{
+};
 
 s5k5ccaf_short_t s5k5ccaf_fps_30fix[] = 
 {
@@ -5312,6 +5315,35 @@ s5k5ccaf_short_t s5k5ccaf_1280_preview[] =
 s5k5ccaf_short_t s5k5ccaf_720_preview[] = 
 {
 {0xFCFC, 0xD000},
+{0x0028, 0x7000},
+{0x002A, 0x01F6},
+{0x0F12, 0x0800},	//REG_TC_GP_PrevReqInputWidth		//Sensor Crop Width	2048
+{0x0F12, 0x04D0},	//REG_TC_GP_PrevReqInputHeight	//Sensor Crop Height 1232
+{0x0F12, 0x0000},	//REG_TC_GP_PrevInputWidthOfs		//Sensor HOffset 0
+{0x0F12, 0x0098},	//REG_TC_GP_PrevInputHeightOfs	//Sensor VOffset 152=(1536-1232)/2
+{0x0F12, 0x0800},	//REG_TC_GP_CapReqInputWidth		//Sensor Crop Width	2048
+{0x0F12, 0x04D0},	//REG_TC_GP_CapReqInputHeight		//Sensor Crop Height 1232
+{0x0F12, 0x0000},	//REG_TC_GP_CapInputWidthOfs		//Sensor HOffset 0
+{0x0F12, 0x0098},	//REG_TC_GP_CapInputHeightOfs		//Sensor VOffset 152=(1536-1232)/2
+
+{0x002A, 0x0216},
+{0x0F12, 0x0001},	//REG_TC_GP_bUseReqInputInPre
+{0x0F12, 0x0001},	//REG_TC_GP_bUseReqInputInCap
+
+{0x002A, 0x043C},
+{0x0F12, 0x0800},	//REG_TC_PZOOM_ZoomInputWidth
+{0x0F12, 0x04D0},	//REG_TC_PZOOM_ZoomInputHeight
+{0x0F12, 0x0000},	//REG_TC_PZOOM_ZoomInputWidthOfs
+{0x0F12, 0x0098},	//REG_TC_PZOOM_ZoomInputHeightOfs
+
+//Preview Size
+{0x002A, 0x023E},
+{0x0F12, 0x02D0},	//REG_0TC_PCFG_usWidth
+{0x0F12, 0x01E0},	//REG_0TC_PCFG_usHeight
+
+{0x002A, 0x025A},
+{0x0F12, 0x01F4},	//REG_0TC_PCFG_usMaxFrTimeMsecMult10	//max frame time : 30fps 014D 15fps 029a; a6a - 3.75 fps; 0535 - 7.5FPS
+{0x0F12, 0x01F4},	//REG_0TC_PCFG_usMinFrTimeMsecMult10	//min frame time : 30fps 014D 15fps 029a; a6a - 3.75 fps; 0535 - 7.5FPS
 };
 
 s5k5ccaf_short_t s5k5ccaf_640_preview[] = 

@@ -103,9 +103,9 @@
 #define MSM_GPIO_KEY_IRQ				MSM_GPIO_TO_INT(GPIO_HOMEKEY) 
 #endif
 ///////////////////// temp
-#ifndef CONFIG_KERNEL_SEC_MMICHECK
-#define CONFIG_KERNEL_SEC_MMICHECK
-#endif
+//#ifndef CONFIG_KERNEL_SEC_MMICHECK
+//#define CONFIG_KERNEL_SEC_MMICHECK
+//#endif
 
 extern int on_call_flag;
 extern int on_fmradio_flag;
@@ -365,7 +365,7 @@ static int __pmic8058_kp_scan_matrix(struct pmic8058_kp *kp, u16 *new_state,
 			input_sync(kp->input);
 #if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_GODART) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
 			key_pressed=!(new_state[row] & (1 << col));
-#ifdef KERNEL_DEBUG_SEC
+#ifdef KEY_LOG_TEST
 			printk("[key] code %d, %d \n", kp->keycodes[code], key_pressed);
 #endif
 #endif			
@@ -545,7 +545,7 @@ static int gpio_key_scan(struct pmic8058_kp *kp)
 	input_report_key(kp->input, KEY_HOME, state);
 
 	key_pressed=state;
-#if 1
+#ifdef KEY_LOG_TEST
 	printk("[key] code %d, %d \n", KEY_HOME, key_pressed);
 #endif
 
@@ -895,6 +895,7 @@ static int __devinit pmic8058_kp_probe(struct platform_device *pdev)
 	input_set_capability(kp->input, EV_MSC, MSC_SCAN);
 	input_set_drvdata(kp->input, kp);
 	input_set_capability(kp->input,EV_KEY, KEY_END); // for Galaxy S+
+	input_set_capability(kp->input,EV_KEY, KEY_HOME); // for ancora
 
 #if defined(CONFIG_KERNEL_SEC_MMICHECK) 
 	for(i = 0 ; i < ARRAY_SIZE(mmi_keycode) ; i++)

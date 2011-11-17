@@ -41,10 +41,20 @@
 
 #include <mach/gpio.h>
 #include <linux/mfd/pmic8058.h>
+
+#include <mach/vreg.h>
+
 static struct workqueue_struct *workqueue;
 static struct wake_lock mmc_delayed_work_wake_lock;
 
 extern unsigned int board_hw_revision;
+
+struct vreg {
+	const char *name;
+	unsigned id;
+	int status;
+	unsigned refcnt;
+};
 
 // -------------------------------------------
 // ANCORA H/W Rev Check 
@@ -1153,8 +1163,12 @@ void mmc_rescan(struct work_struct *work)
 	int err;
 	int extend_wakelock = 0;
 	int rc;
+	int rc_ldo;
 
 	unsigned long flags;
+	struct vreg *vreg_sd_gp10;
+
+	host->damaged_sd_card = 0;
 
 	spin_lock_irqsave(&host->lock, flags);
 	if (host->rescan_disable) {
@@ -1225,9 +1239,13 @@ void mmc_rescan(struct work_struct *work)
 	 * First we search for SDIO...
 	 */
 	err = mmc_send_io_op_cond(host, 0, &ocr);
-	if (!err) {
+	if (!err)
+	{
 		if (mmc_attach_sdio(host, ocr))
+		{
 			mmc_power_off(host);
+			host->damaged_sd_card = 1;
+		}
 		extend_wakelock = 1;
 		goto out;
 	}
@@ -1236,9 +1254,13 @@ void mmc_rescan(struct work_struct *work)
 	 * ...then normal SD...
 	 */
 	err = mmc_send_app_op_cond(host, 0, &ocr);
-	if (!err) {
+	if (!err)
+	{
 		if (mmc_attach_sd(host, ocr))
+		{
 			mmc_power_off(host);
+			host->damaged_sd_card = 1;
+		}
 		extend_wakelock = 1;
 		goto out;
 	}
@@ -1247,9 +1269,13 @@ void mmc_rescan(struct work_struct *work)
 	 * ...and finally MMC.
 	 */
 	err = mmc_send_op_cond(host, 0, &ocr);
-	if (!err) {
+	if (!err)
+	{
 		if (mmc_attach_mmc(host, ocr))
+		{
 			mmc_power_off(host);
+			host->damaged_sd_card = 1;
+		}
 		extend_wakelock = 1;
 		goto out;
 	}
@@ -1258,6 +1284,32 @@ void mmc_rescan(struct work_struct *work)
 	mmc_power_off(host);
 
 out:
+	// -- Turn off power of sd card when the set detect the worng sd card.
+	if(!strcmp(mmc_hostname(host), "mmc2"))
+	{
+		if(err == -110 || host->damaged_sd_card == 1)
+		{
+			vreg_sd_gp10 = vreg_get(NULL, "gp10");
+			if (!vreg_sd_gp10)
+				pr_err("%s: VREG L16 get failed\n", __func__);
+
+			printk(KERN_INFO "%s's vreg: Name %s / Id %d / Status %d / Count %d\n", mmc_hostname(host),
+				vreg_sd_gp10->name, vreg_sd_gp10->id, vreg_sd_gp10->status, vreg_sd_gp10->refcnt);
+
+			if(vreg_sd_gp10->refcnt)
+			{
+				rc_ldo = vreg_disable(vreg_sd_gp10);
+				if(rc_ldo)
+					pr_err("%s: VREG L16 disable failed %d\n", __func__, rc_ldo);
+
+				printk(KERN_INFO "%s's vreg [Off]: Name %s / Id %d / Status %d / Count %d\n", mmc_hostname(host),
+					vreg_sd_gp10->name, vreg_sd_gp10->id, vreg_sd_gp10->status, vreg_sd_gp10->refcnt);
+			}
+		}
+		host->damaged_sd_card = 0;
+	}
+	// --
+
 	if (extend_wakelock)
 		wake_lock_timeout(&mmc_delayed_work_wake_lock, HZ / 2);
 	else

@@ -253,6 +253,7 @@ msm_i2c_interrupt(int irq, void *devid)
 
  out_err:
 	dev->err = err;
+	printk (KERN_ERR "msm_i2c err / status %08x\n", status);
  out_complete:
 	complete(dev->complete);
 	spin_unlock(&dev->lock);

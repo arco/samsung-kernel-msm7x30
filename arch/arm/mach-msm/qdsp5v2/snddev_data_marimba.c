@@ -97,7 +97,7 @@ static struct snddev_icodec_data snddev_iearpiece_data = {
 	.max_voice_rx_vol[VOC_NB_INDEX] = -200,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -1700,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -200,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -1700
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1700,
 };
 
 static struct platform_device msm_iearpiece_device = {
@@ -196,7 +196,7 @@ static struct snddev_icodec_data snddev_ihs_stereo_rx_data = {
 	.max_voice_rx_vol[VOC_NB_INDEX] = -700,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -2200,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -900,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -2400
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2400,
 };
 
 static struct platform_device msm_ihs_stereo_rx_device = {
@@ -1177,8 +1177,8 @@ static struct snddev_icodec_data snddev_ihs_stereo_speaker_stereo_rx_data = {
 	.voltage_off = msm_snddev_hsed_voltage_off,
 	.max_voice_rx_vol[VOC_NB_INDEX] = -500,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -2000,
-	.max_voice_rx_vol[VOC_WB_INDEX] = -500,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -2000,
+	.max_voice_rx_vol[VOC_WB_INDEX] = -900,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2400,
 };
 
 static struct platform_device msm_ihs_stereo_speaker_stereo_rx_device = {
@@ -2459,7 +2459,7 @@ static struct snddev_icodec_data handset_rx_data = {
 	.max_voice_rx_vol[VOC_NB_INDEX] = -200,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -1700,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -200,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -1700
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1700,
 };
 static enum hsed_controller handset_tx_pmctl_id[] = {PM_HSED_CONTROLLER_0};
 static struct snddev_icodec_data handset_tx_data = {
@@ -2519,7 +2519,7 @@ static struct snddev_icodec_data headset_rx_data = {
 	.max_voice_rx_vol[VOC_NB_INDEX] = -700,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -2200,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -900,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -2400
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2400,
 };
 static struct snddev_icodec_data headset_tx_data = {
 	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
@@ -2611,7 +2611,7 @@ static struct snddev_icodec_data aux_dock_rx_data = {
 	.max_voice_rx_vol[VOC_NB_INDEX] = -700,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -2200,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -900,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -2400
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2400,
 };
 static struct snddev_icodec_data speaker_headset_rx_data = {
 	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
@@ -2689,7 +2689,7 @@ static struct snddev_icodec_data handset_call_rx_data = {
 	.max_voice_rx_vol[VOC_NB_INDEX] = -200,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -1700,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -200,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -1700
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1700,
 };
 static enum hsed_controller handset_call_tx_pmctl_id[] = {PM_HSED_CONTROLLER_0};
 static struct snddev_icodec_data handset_call_tx_data = {
@@ -2780,7 +2780,7 @@ static struct snddev_icodec_data headset_call_rx_data = {
 	.max_voice_rx_vol[VOC_NB_INDEX] = -700,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -2200,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -900,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -2400
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2400,
 };
 static struct snddev_icodec_data headset_call_tx_data = {
 	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
@@ -2909,7 +2909,7 @@ static struct snddev_icodec_data handset_fmradio_rx_data = {
 	.max_voice_rx_vol[VOC_NB_INDEX] = -200,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -1700,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -200,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -1700
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1700,
 };
 static struct snddev_icodec_data headset_fmradio_rx_data = {
 	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_FM),
@@ -2924,7 +2924,7 @@ static struct snddev_icodec_data headset_fmradio_rx_data = {
 	.max_voice_rx_vol[VOC_NB_INDEX] = -700,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -2200,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -900,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -2400
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2400,
 };
 static struct snddev_mi2s_data headset_fmradio_tx_data = {
 	.capability = SNDDEV_CAP_TX ,
@@ -3076,7 +3076,7 @@ static struct snddev_icodec_data handset_voip_rx_data = {
 	.max_voice_rx_vol[VOC_NB_INDEX] = -200,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -1700,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -200,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -1700
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1700,
 };
 static enum hsed_controller handset_voip_tx_pmctl_id[] = {PM_HSED_CONTROLLER_0};
 static struct snddev_icodec_data handset_voip_tx_data = {
@@ -3136,7 +3136,7 @@ static struct snddev_icodec_data headset_voip_rx_data = {
 	.max_voice_rx_vol[VOC_NB_INDEX] = -700,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -2200,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -900,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -2400
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2400,
 };
 static struct snddev_icodec_data headset_voip_tx_data = {
 	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
@@ -3206,7 +3206,7 @@ static struct snddev_icodec_data handset_call_hac_rx_data = {
 	.max_voice_rx_vol[VOC_NB_INDEX] = -200,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -1700,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -200,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -1700
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1700,
 };
 static struct snddev_icodec_data handset_call_hac_tx_data = {
 #ifdef CONFIG_VP_A2220
@@ -3258,7 +3258,7 @@ static struct snddev_icodec_data handset_gan_rx_data = {
 	.max_voice_rx_vol[VOC_NB_INDEX] = -200,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -1700,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -200,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -1700
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1700,
 };
 static enum hsed_controller handset_gan_tx_pmctl_id[] = {PM_HSED_CONTROLLER_0};
 static struct snddev_icodec_data handset_gan_tx_data = {
@@ -3318,7 +3318,7 @@ static struct snddev_icodec_data headset_gan_rx_data = {
 	.max_voice_rx_vol[VOC_NB_INDEX] = -700,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -2200,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -900,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -2400
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2400,
 };
 static struct snddev_icodec_data headset_gan_tx_data = {
 	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
@@ -3379,7 +3379,7 @@ static struct snddev_icodec_data handset_gtalk_rx_data = {
 	.max_voice_rx_vol[VOC_NB_INDEX] = -200,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -1700,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -200,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -1700
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1700,
 };
 static enum hsed_controller handset_gtalk_tx_pmctl_id[] = {PM_HSED_CONTROLLER_0};
 static struct snddev_icodec_data handset_gtalk_tx_data = {
@@ -3439,7 +3439,7 @@ static struct snddev_icodec_data headset_gtalk_rx_data = {
 	.max_voice_rx_vol[VOC_NB_INDEX] = -700,
 	.min_voice_rx_vol[VOC_NB_INDEX] = -2200,
 	.max_voice_rx_vol[VOC_WB_INDEX] = -900,
-	.min_voice_rx_vol[VOC_WB_INDEX] = -2400
+	.min_voice_rx_vol[VOC_WB_INDEX] = -2400,
 };
 static struct snddev_icodec_data headset_gtalk_tx_data = {
 	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),

@@ -33,6 +33,10 @@
 #define GET_HIGH_FULL_SPEED 	10
 #define SIG_SETUP		44
 
+#define MTP_IOCTRL_USB_INIT 0
+#define MTP_IOCTRL_USB_CLEAN 1
+
+
 /*PIMA15740-2000 spec*/
 #define USB_PTPREQUEST_CANCELIO   0x64    /* Cancel request */
 #define USB_PTPREQUEST_GETEVENT   0x65    /* Get extened event data */

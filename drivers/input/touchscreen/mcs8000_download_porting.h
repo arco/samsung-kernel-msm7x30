@@ -158,6 +158,8 @@ typedef unsigned char		BOOLEAN;
 
 #define MCSDL_GPIO_SDA_IS_HIGH()					((gpio_get_value(GPIO_TOUCH_I2C_SDA) > 0) ? 1 : 0)
 
+#define MCSDL_GPIO_ISC_SCL_SET_OUTPUT(n)				gpio_direction_output(GPIO_TOUCH_I2C_SCL, n)
+#define MCSDL_GPIO_ISC_SDA_SET_OUTPUT(n)				gpio_direction_output(GPIO_TOUCH_I2C_SDA, n)
 
 #if MCSDL_USING_HW_I2C
 #define MCSDL_SET_GPIO_I2C()						____HERE!_____
@@ -186,12 +188,13 @@ typedef unsigned char		BOOLEAN;
 #define MCSDL_DELAY_10US 							   10
 #define MCSDL_DELAY_15US							   15
 #define MCSDL_DELAY_20US							   20
-
+#define MCSDL_DELAY_40US                               40
+#define MCSDL_DELAY_70US                               70 
 #define MCSDL_DELAY_100US							  100
 #define MCSDL_DELAY_150US							  150
+#define MCSDL_DELAY_300US                             300
 #define MCSDL_DELAY_500US             				  500
 #define MCSDL_DELAY_800US							  800
-
 
 #define MCSDL_DELAY_1MS								 1000
 #define MCSDL_DELAY_5MS								 5000
@@ -200,12 +203,10 @@ typedef unsigned char		BOOLEAN;
 #define MCSDL_DELAY_30MS							30000
 #define MCSDL_DELAY_40MS							40000
 #define MCSDL_DELAY_45MS							45000
+#define MCSDL_DELAY_60MS		                    60000
+#define MCSDL_DELAY_80MS		                    80000
+#define MCSDL_DELAY_100MS		                   100000
 
-//start ADD DELAY   
-#define MCSDL_DELAY_60MS                            60000
-#define MCSDL_DELAY_40US                               40
-#define MCSDL_DELAY_300US                             300
-//end add delay
 
 //============================================================
 //

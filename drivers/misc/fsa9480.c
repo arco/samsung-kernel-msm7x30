@@ -455,6 +455,11 @@ static void fsa9480_chip_init(void)
 	{
 	    MicroJigUARTOffStatus = 1;
 	}
+#if defined(CONFIG_MACH_APACHE)
+	else if ( (fsa9480_device1==0) && (fsa9480_device2 & CRB_JIG_USB_OFF) ){
+		curr_usb_status = 1;
+	}
+#endif
 	
 }
 
@@ -467,7 +472,11 @@ static int fsa9480_client(struct i2c_client *client)
 
 int fsa9480_get_jig_status(void)
 {
+#if defined(CONFIG_MACH_APACHE)
+	u8 jig_devices = CRB_JIG_USB_ON | CRB_JIG_UART_ON | CRB_JIG_UART_OFF;
+#else
 	u8 jig_devices = CRB_JIG_USB_ON | CRB_JIG_USB_OFF | CRB_JIG_UART_ON | CRB_JIG_UART_OFF;
+#endif
 
 	if (fsa9480_device2 & jig_devices)
 		return 1;
@@ -496,7 +505,11 @@ void fsa9480_connect_charger(void)	// vbus connected
 
 	fsa9480_i2c_read(REGISTER_DEVICETYPE2, &dev2);
 
+#if defined(CONFIG_MACH_APACHE)
+	if((dev1 == CRA_USB)||(dev1==0 && dev2==CRB_JIG_USB_OFF))
+#else
 	if (dev1 == CRA_USB)
+#endif
 	{
 		curr_usb_status = 1;
 
@@ -560,6 +573,11 @@ static int get_current_mode(void)
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 
+#if defined(CONFIG_MICROUSB_DEBUG)
+	extern char osbl_mUSB_stat[9];
+	extern char lk_mUSB_stat[9];
+#endif
+
 /* for sysfs control (/sys/class/sec/switch/usb_sel) */
 static ssize_t usb_switch_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -589,6 +607,13 @@ static ssize_t usb_switch_show(struct device *dev, struct device_attribute *attr
 
 	sys_close(fd);
 	set_fs(fs);
+
+#if defined(CONFIG_MICROUSB_DEBUG)
+	if(!power_down)
+	{
+		printk("mUSB osbl=%s lk=%s\n", osbl_mUSB_stat, lk_mUSB_stat);
+	}
+#endif
 
 	if(!power_down)
        	printk("[FSA9480] usb_sel.bin = %s, deb_dev1=0x%x, deb_dev2=0x%x, deb_intr1=0x%x, deb_intr2=0x%x, deb_intb=%d\n",buffer, deb_dev1, deb_dev2, deb_intr1,deb_intr2,deb_intb);
@@ -760,10 +785,18 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 	u8 is_uart_jig_on_charger = 0;
 	u8 vbus_stat = 0;
 #endif
+	u8 vdev1 = dev1;
+	u8 vdev2 = dev2;
+#if defined(CONFIG_MACH_APACHE)
+	if(vdev1==0 && vdev2==CRB_JIG_USB_OFF){
+		vdev1 = CRA_USB;
+		vdev2 = 0;
+	}
+#endif
 	
-	if (dev1)
+	if (vdev1)
 	{
-		switch (dev1)
+		switch (vdev1)
 		{		
 			case CRA_AUDIO_TYPE1:
 				if(attach & ATTACH){                
@@ -832,7 +865,7 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 				break;
 			case CRA_CARKIT:
 				DEBUG_FSA9480("CARKIT \n");
-				printk("[ssam] attach value : 0x%x\n", attach);
+//				printk("[ssam] attach value : 0x%x\n", attach);
 				
 				if(attach & ATTACH){
 				    DEBUG_FSA9480("CARKIT_CHARGER --- ATTACH\n");
@@ -888,9 +921,9 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 		}
 	}
 
-	if (dev2)
+	if (vdev2)
 	{
-		switch (dev2)
+		switch (vdev2)
 		{
 			case CRB_JIG_USB_ON:
 				if(attach & ATTACH){                
@@ -916,7 +949,7 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 				    DEBUG_FSA9480("JIG_USB_OFF --- DETACH\n");                    
                                     MicroJigUSBOffStatus=0;
                                     UsbIndicator(0);
-				}                  
+				}
 				break;
 			case CRB_JIG_UART_ON:
 #if defined(CONFIG_MACH_APACHE) || defined(CONFIG_MACH_ANCORA_TMO)
@@ -1090,7 +1123,7 @@ static void fsa9480_read_interrupt_register(void)
 	deb_intb = intb_val;
 	msleep(5);     
 	// Check interrupt fired.
-	if((intr1 <= 0)||(intr1 == 3)||(intr1 == 7)||(intb_val == 0))
+	if(((int)intr1 <= 0)||(intr1 == 3)||(intr1 == 7)||(intb_val == 0))
 	{
 		for(i=0; i<3; i++)
 		{			
@@ -1104,7 +1137,7 @@ static void fsa9480_read_interrupt_register(void)
 			if((intr1 > 0)&&(intr1 != 3)&&(intr1 != 7)&&(intb_val == 1))
 				break;
 		}
-		if((intr1 <= 0)||(intr1 == 3)||(intr1 == 7)||(intb_val == 0))
+		if(((int)intr1 <= 0)||(intr1 == 3)||(intr1 == 7)||(intb_val == 0))
 		{			
 			printk("[FSA9480] %s : interrupt was fired. intr1= 0x%x,intb=%d\n", __func__, intr1,intb_val);
 			fsa9480_chip_init();
@@ -1135,7 +1168,12 @@ static void fsa9480_read_interrupt_register(void)
 #endif	//-- jwjang@tecace : check chip reset 
 	usb_state = (dev2 << 8) | (dev1 << 0);
 
+#if defined(CONFIG_MACH_APACHE)
+	if ( !fsa9480_probe_done && 
+		(( dev1 == CRA_USB)||(dev1==0 && dev2 == CRB_JIG_USB_OFF))) {
+#else
 	if ( !fsa9480_probe_done && ( dev1 == CRA_USB)) {
+#endif
 		printk("[FSA9480] target booting with USB cable attached\n");
 		intr1 = intr1 | ATTACH;
 	}

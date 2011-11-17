@@ -72,7 +72,9 @@ struct smb328a_chip {
 };
 
 static enum power_supply_property smb328a_battery_props[] = {
+#ifndef CONFIG_MACH_APACHE
 	POWER_SUPPLY_PROP_STATUS,
+#endif
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_ONLINE,
 };
@@ -197,6 +199,15 @@ static void smb328a_charger_function_conrol(struct i2c_client *client)
 
 	smb328a_allow_volatile_writes(client);
 	
+	/* Clear IRQ register*/
+	set_data = 0xAA;
+
+	if (smb328a_write_reg(client, SMB328A_CLEAR_IRQ, set_data) < 0)
+			pr_err("%s : write error!\n", __func__);
+	else
+		printk("%s : Clear IRQ register.\n", __func__);
+	
+	
 
 	val = smb328a_read_reg(client, SMB328A_INPUT_AND_CHARGE_CURRENTS);
 	if (val >= 0) {
@@ -231,7 +242,7 @@ static void smb328a_charger_function_conrol(struct i2c_client *client)
 		} else
 			set_data = 0x10;
 #endif
-#if CONFIG_MACH_APACHE
+#ifdef CONFIG_MACH_APACHE
 		set_data = 0x54;/* HW req : chg current 600mA -> 700 mA */
 #else
 		set_data = 0x34;
@@ -253,7 +264,7 @@ static void smb328a_charger_function_conrol(struct i2c_client *client)
 	if (val >= 0) {
 		data = (u8)val;
 		dev_info(&client->dev, "%s : reg (0x%x) = 0x%x\n", __func__, SMB328A_FLOAT_VOLTAGE, data);
-#if CONFIG_MACH_ANCORA
+#ifdef CONFIG_MACH_ANCORA
         if (data != 0xCC) {
             data = 0xCC; /* 4.22V float voltage *//* hw requirements 'ejuni@samsung.com'*/
 #else
@@ -290,8 +301,8 @@ static void smb328a_charger_function_conrol(struct i2c_client *client)
 	if (val >= 0) {
 		data = (u8)val;
 		dev_info(&client->dev, "%s : reg (0x%x) = 0x%x\n", __func__, SMB328A_FUNCTION_CONTROL_A2, data);
-		if (data != 0x4D) {
-			data = 0x4D;
+		if (data != 0x4F) {
+			data = 0x4F;
 			if (smb328a_write_reg(client, SMB328A_FUNCTION_CONTROL_A2, data) < 0)
 				pr_err("%s : error!\n", __func__);
 			val = smb328a_read_reg(client, SMB328A_FUNCTION_CONTROL_A2);
@@ -479,6 +490,26 @@ static bool smb328a_check_bat_missing(struct i2c_client *client)
 	return ret;
 }
 
+static bool smb328a_read_chg_status(struct i2c_client *client, unsigned int *status)
+{
+	int status_A=0,status_B=0,status_C=0, int_status_C=0;
+	bool ret = false;
+
+	status_A = smb328a_read_reg(client, SMB328A_BATTERY_CHARGING_STATUS_A);
+	status_B = smb328a_read_reg(client, SMB328A_BATTERY_CHARGING_STATUS_B);
+	status_C = smb328a_read_reg(client, SMB328A_BATTERY_CHARGING_STATUS_C);
+	int_status_C = smb328a_read_reg(client, SMB328A_INTERRUPT_STATUS_C);
+	
+	if( status_A < 0 || status_B < 0 || status_C < 0 || int_status_C < 0)
+		return false;
+	else
+		*status = int_status_C << 24 | status_A << 16 | status_B << 8 | status_C ;
+
+	//printk("%s : %x %x %x %x , %x\n", __func__, int_status_C, status_A, status_B, status_C, *status);
+
+	return true;
+}
+
 /* whether valid dcin or not */
 static bool smb328a_check_vdcin(struct i2c_client *client)
 {
@@ -542,10 +573,15 @@ static int smb328a_chg_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
+#ifdef CONFIG_MACH_APACHE
+		if(smb328a_read_chg_status(chip->client , &val->intval)==false)
+			return -EIO;
+#else
 		if (smb328a_check_vdcin(chip->client))
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+#endif
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		if (smb328a_check_bat_missing(chip->client))
@@ -820,6 +856,122 @@ static int smb328a_disable_charging(struct i2c_client *client)
 
 	dev_info(&client->dev, "%s : \n", __func__);
 
+	smb328a_allow_volatile_writes(client);
+	
+	/* Write register for charging termination */
+	
+	data = 0x75;
+	
+	if (smb328a_write_reg(client, SMB328A_INPUT_AND_CHARGE_CURRENTS, data) < 0)
+			pr_err("%s : error!\n", __func__);
+	val = smb328a_read_reg(client, SMB328A_INPUT_AND_CHARGE_CURRENTS);
+	if (val >= 0) {
+		data = (u8)val;
+		dev_info(&client->dev, "%s : => reg (0x%x) = 0x%x\n", __func__, SMB328A_INPUT_AND_CHARGE_CURRENTS, data);
+	}
+
+#ifdef CONFIG_MACH_APACHE
+	data = 0x54;/* HW req : chg current 600mA -> 700 mA */
+#else
+	data = 0x34;
+#endif
+
+	if (smb328a_write_reg(client, SMB328A_CURRENT_TERMINATION, data) < 0)
+			pr_err("%s : error!\n", __func__);
+	val = smb328a_read_reg(client, SMB328A_CURRENT_TERMINATION);
+	if (val >= 0) {
+		data = (u8)val;
+		dev_info(&client->dev, "%s : => reg (0x%x) = 0x%x\n", __func__, SMB328A_CURRENT_TERMINATION, data);
+	}
+	
+#ifdef CONFIG_MACH_ANCORA
+	data = 0xCC; /* 4.22V float voltage *//* hw requirements 'ejuni@samsung.com'*/
+#else
+	data = 0xCA; /* 4.2V float voltage */
+#endif
+
+	if (smb328a_write_reg(client, SMB328A_FLOAT_VOLTAGE, data) < 0)
+			pr_err("%s : error!\n", __func__);
+	val = smb328a_read_reg(client, SMB328A_FLOAT_VOLTAGE);
+	if (val >= 0) {
+		data = (u8)val;
+		dev_info(&client->dev, "%s : => reg (0x%x) = 0x%x\n", __func__, SMB328A_FLOAT_VOLTAGE, data);
+	}
+
+	data = 0xDA;
+
+	if (smb328a_write_reg(client, SMB328A_FUNCTION_CONTROL_A1, data) < 0)
+			pr_err("%s : error!\n", __func__);
+	val = smb328a_read_reg(client, SMB328A_FUNCTION_CONTROL_A1);
+	if (val >= 0) {
+		data = (u8)val;
+		dev_info(&client->dev, "%s : => reg (0x%x) = 0x%x\n", __func__, SMB328A_FUNCTION_CONTROL_A1, data);
+	}
+
+	data = 0x4D;
+
+	if (smb328a_write_reg(client, SMB328A_FUNCTION_CONTROL_A2, data) < 0)
+			pr_err("%s : error!\n", __func__);
+	val = smb328a_read_reg(client, SMB328A_FUNCTION_CONTROL_A2);
+	if (val >= 0) {
+		data = (u8)val;
+		dev_info(&client->dev, "%s : => reg (0x%x) = 0x%x\n", __func__, SMB328A_FUNCTION_CONTROL_A2, data);
+	}
+
+	data = 0x00;
+
+	if (smb328a_write_reg(client, SMB328A_FUNCTION_CONTROL_B, data) < 0)
+			pr_err("%s : error!\n", __func__);
+	val = smb328a_read_reg(client, SMB328A_FUNCTION_CONTROL_B);
+	if (val >= 0) {
+		data = (u8)val;
+		dev_info(&client->dev, "%s : => reg (0x%x) = 0x%x\n", __func__, SMB328A_FUNCTION_CONTROL_B, data);
+	}
+
+#if defined (CONFIG_TARGET_LOCALE_USA)
+	data = 0x4d;
+#else
+	data = 0xC5;
+#endif
+
+	if (smb328a_write_reg(client, SMB328A_OTG_PWR_AND_LDO_CONTROL, data) < 0)
+			pr_err("%s : error!\n", __func__);
+	val = smb328a_read_reg(client, SMB328A_OTG_PWR_AND_LDO_CONTROL);
+	if (val >= 0) {
+		data = (u8)val;
+		dev_info(&client->dev, "%s : => reg (0x%x) = 0x%x\n", __func__, SMB328A_OTG_PWR_AND_LDO_CONTROL, data);
+	}
+
+	data = 0xF6;
+
+	if (smb328a_write_reg(client, SMB328A_VARIOUS_CONTROL_FUNCTION_A, data) < 0)
+			pr_err("%s : error!\n", __func__);
+	val = smb328a_read_reg(client, SMB328A_VARIOUS_CONTROL_FUNCTION_A);
+	if (val >= 0) {
+		data = (u8)val;
+		dev_info(&client->dev, "%s : => reg (0x%x) = 0x%x\n", __func__, SMB328A_VARIOUS_CONTROL_FUNCTION_A, data);
+	}
+
+	data = 0x00;
+
+	if (smb328a_write_reg(client, SMB328A_CELL_TEMPERATURE_MONITOR, data) < 0)
+			pr_err("%s : error!\n", __func__);
+	val = smb328a_read_reg(client, SMB328A_CELL_TEMPERATURE_MONITOR);
+	if (val >= 0) {
+		data = (u8)val;
+		dev_info(&client->dev, "%s : => reg (0x%x) = 0x%x\n", __func__, SMB328A_CELL_TEMPERATURE_MONITOR, data);
+	}
+
+	data = 0x20;
+
+	if (smb328a_write_reg(client, SMB328A_INTERRUPT_SIGNAL_SELECTION, data) < 0)
+			pr_err("%s : error!\n", __func__);
+	val = smb328a_read_reg(client, SMB328A_INTERRUPT_SIGNAL_SELECTION);
+	if (val >= 0) {
+		data = (u8)val;
+		dev_info(&client->dev, "%s : => reg (0x%x) = 0x%x\n", __func__, SMB328A_INTERRUPT_SIGNAL_SELECTION, data);
+	}
+
 	val = smb328a_read_reg(client, SMB328A_COMMAND);
 	if (val >= 0) {
 		data = (u8)val;
@@ -1013,7 +1165,7 @@ static int __devinit smb328a_probe(struct i2c_client *client,
 	/* create smb328a attributes */
 	smb328a_create_attrs(chip->psy_bat.dev);
 
-	if(board_hw_revision >= 0x06)
+	if(board_hw_revision >= CONFIG_HW_REV_USING_SMB328)
 	{
 		/* Enable batt init */
 		if(p_batt_init != NULL)

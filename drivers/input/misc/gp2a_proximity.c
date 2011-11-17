@@ -54,14 +54,28 @@
 #define PROX_MODE_B
 
 #if defined(CONFIG_MACH_APACHE)
-#define PROX_MODE_B_15 //B1.5 mode
+//#define PROX_MODE_B_15 //B1.5 mode
+//#define PROX_MODE_B_20
 /*
 HYS reg setting
 
-            B1         B1.5
-VO=0    0x40      0x2F
-VO=1    0x20      0xF
+            B1         B1.5	B2.0
+VO=0    0x40      0x2F	0x20
+VO=1    0x20      0x0F	0x00
 */
+#endif
+
+#if defined(PROX_MODE_B)
+	#if defined(PROX_MODE_B_20)
+		#define REGS_HYS_VAL_VO_0 (0x20)
+		#define REGS_HYS_VAL_VO_1 (0x00)
+	#elif defined(PROX_MODE_B_15)
+		#define REGS_HYS_VAL_VO_0 (0x2F)
+		#define REGS_HYS_VAL_VO_1 (0x0F)
+	#else
+		#define REGS_HYS_VAL_VO_0 (0x40)
+		#define REGS_HYS_VAL_VO_1 (0x20)
+	#endif
 #endif
 
 #define SENSOR_DEFAULT_DELAY            (200)   /* 200 ms */
@@ -112,11 +126,7 @@ static u8 gp2a_original_image[8] =
 #else
 	0x00,  
 	0x08,  
-#ifdef PROX_MODE_B_15
-	0x2F, //HYS reg
-#else
-	0x40,  
-#endif
+	REGS_HYS_VAL_VO_0,
 	0x04,
 	0x03,
 #endif //PROX_MODE_A	
@@ -219,6 +229,9 @@ proximity_enable_store(struct device *dev,
         printk("[TAEKS] Proximity power on \n");				
 		proximity_onoff(1);
 		input = get_ps_vout_value();
+#if defined(CONFIG_MACH_APACHE)
+		data->prox_data = input;
+#endif
 		input_report_abs(data->input_dev, ABS_DISTANCE,  input);
 		input_sync(data->input_dev);
         enable_irq(IRQ_GP2A_INT);
@@ -286,18 +299,25 @@ static struct attribute_group proximity_attribute_group = {
 
 static char get_ps_vout_value(void)
 {
-  char value = 0;
-
-
 #ifdef PROX_MODE_A
+  char value=0;
+
   value = gpio_get_value_cansleep(GPIO_PS_VOUT);
-#else //PROX_MODE_A
-  opt_i2c_read(0x00, &value, 2);
+  
   value &= 0x01;
   value ^= 0x01;
-#endif //PROX_MODE_A
-
+  
   return value;
+#else //PROX_MODE_A
+  char value[2]={0,};
+
+  opt_i2c_read(0x00, value, sizeof(value));
+
+  value[1] &= 0x01;
+  value[1] ^= 0x01;
+
+   return value[1];
+#endif //PROX_MODE_A
 }
 /*****************************************************************************************
  *  
@@ -330,20 +350,12 @@ static void gp2a_work_func_prox(struct work_struct *work)
 #ifdef PROX_MODE_B
     if(value == 1) //VO == 0
     {
- #ifdef PROX_MODE_B_15
-       	reg = 0x2F;
- #else
-      reg = 0x40;
- #endif
-      opt_i2c_write(NOT_INT_CLR(REGS_HYS), &reg);
+	reg = REGS_HYS_VAL_VO_0;
+	opt_i2c_write(NOT_INT_CLR(REGS_HYS), &reg);
     }
     else
     {
-  #ifdef PROX_MODE_B_15
-      reg = 0x0F;
-  #else
-      reg = 0x20;
-  #endif
+      reg = REGS_HYS_VAL_VO_1;
       opt_i2c_write(NOT_INT_CLR(REGS_HYS), &reg);
     }
 
@@ -362,7 +374,6 @@ static void gp2a_work_func_prox(struct work_struct *work)
 
 irqreturn_t gp2a_irq_handler(int irq, void *dev_id)
 {
-    u8 reg = 0;
     
 	wake_lock_timeout(&prx_wake_lock, 3*HZ);
 
@@ -387,27 +398,33 @@ static int opt_i2c_init(void)
 
 int opt_i2c_read(u8 reg, u8 *val, unsigned int len )
 {
+	struct i2c_msg msg;
 
-	int err;
-	u8 buf[1];
-	struct i2c_msg msg[2];
+	msg.addr = opt_i2c_client->addr;
+	msg.flags = I2C_M_WR;
+	msg.len = 1;
+	msg.buf = &reg;
 
-	buf[0] = reg; 
+	if(1 != i2c_transfer(opt_i2c_client->adapter, &msg, 1))
+	{
+		printk("%s %d i2c transfer error\n", __func__, __LINE__);
+		return -EIO;
+	}
 
-	msg[0].addr = opt_i2c_client->addr;
-	msg[0].flags = 1;
+	msg.addr = opt_i2c_client->addr;
+	msg.flags = I2C_M_RD;
+	msg.len = len;
+	msg.buf = val;
+
+	if(1 != i2c_transfer(opt_i2c_client->adapter, &msg, 1))
+	{
+		printk("%s %d i2c transfer error\n", __func__, __LINE__);
+		return -EIO;
+	}
 	
-	msg[0].len = len;
-	msg[0].buf = buf;
-	err = i2c_transfer(opt_i2c_client->adapter, msg, 1);
-
-	*val = buf[1];
-
-    gprintk(": 0x%x, 0x%x \n", reg, *val);
-    if (err >= 0) return 0;
-
-    printk("%s %d i2c transfer error\n", __func__, __LINE__);
-    return err;
+	gprintk(": 0x%x, 0x%x \n", reg, *val);
+	
+	return 0;
 }
 
 int opt_i2c_write( u8 reg, u8 *val )

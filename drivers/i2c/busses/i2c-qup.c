@@ -53,6 +53,7 @@ enum {
 	QUP_MX_READ_CNT         = 0x208,
 	QUP_MX_INPUT_CNT        = 0x200,
 	QUP_MX_WR_CNT           = 0x100,
+	QUP_MX_WR_CNT_CUR       = 0x104,
 	QUP_OUT_DEBUG           = 0x108,
 	QUP_OUT_FIFO_CNT        = 0x10C,
 	QUP_OUT_FIFO_BASE       = 0x110,
@@ -295,8 +296,15 @@ qup_i2c_poll_writeready(struct qup_i2c_dev *dev, int rem)
 			else /* 1-bit delay before we check for bus busy */
 				udelay(dev->one_bit_t);
 		}
-		if (retries++ == 1000)
-			udelay(100);
+    if (retries++ == 1000) {
+			/*
+			 * Wait for FIFO number of bytes to be absolutely sure
+			 * that I2C write state machine is not idle. Each byte
+			 * takes 9 clocks. (8 bits + 1 ack)
+			 */
+			usleep_range((dev->one_bit_t*dev->out_fifo_sz*9),
+				(dev->one_bit_t*dev->out_fifo_sz* 9));
+		}
 	}
 	qup_print_status(dev);
 	return -ETIMEDOUT;
@@ -423,10 +431,13 @@ qup_issue_write(struct qup_i2c_dev *dev, struct i2c_msg *msg, int rem,
 		 * are more than FIFO/BLOCK size. setup time issue can't appear
 		 * otherwise since next byte to be written will always be ready
 		 */
-		val = (QUP_OUT_NOP | 1);
-		*idx += 2;
-		i++;
-		entries++;
+		uint32_t cur_wr_cnt = readl(dev->base + QUP_MX_WR_CNT_CUR);
+		if (dev->pos == cur_wr_cnt) {
+			val = (QUP_OUT_NOP | 1);
+			*idx += 2;
+			i++;
+			entries++;
+		}
 	}
 	if (entries > empty_sl)
 		entries = empty_sl;

@@ -697,6 +697,8 @@ int ce147_sensor_ext_config(void __user *arg);
 int s5ka3dfx_sensor_ext_config(void __user *arg);
 int s5k4ecgx_sensor_ext_config(void __user *arg);
 int s5k4ecgx_sensor_esd_detected();
+int s5k5ccaf_sensor_esd_detected(); //ESD
+int sr030pc30_sensor_esd_detected(); //ESD
 int ce147_get_fw_data(void __user *arg);
 int sr030pc30_sensor_ext_config(void __user *argp);
 int s5k5ccaf_sensor_ext_config(void __user *arg);

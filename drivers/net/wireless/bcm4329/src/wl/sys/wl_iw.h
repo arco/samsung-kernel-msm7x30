@@ -165,7 +165,9 @@ struct ap_profile {
 	uint32	channel; 
 	uint32	preamble;
 	uint32	max_scb;	
-	uint32  closednet;  
+#ifdef USE_HIDDEN_SSID
+	uint32	hidden_ssid;
+#endif
 	char country_code[WLC_CNTRY_BUF_SZ];
 };
 

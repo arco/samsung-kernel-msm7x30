@@ -75,7 +75,7 @@ static int msm_vibrator_suspend(struct platform_device *pdev, pm_message_t state
 		is_vibe_on = 0;
 	}
 //	msm_vibrator_power(VIBRATION_OFF);
-	printk("[VIB] susepend\n");
+	printk("[VIB] suspend\n");
 	return VIBE_S_SUCCESS;
 }
 
@@ -83,7 +83,7 @@ static int msm_vibrator_resume(struct platform_device *pdev)
 {
 
 //	msm_vibrator_power(VIBRATION_ON);
-	printk("[VIB] resume\n");
+//	printk("[VIB] resume\n");
 	return VIBE_S_SUCCESS;
 }
 
@@ -160,7 +160,7 @@ static void set_pmic_vibrator(int on)
 	int rc; 
 #endif
 
-	printk(KERN_INFO,"[VIB] %s, input : %s\n",__func__,on ? "ON":"OFF");
+	//printk(KERN_INFO "[VIB] %s, input : %s\n",__func__,on ? "ON":"OFF");
 	if (on) {
 #ifdef CONFIG_MACH_ARIESVE
 		clk_enable(android_vib_clk);
@@ -259,14 +259,14 @@ static void vibrator_enable(struct timed_output_dev *dev, int value)
 	hrtimer_cancel(&vibe_timer);
 
 	if (value == 0) {
-		printk(KERN_INFO,"[VIB] OFF\n");
+		//printk(KERN_INFO,"[VIB] OFF\n");
 		pmic_vibrator_off();
 	}
 	else {
 
 		if(value < 0)
 			value = ~value;
-		printk(KERN_INFO,"[VIB] ON, %d ms\n",value);
+		//printk(KERN_INFO,"[VIB] ON, %d ms\n",value);
 
 		value = (value > 15000 ? 15000 : value);
 
@@ -296,7 +296,7 @@ static enum hrtimer_restart vibrator_timer_func(struct hrtimer *timer)
 #else
 		unsigned int remain;
 
-		printk(KERN_INFO,"[VIB] %s\n",__func__);
+		//printk(KERN_INFO,"[VIB] %s\n",__func__);
 		if(hrtimer_active(&vibe_timer)) {
 				ktime_t r = hrtimer_get_remaining(&vibe_timer);
 				remain=r.tv.sec * 1000000 + r.tv.nsec;
@@ -304,11 +304,11 @@ static enum hrtimer_restart vibrator_timer_func(struct hrtimer *timer)
 				if(r.tv.sec < 0) {
 						remain = 0;
 				}
-				printk(KERN_INFO,"[VIB] hrtimer active, remain:%d\n",remain);
+				//printk(KERN_INFO "[VIB] hrtimer active, remain:%d\n",remain);
 				if(!remain) 
 					pmic_vibrator_off();
 		} else {
-				printk(KERN_INFO,"[VIB] hrtimer not active\n");
+				//printk(KERN_INFO "[VIB] hrtimer not active\n");
 			pmic_vibrator_off();
 		}
 		return HRTIMER_NORESTART;

@@ -198,14 +198,16 @@ void sr130pc10_set_preview(void)
     int shade_value = 0;
     unsigned short agc_value = 0;
 	preview_enable = 1; //Setting preview flag 
+#if 0
     if(prev_vtcall_mode==sr130pc10_ctrl->vtcall_mode)
         return;
-    
+#endif
     printk(KERN_ERR "[SR130PC10] sr130pc10_set_preview : dtp(%d), vt(%d)\n",sr130pc10_ctrl->dtp_mode, sr130pc10_ctrl->vtcall_mode);
 
     if(!sr130pc10_ctrl->dtp_mode) {
         if(sr130pc10_ctrl->vtcall_mode) {
-            SR130PC10_WRITE_LIST(sr130pc10_init_vt_reg);
+            SR130PC10_WRITE_LIST(sr130pc10_preview_reg); // preview start
+            //SR130PC10_WRITE_LIST(sr130pc10_init_vt_reg);
             SR130PC10_WRITE_LIST(sr130pc10_fps_15);
         } else {
             SR130PC10_WRITE_LIST(sr130pc10_preview_reg); // preview start
@@ -692,7 +694,7 @@ int sr130pc10_regs_table_init(void)
 	printk("%s %d\n", __func__, __LINE__);
 
 	set_fs(get_ds());
-#if 0
+#if 1
 	//filp = filp_open("/data/camera/sr130pc10.h", O_RDONLY, 0);
 	filp = filp_open("/data/sr130pc10.h", O_RDONLY, 0);
 #else
@@ -912,6 +914,24 @@ static int sr130pc10_set_dtp(int onoff)
     return 0;
 }
 
+static int sr130pc10_set_fps_mode(unsigned int mode) 
+{
+    printk(KERN_ERR "[CAMDRV/sr130pc10]  %s -mode : %d \n",__FUNCTION__,mode);
+    
+    if((mode == EXT_CFG_FRAME_AUTO) || (mode > EXT_CFG_FRAME_FIX_30))
+    { 
+        printk(KERN_ERR "[CAMDRV/sr130pc10] mode change to CAMERA_MODE");
+        sr130pc10_ctrl->vtcall_mode = 0;
+    }     
+    else
+    {
+        printk(KERN_ERR "[CAMDRV/sr130pc10] mode change to CAMCORDER_MODE");
+        sr130pc10_ctrl->vtcall_mode = 1;
+    }
+   
+    return 0;
+}
+
 int sr130pc10_sensor_ext_config(void __user *argp)
 {
     long ext_config_return = 0;
@@ -944,19 +964,23 @@ int sr130pc10_sensor_ext_config(void __user *argp)
             printk("[SR130PC10] exposureTime=%d\n", exposureTime);
             break;
          case EXT_CFG_SET_BRIGHTNESS:
-         //  printk(KERN_ERR "[CAMDRV/SR130PC10] EXT_CFG_SET_BRIGHTNESS *** ( %d)\n",cfg_data.value_1);
+         //  printk(KERN_ERR "[CAMDRV/SR130PC10] EXT_CFG_SET_BRIGHTNESS *** ( %d) brightness =%d preview_enable = %d \n",cfg_data.value_1, ,brightness,preview_enable);
 			if((brightness == 0) && (preview_enable == 0)){ 
 				//Brightness control should be applied only once before preview is enabled
             	ext_config_return = sr130pc10_set_exposure_value(cfg_data.value_1);
          		brightness = 1;
 			}
-			if((brightness) && (preview_enable))
+			//P110909-1364 : running camera, control  Brightness, take a shot and then check image in quick view, return to preview 
+			//error : there’s difference on brightness before Quick view and after
+			//This created a side effect so chaged the condition to  ||  
+			if((brightness) || (preview_enable))
 				//This enables when the used tries to change the exposure from UI
             	ext_config_return = sr130pc10_set_exposure_value(cfg_data.value_1);
 
             break;
          case EXT_CFG_SET_FPS_MODE:
          // printk(KERN_ERR "[CAMDRV/SR130PC100] EXT_CFG_SET_FPS_MODE ***(%d %d)\n",cfg_data.cmd,cfg_data.value_1);
+            sr130pc10_set_fps_mode(cfg_data.value_1); 
             break;
         case EXT_CFG_SET_WB:
             sr1_whiteBalance = cfg_data.value_1;

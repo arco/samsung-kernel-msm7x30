@@ -128,13 +128,13 @@ static void input_bridge_work(struct work_struct *work) {
 #endif
 
     if (!dump_enable_flag) {
-        printk(KERN_INFO "[jjals] debug level low skip ramdump mode!!!\n");
+//        printk(KERN_INFO "[jjals] debug level low skip ramdump mode!!!\n");
         return;
     }
 
     mutex_lock(&bridge->lock);
 
-    printk("\n[jjals] ramdump gogosing!!!!!\n");
+//    printk("\n[jjals] ramdump gogosing!!!!!\n");
 
 #ifdef USE_LED_BLANK_FOR_ANCORA
     for (i = 0; i < led_loop_count; i++) {
@@ -181,7 +181,9 @@ static void input_bridge_event(struct input_handle *handle, unsigned int type,
     switch (type) {
     case EV_KEY:
         if (value & rep_check) {
+#ifdef KEY_LOG_TEST
             printk(KERN_INFO "sec-input-bridge: KEY input intercepted, type: %d, code: %d, value: %d\n", type, code, value);
+#endif
 
             if (sec_bridge->pdata->mkey_map[sec_bridge->check_index].code == code) {
                 sec_bridge->check_index++;

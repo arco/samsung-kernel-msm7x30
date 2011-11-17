@@ -58,8 +58,8 @@
 #define NEW_FIRMWARE_VERSION_55T 0x06
 #else
 #define NEW_FIRMWARE_VERSION 	 0x14
-#define NEW_FIRMWARE_VERSION_HW02 0x15
-#define NEW_FIRMWARE_VERSION_55T 0x30
+#define NEW_FIRMWARE_VERSION_GFF NEW_FIRMWARE_VERSION
+#define NEW_FIRMWARE_VERSION_G2  0x15
 #endif
 #define TS_READ_VERSION_ADDR	0x63
 
@@ -71,9 +71,14 @@ static struct vreg *vreg_ldo2;
 int melfas_mcs8000_ts_suspend(pm_message_t mesg);
 int melfas_mcs8000_ts_resume();
 extern int mcsdl_download_binary_data(void);
+extern int mcsdl_ISC_download_binary_data(void);
+
+#if defined(CONFIG_MACH_ANCORA_TMO)
 extern int mcsdl_download_binary_data_55T(void);
+#endif
 #if defined(CONFIG_MACH_ANCORA) //#if !defined(CONFIG_MACH_ANCORA_TMO)  
-extern int mcsdl_download_binary_data_HW02(void);
+extern int mcsdl_download_binary_data_G2(void);
+extern int mcsdl_ISC_download_binary_data_G2(void);
 #endif
 
 extern struct class *sec_class;
@@ -84,6 +89,7 @@ enum {
 	TKEY_LED_ON,
 	TKEY_LED_SUSPEND,
 	TKEY_LED_RESUME,
+	TKEY_LED_FORCEDOFF
 };
 static unsigned int led_state = TKEY_LED_OFF;
 
@@ -200,6 +206,7 @@ static void poweroff_touch_timer_handler2(unsigned long data)
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_WIDTH_MAJOR, 4);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TRACKING_ID, 0);
+
 	input_mt_sync(melfas_mcs8000_ts->input_dev);
 	input_sync(melfas_mcs8000_ts->input_dev);
 
@@ -700,13 +707,13 @@ void firmware_update()
 		ret = mcsdl_download_binary_data(); 
     }		
 #else
-    if((melfas_mcs8000_ts->window_ver==MELFAS_WINDOW_70T) && (melfas_mcs8000_ts->hw_rev == 0x02))
+    if(melfas_mcs8000_ts->hw_rev == 0x03) // GFF
     {	
-		ret = mcsdl_download_binary_data_HW02(); 
+		ret = mcsdl_download_binary_data(); 
     } 
-    else //if((melfas_mcs8000_ts->window_ver==MELFAS_WINDOW_70T) && (melfas_mcs8000_ts->hw_rev == 0x03))
+    else //if(melfas_mcs8000_ts->hw_rev == 0x50) // G2
     {
-		ret = mcsdl_download_binary_data();    
+		ret = mcsdl_download_binary_data_G2();    
     }
 #endif
 	
@@ -739,6 +746,53 @@ void firmware_update()
 	}
 }
 
+void firmware_update_manual()
+{
+	int ret;
+
+    printk("[TOUCH] firmware_update_manual \n");
+	printk("[TOUCH] Melfas  H/W version: 0x%02x.\n", melfas_mcs8000_ts->hw_rev);
+	printk("[TOUCH] Current F/W version: 0x%02x.\n", melfas_mcs8000_ts->fw_ver);
+
+	disable_irq(melfas_mcs8000_ts->client->irq);
+	local_irq_disable();
+
+#if defined(CONFIG_MACH_ANCORA) //#if !defined(CONFIG_MACH_ANCORA_TMO)  
+    if (melfas_mcs8000_ts->hw_rev == 0x50)
+    	ret = mcsdl_ISC_download_binary_data_G2();    
+    else 
+#endif
+        ret = mcsdl_ISC_download_binary_data();
+    
+	local_irq_enable();
+	enable_irq(melfas_mcs8000_ts->client->irq);
+	
+	melfas_mcs8000_read_version();
+
+    printk("[TSP] firmware update result. ret = %d\n", ret);
+    
+	if(ret > 0){
+		if (melfas_mcs8000_ts->hw_rev < 0) {
+			printk(KERN_ERR "i2c_transfer failed\n");
+		}
+		
+		if (melfas_mcs8000_ts->fw_ver < 0) {
+			printk(KERN_ERR "i2c_transfer failed\n");
+		}
+		
+		printk("[TOUCH] Firmware update success! [Melfas H/W version: 0x%02x., Current F/W version: 0x%02x.]\n", melfas_mcs8000_ts->hw_rev, melfas_mcs8000_ts->fw_ver);
+		qt_firm_status_data=2;			
+	}
+	else {
+		qt_firm_status_data=3;
+		printk("[TOUCH] Firmware update failed.. %d RESET!\n", ret);
+		mcsdl_vdd_off();
+		mdelay(500);
+		mcsdl_vdd_on();
+		mdelay(200);
+	}
+}
+
 static ssize_t set_qt_update_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
     int count;
@@ -746,30 +800,9 @@ static ssize_t set_qt_update_show(struct device *dev, struct device_attribute *a
     printk(" %s : START \n",__func__); 
     qt_firm_status_data=2;    //start firmware updating
     
-	/* firmware update code */	
-	if(melfas_mcs8000_ts->window_ver==MELFAS_WINDOW_55T)	// Window panel 0.55T
-	{	
-		if(board_hw_revision >= 4 && melfas_mcs8000_ts->fw_ver < NEW_FIRMWARE_VERSION_55T)
-		{
-			printk("[TSP] firmware update window 0.55T\n");
-            qt_firm_status_data=1;
-			firmware_update();
-		}
-	}
-	else if(melfas_mcs8000_ts->window_ver==MELFAS_WINDOW_70T) // Window panel 0.7T
-	{	
-	    if ((melfas_mcs8000_ts->hw_rev == 0x03) && (board_hw_revision >= 4) && (melfas_mcs8000_ts->fw_ver < NEW_FIRMWARE_VERSION))
-		{
-			printk("[TSP] firmware update window 0.7T\n");
-            qt_firm_status_data=1;
-			firmware_update();
-		}
-	}
-    
-	msleep(200);
-	melfas_mcs8000_ts_suspend(PMSG_SUSPEND);
-	msleep(200);
-	melfas_mcs8000_ts_resume();
+	/* firmware update code */	 
+    qt_firm_status_data=1;
+    firmware_update_manual();
        
     if(qt_firm_status_data == 3) {
         count = sprintf(buf,"FAIL\n");
@@ -782,20 +815,25 @@ static ssize_t set_qt_update_show(struct device *dev, struct device_attribute *a
 
 static ssize_t set_qt_firm_version_show(struct device *dev, struct device_attribute *attr, char *buf)
 {    
+#if defined(CONFIG_MACH_ANCORA)    
+    if(melfas_mcs8000_ts->hw_rev == 0x03) // GFF TSP
+	{	
+        return sprintf(buf, "0x%02x\n", NEW_FIRMWARE_VERSION_GFF); // kernel source version    
+    }  
+    else if(melfas_mcs8000_ts->hw_rev == 0x50) // G2 TSP
+	{	
+        return sprintf(buf, "0x%02x\n", NEW_FIRMWARE_VERSION_G2); // kernel source version    
+    }  
+#else
 	if(melfas_mcs8000_ts->window_ver==MELFAS_WINDOW_55T)	// Window panel 0.55T
     {
         return sprintf(buf, "0x%02x\n", NEW_FIRMWARE_VERSION_55T);// kernel source version
-    }
-#if defined(CONFIG_MACH_ANCORA)    
-    else if((melfas_mcs8000_ts->window_ver==MELFAS_WINDOW_70T) && (melfas_mcs8000_ts->hw_rev == 0x02)) // Window panel 0.7T TSP HW rev.02
-	{	
-        return sprintf(buf, "0x%02x\n", NEW_FIRMWARE_VERSION_HW02); // kernel source version    
-    }        
-#endif    
+    }  
+#endif     
     else // Window panel 0.7T
 	{	
         return sprintf(buf, "0x%02x\n", NEW_FIRMWARE_VERSION);// kernel source version    
-    }            
+    }         
 }
 
 static ssize_t set_qt_firm_version_read_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -956,8 +994,6 @@ static void melfas_ts_work_func(struct work_struct *work)
 #if DEBUG_PRINT
             printk(KERN_ERR "melfas_ts_work_func: Touch ID: %d, x: %d, y: %d, z: %d w: %d\n",
                    i, g_Mtouch_info[i].posX, g_Mtouch_info[i].posY, g_Mtouch_info[i].strength, g_Mtouch_info[i].width);
-#else // for CTS
-            printk(KERN_ERR "[TSP] ID: %d, z: %d, w: %d\n", i, g_Mtouch_info[i].strength, g_Mtouch_info[i].width);
 #endif
         }
 #if DEBUG_PRINT
@@ -997,7 +1033,9 @@ static void melfas_ts_work_func(struct work_struct *work)
                 preKeyID = keyID;
 			}
 #endif
+#if DEBUG_PRINT
             printk(KERN_ERR "[TKEY] ID : %d, keyState: %d\n", keyID, keyState);
+#endif
         }
 
         input_sync(melfas_mcs8000_ts->input_dev);
@@ -2288,22 +2326,9 @@ int melfas_mcs8000_ts_probe(struct i2c_client *client,
         printk("[TSP] ERROR : There is no valid TSP ID \n");
         goto err_check_functionality_failed;
     }
-    
-	if(melfas_mcs8000_ts->window_ver==MELFAS_WINDOW_55T)
-    {
-        printk("[TSP] Window_ver. 55T : hw rev %d, fw ver : %d, new fw ver %d\n",
-    				melfas_mcs8000_ts->hw_rev, melfas_mcs8000_ts->fw_ver, NEW_FIRMWARE_VERSION_55T);    
-    }
-    else if(melfas_mcs8000_ts->window_ver==MELFAS_WINDOW_70T)
-	{	         
-        printk("[TSP] Window_ver. 70T : hw rev %d, fw ver : %d, new fw ver %d\n",
-    				melfas_mcs8000_ts->hw_rev, melfas_mcs8000_ts->fw_ver, NEW_FIRMWARE_VERSION);
-    }
-    else 
-	{	         
-       printk("[TSP] Probe ERROR - Window_ver : %d, hw rev %d, fw ver : %d \n",
-    				melfas_mcs8000_ts->window_ver, melfas_mcs8000_ts->hw_rev, melfas_mcs8000_ts->fw_ver);
-    }
+         
+    printk("[TSP] Window_ver. 70T : hw rev %d, fw ver : %d, new fw ver %d\n",
+				melfas_mcs8000_ts->hw_rev, melfas_mcs8000_ts->fw_ver, NEW_FIRMWARE_VERSION);
       
 #if defined(CONFIG_MACH_ANCORA_TMO)
     if(melfas_mcs8000_ts->window_ver==MELFAS_WINDOW_55T)	// Window panel 0.55T
@@ -2325,28 +2350,16 @@ int melfas_mcs8000_ts_probe(struct i2c_client *client,
     INIT_WORK(&melfas_mcs8000_ts->work, melfas_ts_work_func);
 	
 #else
-    if(melfas_mcs8000_ts->window_ver==MELFAS_WINDOW_70T) // Window panel 0.7T
-	{	
-	    if ((melfas_mcs8000_ts->hw_rev == 0x03) && (board_hw_revision >= 4) && (melfas_mcs8000_ts->fw_ver < NEW_FIRMWARE_VERSION) && (version_read == TRUE))
-        {
-			printk("[TSP] firmware update window 0.7T TSP H/W rev03 \n");
-			firmware_update();        
-        }
-		else if((melfas_mcs8000_ts->hw_rev == 0x02) && (board_hw_revision >= 4) && (melfas_mcs8000_ts->fw_ver < NEW_FIRMWARE_VERSION_HW02) && (version_read == TRUE))
-		{
-			printk("[TSP] firmware update window 0.7T TSP H/W rev02 \n");
-			firmware_update();
-		}
-        else
-        {
-            printk("[TSP] Have the Latest firmware \n");
-        }
-	}
-    else if((melfas_mcs8000_ts->hw_rev == 0x00) && (melfas_mcs8000_ts->fw_ver == 0x00) && (version_read == TRUE))
+    if ((melfas_mcs8000_ts->hw_rev == 0x03) && (melfas_mcs8000_ts->fw_ver < NEW_FIRMWARE_VERSION_GFF) && (version_read == TRUE))
     {
-		printk("[TSP] firmware was updated forcedly by Erased F/W \n");
+		printk("[TSP] firmware update window 0.7T TSP H/W rev.03 GFF \n");
 		firmware_update();        
-    }    
+    }
+	else if((melfas_mcs8000_ts->hw_rev == 0x50) && (melfas_mcs8000_ts->fw_ver < NEW_FIRMWARE_VERSION_G2) && (version_read == TRUE))
+	{
+		printk("[TSP] firmware update window 0.7T TSP H/W rev.50 G2 \n");
+		firmware_update();
+	}
     else 
     {
         printk("[TSP] Have the Latest firmware \n");
@@ -2491,7 +2504,7 @@ int melfas_mcs8000_ts_suspend(pm_message_t mesg)
 		if (rc) 
 			pr_err("%s: LDO2 vreg disable failed (%d)\n", __func__, rc);		
         else 
-            led_state == TKEY_LED_OFF;
+            led_state = TKEY_LED_FORCEDOFF;
 	}
         
 	gpio_set_value(GPIO_I2C0_SCL, 0);  // TOUCH SCL DIS
@@ -2508,6 +2521,7 @@ int melfas_mcs8000_ts_suspend(pm_message_t mesg)
 
 int melfas_mcs8000_ts_resume()
 {
+    int rc = 0;
     printk("%s\n", __func__);
     gpio_tlmm_config(GPIO_CFG(GPIO_I2C0_SCL, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_16MA),GPIO_CFG_ENABLE);
     gpio_tlmm_config(GPIO_CFG(GPIO_I2C0_SDA, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_16MA),GPIO_CFG_ENABLE);
@@ -2521,6 +2535,17 @@ int melfas_mcs8000_ts_resume()
     melfas_mcs8000_ts->suspended = false;
     enable_irq(melfas_mcs8000_ts->client->irq);  
 
+    if(led_state == TKEY_LED_FORCEDOFF) { 
+        rc = vreg_enable(vreg_ldo2); 
+
+        printk("%s TKEY_LED_FORCEDOFF  rc = %d \n", __func__,rc);               
+
+        if (rc)  
+            pr_err("%s: LDO2 vreg disable failed (%d)\n", __func__, rc);		 
+        else  
+            led_state = TKEY_LED_ON; 
+    } 
+   
     return 0;
 }
 #if 0 // blocked for now.. we will gen touch when suspend func is called

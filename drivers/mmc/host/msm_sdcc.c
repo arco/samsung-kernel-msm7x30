@@ -93,6 +93,7 @@ static struct mmc_request dummy52mrq = {
 	.data = NULL,
 	.stop = NULL,
 };
+
 static struct mmc_command dummy52cmd = {
 	.opcode = SD_IO_RW_DIRECT,
 	.flags = MMC_RSP_PRESENT,
@@ -108,9 +109,14 @@ struct pm8058_gpio sd_pwr_en_n_1 = {
 		.inv_int_pol	= 0,
 		.out_strength	= PM_GPIO_STRENGTH_LOW,
 		.output_value	= 0,
-	};
+};
 
-
+struct vreg {
+	const char *name;
+	unsigned id;
+	int status;
+	unsigned refcnt;
+};
 
 #define VERBOSE_COMMAND_TIMEOUTS	0
 
@@ -1412,15 +1418,42 @@ msmsdcc_check_status(unsigned long data)
 {
 	struct msmsdcc_host *host = (struct msmsdcc_host *)data;
 	unsigned int status;
+	struct vreg *vreg_sd_gp10;
+	int rc;
 
 	if (!host->plat->status) {
 		mmc_detect_change(host->mmc, 0);
 	} else {
 		status = host->plat->status(mmc_dev(host->mmc));
 		host->eject = !status;
-		if (status ^ host->oldstat) {
-			pr_info("%s: Slot status change detected (%d -> %d)\n",
-			       mmc_hostname(host->mmc), host->oldstat, status);
+		if (status ^ host->oldstat)
+		{
+			pr_info("%s: Slot status change detected (%d -> %d)\n", mmc_hostname(host->mmc), host->oldstat, status);
+			// -- Turn on power of sd card when reject the worng sd card.
+			if(status == 0)
+			{
+				if(!strcmp(mmc_hostname(host->mmc), "mmc2"))
+				{
+					vreg_sd_gp10 = vreg_get(NULL, "gp10");
+					if (!vreg_sd_gp10)
+						pr_err("%s: VREG L16 get failed\n", __func__);
+
+					printk(KERN_INFO "%s's vreg: Name %s / Id %d / Status %d / Count %d\n",mmc_hostname(host->mmc),
+									vreg_sd_gp10->name, vreg_sd_gp10->id, vreg_sd_gp10->status, vreg_sd_gp10->refcnt);
+
+					if(!vreg_sd_gp10->refcnt)
+					{
+						rc = vreg_enable(vreg_sd_gp10);
+						if(rc)
+							pr_err("%s: VREG L16 enable failed %d\n", __func__, rc);
+
+						printk(KERN_INFO "%s's vreg [On]: Name %s / Id %d / Status %d / Count %d\n",mmc_hostname(host->mmc),
+									vreg_sd_gp10->name, vreg_sd_gp10->id, vreg_sd_gp10->status, vreg_sd_gp10->refcnt);
+					}
+				}
+			}
+			// --
+
 			mmc_detect_change(host->mmc, 0);
 		}
 		host->oldstat = status;
@@ -2274,7 +2307,7 @@ msmsdcc_runtime_suspend(struct device *dev)
 			if (rc) 
 			{
 				pr_err("%s PMIC_GPIO_SD_PWR_EN_N config failed\n", __func__);
-	return rc;
+				return rc;
 			}
 			gpio_set_value_cansleep(PM8058_GPIO_PM_TO_SYS(24), 1); //HIGH
 		}

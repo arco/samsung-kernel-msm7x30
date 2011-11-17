@@ -304,7 +304,11 @@ struct pdp_info {
 
 		/* Virtual serial interface */
 		struct {
+#ifdef CONFIG_ENABLE_TTY_CIQ
 			struct tty_driver	tty_driver[7];	// CSD, ROUTER, GPS, XGPS, SMD
+#else
+			struct tty_driver	tty_driver[5];	// CSD, ROUTER, GPS, XGPS, SMD
+#endif
 			int			refcount;
 			struct tty_struct	*tty_table[1];
 			struct ktermios		*termios[1];
@@ -353,8 +357,10 @@ int fp_vsGPS = 0;
 int fp_vsEXGPS = 0;
 int fp_vsEFS = 0;
 int fp_vsSMD = 0;
+#ifdef CONFIG_ENABLE_TTY_CIQ
 int fp_vsCIQ0 = 0;
 int fp_vsCIQ1 = 0;
+#endif
 //int vnet_start_xmit_flag = 0;
 //int vnet_start_xmit_count = 0;
 /*
@@ -376,8 +382,10 @@ static struct tty_driver* get_tty_driver_by_id(struct pdp_info *dev)
 		case 5:		index = 2;	break;
 		case 6:		index = 3;	break;
 		case 25:	index = 4;	break;
+#ifdef CONFIG_ENABLE_TTY_CIQ
 		case 9:	        index = 5;	break;
 		case 26:	index = 6;	break;
+#endif
 		default:	index = 0;
 	}
 
@@ -394,8 +402,10 @@ static int get_minor_start_index(int id)
 		case 5:		start = 2;	break;
 		case 6:		start = 3;	break;
 		case 25:	start = 4;	break;
+#ifdef CONFIG_ENABLE_TTY_CIQ
 		case 9:	        start = 5;	break;
 		case 26:	start = 6;	break;
+#endif
 		default:	start = 0;
 	}
 
@@ -1099,6 +1109,7 @@ static int vs_open(struct tty_struct *tty, struct file *filp)
          	fp_vsSMD = 1;
          	break; 
 
+#ifdef CONFIG_ENABLE_TTY_CIQ
       	case 9 :
          	fp_vsCIQ1 = 1;
          	break;
@@ -1106,7 +1117,7 @@ static int vs_open(struct tty_struct *tty, struct file *filp)
       	case 26 :
          	fp_vsCIQ0 = 1;
          	break;
-			
+#endif
 		default:
 			break;
 	}
@@ -1144,6 +1155,7 @@ static void vs_close(struct tty_struct *tty, struct file *filp)
          	fp_vsSMD = 0;
          	break; 
 
+#ifdef CONFIG_ENABLE_TTY_CIQ
       	case 9 :
          	fp_vsCIQ1 = 0;
          	break;
@@ -1151,6 +1163,7 @@ static void vs_close(struct tty_struct *tty, struct file *filp)
       	case 26 :
          	fp_vsCIQ0 = 0;
          	break;
+#endif
 			
 		default:
 			break;
@@ -1317,7 +1330,11 @@ static int vs_read(struct pdp_info *dev, size_t len)
             size = dpram_read(dpram_filp, prx_buf, len);
             DPRINTK(1, "multipdp_thread request read size : %d readed size %d, count : %d\n",len ,size,count);
 
+#ifdef CONFIG_ENABLE_TTY_CIQ
             if ((dev->id == 26 && !fp_vsCIQ0) ||(dev->id == 9 && !fp_vsCIQ1)||(dev->id == 1 && !fp_vsCSD) || (dev->id == 5 && !fp_vsGPS) || (dev->id == 8 && !fp_vsEFS)|| (dev->id == 25 && !fp_vsSMD)){
+#else
+            if ((dev->id == 1 && !fp_vsCSD) || (dev->id == 5 && !fp_vsGPS) || (dev->id == 8 && !fp_vsEFS)|| (dev->id == 25 && !fp_vsSMD)){
+#endif
                 EPRINTK("vs_read : %s, discard data.\n", dev->vs_dev.tty->name);
             }
             else {
@@ -1345,7 +1362,11 @@ static int vs_read(struct pdp_info *dev, size_t len)
 				return retval;
 
             if(retval > 0){
+#ifdef CONFIG_ENABLE_TTY_CIQ
                 if((dev->id == 26 && !fp_vsCIQ0) ||(dev->id == 9 && !fp_vsCIQ1) ||( dev->id == 1 && !fp_vsCSD) || (dev->id == 5 && !fp_vsGPS) || (dev->id == 8 && !fp_vsEFS)|| (dev->id == 25 && !fp_vsSMD)) {
+#else
+                if((dev->id == 1 && !fp_vsCSD) || (dev->id == 5 && !fp_vsGPS) || (dev->id == 8 && !fp_vsEFS)|| (dev->id == 25 && !fp_vsSMD)) {
+#endif
         			EPRINTK("vs_read : %s, discard data.\n", dev->vs_dev.tty->name);
         		}
         		else {
@@ -1997,6 +2018,7 @@ static struct work_struct dpram_open_work;
 static void dpram_open_work_func(struct work_struct *work)
 {
 	int ret;
+#ifdef CONFIG_ENABLE_TTY_CIQ
 	pdp_arg_t pdp_args[7] = {
 		{ .id = 1, .ifname = "ttyCSD" },
 		{ .id = 8, .ifname = "ttyEFS" },
@@ -2006,6 +2028,15 @@ static void dpram_open_work_func(struct work_struct *work)
 		{ .id = 9, .ifname = "ttyCIQ1" },
 		{ .id = 26, .ifname = "ttyCIQ0" },
 	};
+#else
+	pdp_arg_t pdp_args[5] = {
+		{ .id = 1, .ifname = "ttyCSD" },
+		{ .id = 8, .ifname = "ttyEFS" },
+		{ .id = 5, .ifname = "ttyGPS" },
+		{ .id = 6, .ifname = "ttyXTRA" },
+		{ .id = 25, .ifname = "ttySMD" },
+	};
+#endif
 
 	msleep(100);
 
@@ -2022,7 +2053,11 @@ static void dpram_open_work_func(struct work_struct *work)
 	}
 
 	/* create serial device for Circuit Switched Data */
+#ifdef CONFIG_ENABLE_TTY_CIQ
 	for (ret = 0; ret < 7; ret++) {
+#else
+	for (ret = 0; ret < 5; ret++) {
+#endif
 		if (pdp_activate(&pdp_args[ret], DEV_TYPE_SERIAL, DEV_FLAG_STICKY) < 0) {
 			EPRINTK("failed to create a serial device for %s\n", pdp_args[ret].ifname);
 	}

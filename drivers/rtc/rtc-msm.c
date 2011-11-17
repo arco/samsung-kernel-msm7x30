@@ -148,6 +148,7 @@ struct suspend_state_info {
 };
 
 static struct suspend_state_info suspend_state = {ATOMIC_INIT(0), 0};
+extern int charging_boot; 
 
 bool msmrtc_is_suspended(void)
 {

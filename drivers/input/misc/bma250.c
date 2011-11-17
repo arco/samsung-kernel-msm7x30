@@ -409,7 +409,8 @@ int bma250_get_eeprom_writing_status(unsigned char *eewrite );
 int bma250_get_cal_ready(unsigned char *calrdy );
 int bma250_set_cal_trigger(unsigned char caltrigger);
 
-static int bma250_set_calibration(signed char*);
+static int bma250_set_calibration(signed char*,int);
+static int bma250_get_calibration(signed char*);
 /* --------------------------------------------------------------------------- */
 /*  Local functions                                                            */
 /* --------------------------------------------------------------------------- */
@@ -928,7 +929,7 @@ static int bma250_measure(int *out_data, int *out_raw)
 
     return BMA_NO_ERROR;
 }
-static int bma250_set_calibration(signed char* data_cal)
+static int bma250_set_calibration(signed char* data_cal, int cal_init)
 {
 	int count = 0;
   // for debug
@@ -942,6 +943,15 @@ static int bma250_set_calibration(signed char* data_cal)
     //bma250_update_bits(bma250_RANGE, bma250_RANGE_2G);
     //bma250_set_delay(acc_data.delay);
     //bma250_update_bits(bma250_DATA_ENBL, 1);
+	if (cal_init == 1)
+	{
+		printk(KERN_INFO "[HSS] Calibraion Init\n");
+		bma250_set_offset_filt_x(0);
+		bma250_set_offset_filt_y(0);
+		bma250_set_offset_filt_z(0);     
+	}
+	else
+	{    
 #ifdef DEBUG
 	printk(KERN_INFO "%s\n",__FUNCTION__);
     printk(KERN_INFO "data are %d,%d,%d\n",data_cal[0],data_cal[1],data_cal[2]);
@@ -1030,6 +1040,7 @@ static int bma250_set_calibration(signed char* data_cal)
     printk(KERN_INFO "z axis fast calibration finished\n");
     printk(KERN_INFO "store xyz offset to eeprom\n");
 #endif
+}
     tmp=1;//unlock eeprom
     bma250_set_ee_w(tmp);
     bma250_set_ee_prog_trig();//update eeprom
@@ -1056,6 +1067,20 @@ static int bma250_set_calibration(signed char* data_cal)
     printk("[diony] -------------bma250_set_calibration End!!!! --------------.\n");
 #endif  
     return 0;
+}
+static int bma250_get_calibration(signed char* cal_result)
+{
+	signed char tmp = 0;
+	printk("[HSS] [%s] \n", __func__);
+
+	bma250_get_offset_filt_x(&tmp);
+	cal_result[0] = tmp;
+	bma250_get_offset_filt_y(&tmp);
+	cal_result[1] = tmp;
+	bma250_get_offset_filt_z(&tmp);
+	cal_result[2] = tmp;
+    
+	return 0;
 }
 int bma250_set_offset_target_x(unsigned char offsettarget)
 {
@@ -1409,8 +1434,8 @@ int bma250_get_offset_filt_x(unsigned char *offsetfilt )
       }
    	else
     {
-    	data =  offsetfilt;
     	err = bma250_read_reg(BMA250_OFFSET_FILT_X_REG, &data, 1);
+	*offsetfilt =  data;
     }
    	return err;
 }
@@ -1511,8 +1536,8 @@ int bma250_get_offset_filt_y(unsigned char *offsetfilt )
       }
    	else
     {
-    	data =  offsetfilt;
     	err = bma250_read_reg(BMA250_OFFSET_FILT_Y_REG, &data, 1);
+        *offsetfilt =  data;
     }
    	return err;
 }
@@ -1613,8 +1638,8 @@ int bma250_get_offset_filt_z(unsigned char *offsetfilt )
       }
    	else
     {
-    	data =  offsetfilt;
     	err = bma250_read_reg(BMA250_OFFSET_FILT_Z_REG, &data, 1);
+	*offsetfilt =  data;
     }
    	return err;
 }
@@ -1970,7 +1995,7 @@ static int bma_get_register(uint8_t adr, uint8_t *val)
     return BMA_NO_ERROR;
 }
 #endif
-static int bma_set_calibration(signed char* data_cal)
+static int bma_set_calibration(signed char* data_cal, int cal_init)
 {
     int err;
     // for debug
@@ -1984,11 +2009,31 @@ static int bma_set_calibration(signed char* data_cal)
         return BMA_ERROR_NOT_INITIALIZED;
     }
     bma250_lock();
-    err = bma250_set_calibration(&data_cal);
+    err = bma250_set_calibration(&data_cal,cal_init);
     bma250_unlock();
     
     return err;
 }
+static int bma_get_calibration(signed char* cal_result)
+{
+	int err;
+	// for debug
+	printk("[HSS] [%s] \n", __func__);
+	if (pcb == NULL) {
+		return BMA_ERROR_NOT_INITIALIZED;
+	}
+
+	/* Check initialize */
+	if (acc_data.initialize == 0) {
+		return BMA_ERROR_NOT_INITIALIZED;
+	}
+	bma250_lock();
+	err = bma250_get_calibration(cal_result);
+	bma250_unlock();
+    
+	return err;
+}
+
 /* --------------------------------------------------------------------------- */
 /*  Global function                                                            */
 /* --------------------------------------------------------------------------- */
@@ -2032,6 +2077,7 @@ int bma_acc_driver_init(struct bma_acc_driver *f)
     f->set_position = bma_set_position;
     f->measure = bma_measure;
     f->set_calibration = bma_set_calibration;
+    f->get_calibration = bma_get_calibration;    
 #if DEBUG
     f->get_register = bma_get_register;
 #endif

@@ -656,6 +656,16 @@ static long  mtpg_ioctl(struct file *fd, unsigned int code, unsigned long arg)
 			printk("[%s:%d] calling mtp_function_enable with %d \n",__func__,__LINE__,mtp_enable_desc);
 			mtp_function_enable(mtp_enable_desc);
 			DEBUG_MTPB("[%s] \tline [%d] MTP_ONLY_ENABLE \n", __func__,__LINE__);
+#if 1  // because of this, mtp i/o error happen(MSM8255) junsang.yoo
+			if( arg == MTP_IOCTRL_USB_CLEAN )	{
+				if (dev->cdev && dev->cdev->gadget )
+				{
+					printk("[%s] B4 disconnecting gadget\tline = [%d] \n", __func__,__LINE__);
+					usb_composite_force_reset(dev->cdev);
+					printk("[%s] \tline = [%d] calling usb_gadget_connect after msleep of 5 \n", __func__,__LINE__);
+				}
+			}
+#endif
 #if 0  // because of this, mtp i/o error happen(MSM8255) junsang.yoo
 			if (dev->cdev && dev->cdev->gadget )
 			{

@@ -524,7 +524,7 @@ static void msm_batt_delay_init(struct work_struct *work)
 {	
 	int rc;
 
-	printk("[SSAM] %s enter!\n", __func__);
+//	printk("[SSAM] %s enter!\n", __func__);
 
 	rc = msm_batt_init_rpc();
 
@@ -1712,19 +1712,33 @@ static void msm_batt_update_psy_status(void)
 		
 #ifdef BATTERY_CHECK_OVP
 	    /* resume charging scenario */
+
 	    if (msm_batt_resume_ovp_chg() == 1){
+
 	        msm_batt_info.batt_ovp_chg_block = 0;
+
 	        msm_batt_info.batt_status = POWER_SUPPLY_STATUS_CHARGING;
+
 	        msm_batt_chg_en(START_CHARGING);
+
 	        return;
+
 	    }
+
 	    /* block charging scenario */
+
 	    if (msm_batt_block_ovp_chg() == 1) {
+
 	        msm_batt_info.batt_ovp_chg_block = 1;
+
 	        msm_batt_info.batt_status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+
 		    msm_batt_chg_en(STOP_CHARGING);
+
 	        return;
+
 	    }
+
 #endif
 	}
 	/**************************/

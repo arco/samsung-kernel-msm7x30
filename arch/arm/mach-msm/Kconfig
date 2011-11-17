@@ -190,49 +190,60 @@ config MACH_MSM7X27_FFA
 	  Support for the Qualcomm MSM7x27 FFA eval board.
 
 config MACH_ARIESVE
-       depends on ARCH_MSM7X30
-       depends on !MSM_STACKED_MEMORY
-       select APPSBOOT_3M_CONFIG
-       default n
-       bool "ARIESVE"
-       help
+	depends on ARCH_MSM7X30
+	depends on !MSM_STACKED_MEMORY
+	select APPSBOOT_3M_CONFIG
+	default n
+	bool "ARIESVE"
+	help
 	  Support for the Samsung Aries VE board.
 
 config MACH_ANCORA
-       depends on ARCH_MSM7X30
-       depends on !MSM_STACKED_MEMORY
-       select APPSBOOT_3M_CONFIG
-       default n
-       bool "ANCORA"
-       help
+	depends on ARCH_MSM7X30
+	depends on !MSM_STACKED_MEMORY
+	select APPSBOOT_3M_CONFIG
+	default n
+	bool "ANCORA"
+	help
 	  Support for the Samsung Ancora board.
 
 config MACH_APACHE
-       depends on ARCH_MSM7X30
-       depends on !MSM_STACKED_MEMORY
-       select APPSBOOT_3M_CONFIG
-       default n
-       bool "APACHE"
-       help
+	depends on ARCH_MSM7X30
+	depends on !MSM_STACKED_MEMORY
+	select APPSBOOT_3M_CONFIG
+	default n
+	bool "APACHE"
+	help
 	  Support for the Samsung Apache board.
 
 config MACH_ANCORA_TMO
-       depends on ARCH_MSM7X30
-       depends on !MSM_STACKED_MEMORY
-       select APPSBOOT_3M_CONFIG
-       default n
-       bool "ANCORA_TMO"
-       help
+	depends on ARCH_MSM7X30
+	depends on !MSM_STACKED_MEMORY
+	select APPSBOOT_3M_CONFIG
+	default n
+	bool "ANCORA_TMO"
+	help
 	  Support for the Samsung Ancora TMO board.
 
 config MACH_GODART
-       depends on ARCH_MSM7X30
-       depends on !MSM_STACKED_MEMORY
-       select APPSBOOT_3M_CONFIG
-       default n
-       bool "GODART"
-       help
+	depends on ARCH_MSM7X30
+	depends on !MSM_STACKED_MEMORY
+	select APPSBOOT_3M_CONFIG
+	default n
+	bool "GODART"
+	help
 	  Support for the Samsung Godart board.
+
+config HW_REV_USING_SMB328
+	hex "Select H/W Revision using smb328"
+	depends on CHARGER_SMB328A
+	default "0x00"
+
+config MICROUSB_DEBUG
+	bool "MICROUSB_DEBUG"
+
+config BATT_MICROVOLT_UNIT
+	bool "use micro volt unit for battery voltage"
 
 config BOARD_REVISION
 	hex "Select H/W Revision"

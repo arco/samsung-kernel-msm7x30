@@ -324,7 +324,7 @@ int  multipdp_buf_copy(int index, char *dpram, int size)
 	if( index < 0 || index > sizeof(multipdp_rbuf) || (index + size) > sizeof(multipdp_rbuf))
 		return -1;
 
-	printk("multipdp_buf_copy:index=%d size=%d\n", index, size);
+	dprintk("multipdp_buf_copy:index=%d size=%d\n", index, size);
 	memcpy( (void *)&multipdp_rbuf[index], (void *)dpram, size);
 	return( size);
 
@@ -357,12 +357,12 @@ int	multipdp_rx_data(dpram_device_t *device, int len)
 	//multipdp_rbuf
 	if( multipdp_rx_noti_func)
 	{
-		printk("multipdp_rx_data Before(noti_func) : len=%d\n",len);
+		dprintk("multipdp_rx_data Before(noti_func) : len=%d\n",len);
 		multipdp_rx_datalen = len;
 
 		ret = multipdp_rx_noti_func(multipdp_rbuf, len);
 		//memset(multipdp_rbuf, 0x00, len);
-		printk("multipdp_rx_data After(noti_func) : ret=%d\n",ret);
+		dprintk("multipdp_rx_data After(noti_func) : ret=%d\n",ret);
 	}
 
 	inuse_flag --;

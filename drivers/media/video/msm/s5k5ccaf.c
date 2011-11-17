@@ -85,6 +85,7 @@ static char mFPS = 0;
 static int preview_size = 0;
 static int low_temp = 0; //TELECA_BATTERY
 static char camera_mode = 0;
+int b_esd_detected=false;
 
 #define CAM_FLASH_ENSET 57
 #define CAM_FLASH_FLEN 56
@@ -177,6 +178,8 @@ static int16_t s5k5ccaf_effect = CAMERA_EFFECT_OFF;
 
 static int s5k5ccaf_regs_table_init_for_antibanding(void);
 static int s5k5ccaf_sensor_init_probe(void);
+static void s5k5ccaf_set_preview(void); //venkata
+
 #ifdef CONFIG_LOAD_FILE
 static int s5k5ccaf_regs_table_write(char *name);
 #endif
@@ -315,7 +318,7 @@ static int s5k5ccaf_sensor_burst_write(struct samsung_short_t *list,int size, ch
   int i = 0;
   int idx = 0;
   int retry = 0;
-  int retry_esd =0 ;
+ // int retry_esd =0 ;
   int rc = 0;
 
   unsigned short subaddr = 0, next_subaddr = 0;
@@ -1031,6 +1034,15 @@ void s5k5ccaf_set_preview_size(int preivewsize)
 }
 }
 
+int s5k5ccaf_sensor_esd_detected() //venkata
+{
+    printk("[s5k5ccaf] ESD Detected!!\n");
+    b_esd_detected=true;
+    return 0;
+}
+
+
+
 int s5k5ccaf_sensor_ext_config(void __user *arg)
 {
   long   rc = 0;
@@ -1352,14 +1364,29 @@ int s5k5ccaf_sensor_ext_config(void __user *arg)
 	 if(camera_mode == EXT_CFG_CAM_MODE_CAMCORDER)
   	  S5K5CCAF_WRITE_LIST(s5k5ccaf_fps_30fix);
 	break;
-	case EXT_CFG_TEST_ESD: //TELECA_ESD
+	case EXT_CFG_TEST_ESD: //TELECA_ESD venkata
 		printk("[S5K5CCAF] Reset the Sensor for the ESD case from HAL\n");
-		s5k5ccaf_pw_enable(false);
-		msleep(50);
-		s5k5ccaf_pw_enable(true);
-		msm_camio_camif_pad_reg_reset();
-		msleep(5);
-		s5k5ccaf_sensor_init_probe();       		
+
+		if(cfg_data.value_1 == 1)
+            {
+                printk(KERN_ERR "[S5K5CCAF]: ESD Value %d\n",b_esd_detected);
+                cfg_data.value_2 = b_esd_detected;
+                b_esd_detected=false;
+            }
+        else
+	        {
+
+				printk(KERN_ERR "[S5K5CCAF]:EXT_CFG_TEST_ESD Sensor Reset\n");
+				s5k5ccaf_pw_enable(false);
+				msleep(50);
+				s5k5ccaf_pw_enable(true);
+				//msm_camio_camif_pad_reg_reset();
+				msleep(5);
+				s5k5ccaf_sensor_init_probe();
+				s5k5ccaf_set_preview();
+			
+
+	        }
 	break;
 
 /* DUMMY FUNCTION */ // JHKWON_TEMP
@@ -1554,7 +1581,7 @@ static void s5k5ccaf_pw_enable_rev01(int enable)
 
   if(enable == 1) //POWER ON
   {
-
+     b_esd_detected=false; //venkata
     vreg_set_level(vreg_cam_out17_af,  2800);	    // VDDAF 2.8V
     vreg_set_level(vreg_cam_out9_vdda,  2800);		// VDDA 2.8V
     vreg_set_level(vreg_cam_out10_vddreg, 1800);	// VGA Core 1.8V		

@@ -2319,9 +2319,18 @@ static long msm_ioctl_config(struct file *filep, unsigned int cmd,
 
 	case MSM_CAM_IOCTL_ERROR_CONFIG:
 #if defined (CONFIG_MACH_ANCORA)
-        rc = s5k4ecgx_sensor_esd_detected();
+	rc = s5k4ecgx_sensor_esd_detected();
+	rc = sr030pc30_sensor_esd_detected(); //ESD
+#elif defined (CONFIG_MACH_ANCORA_TMO)
+#if defined( CONFIG_SENSOR_S5K5CCAF) || defined (CONFIG_SENSOR_SR030PC30_T679)
+		//if(cfg_data.device_id == 0){
+		pr_info("s5k5ccaf_sensor_esd_detected is executed at msm_camera.c **\n");
+		rc = s5k5ccaf_sensor_esd_detected(); //ESD
+		rc = sr030pc30_sensor_esd_detected(); //ESD
+		//}
 #else
 		rc = msm_error_config(pmsm->sync, argp);
+#endif
 #endif
 		
 		break;
