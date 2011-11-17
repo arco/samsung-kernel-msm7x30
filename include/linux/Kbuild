@@ -408,3 +408,4 @@ header-y += msm_audio_acdb.h
 header-y += android_pmem.h
 header-y += msm_audio_wma.h
 header-y += msm_audio_wmapro.h
+header-y += genlock.h
