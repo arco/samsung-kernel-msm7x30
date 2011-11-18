@@ -38,7 +38,7 @@
 #include <asm/io.h>
 #include <linux/uaccess.h>
 
-#define DEBUG 1
+// #define DEBUG 1
 #include <linux/device.h>
 
 #ifdef CONFIG_MACH_ARIESVE

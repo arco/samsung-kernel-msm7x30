@@ -21,7 +21,7 @@
  * and <linux/sched.h> loads <linux/kernel.h>
  */
 
-#define DEBUG 1
+// #define DEBUG 1
 #include <linux/device.h>
 
 #define MAX17043_FUEL_GAUGE		// Support low battery alert
