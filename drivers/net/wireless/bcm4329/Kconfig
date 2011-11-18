@@ -1,5 +1,7 @@
 config BROADCOM_WIFI
 	default m
+	select WIRELESS_EXT
+	select WEXT_PRIV
 	tristate "Broadcom WiFi Driver"
 	---help---
 		Select this option to build Broadcom wlan driver
