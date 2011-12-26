@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2008 Google, Inc.
  * Copyright (C) 2008 HTC Corporation
- * Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -193,6 +193,8 @@ static void lpa_listner(u32 evt_id, union auddev_evt_data *evt_payload,
 					AUDPP_CMD_CFG_DEV_MIXER_ID_4,
 					&audio->vol_pan,
 					COPP);
+				/* after applying on COPP */
+				if(audio->prev_source == AUDPP_MIXER_NONHLB) {
 					/*restore the POPP gain to 0x2000
 					this is needed to avoid use cases
 					where POPP volume is lowered during
@@ -205,9 +207,14 @@ static void lpa_listner(u32 evt_id, union auddev_evt_data *evt_payload,
 					audpp_dsp_set_vol_pan(
 						audio->dec_id,
 						&audio->vol_pan, POPP);
-			} else if (audio->source & AUDPP_MIXER_NONHLB)
+					audio->prev_source = AUDPP_MIXER_HLB;
+				}
+			} else if (audio->source & AUDPP_MIXER_NONHLB) {
+				/* after applying on POPP */
+				audio->prev_source = AUDPP_MIXER_NONHLB;
 				audpp_dsp_set_vol_pan(
 					audio->dec_id, &audio->vol_pan, POPP);
+			}
 			if (audio->device_switch == DEVICE_SWITCH_STATE_READY) {
 				audio->wflush = 1;
 				audio->device_switch =
