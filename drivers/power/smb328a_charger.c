@@ -231,7 +231,7 @@ static void smb328a_charger_function_conrol(struct i2c_client *client)
 		} else
 			set_data = 0x10;
 #endif
-#if CONFIG_MACH_APACHE
+#if defined(CONFIG_MACH_APACHE)
 		set_data = 0x54;/* HW req : chg current 600mA -> 700 mA */
 #else
 		set_data = 0x34;
