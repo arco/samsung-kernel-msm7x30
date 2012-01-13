@@ -21,7 +21,7 @@
 #include <linux/socket.h>
 #include <linux/types.h>
 
-#define PX_PROTO_OPNS	3
+#define PX_PROTO_OPNS	4
 
 struct sockaddr_pppopns {
 	sa_family_t	sa_family;	/* AF_PPPOX */

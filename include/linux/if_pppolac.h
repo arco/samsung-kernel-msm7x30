@@ -21,7 +21,7 @@
 #include <linux/socket.h>
 #include <linux/types.h>
 
-#define PX_PROTO_OLAC	2
+#define PX_PROTO_OLAC	3
 
 struct sockaddr_pppolac {
 	sa_family_t	sa_family;	/* AF_PPPOX */
