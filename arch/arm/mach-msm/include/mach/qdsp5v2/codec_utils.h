@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010, 2012, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -56,6 +56,7 @@ struct buffer {
 	unsigned used;		/* Input usage actual DSP produced PCM size  */
 	unsigned addr;
 };
+struct audio;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 struct audio_suspend_ctl {
