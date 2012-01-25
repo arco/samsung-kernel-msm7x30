@@ -618,7 +618,7 @@ static int __devinit hs_probe(struct platform_device *pdev)
 	if (!hs)
 		return -ENOMEM;
 
-	hs->sdev.name	= "h2w";
+	hs->sdev.name	= "pwrkey";
 	hs->sdev.print_name = msm_headset_print_name;
 
 	rc = switch_dev_register(&hs->sdev);

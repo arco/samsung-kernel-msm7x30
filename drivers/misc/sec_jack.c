@@ -71,7 +71,7 @@ struct sec_jack_info {
 /* sysfs name HeadsetObserver.java looks for to track headset state
  */
 struct switch_dev switch_jack_detection = {
-	.name = "jack",
+	.name = "h2w",
 };
 
 /* To support samsung factory test */
@@ -382,7 +382,7 @@ static int sec_jack_probe(struct platform_device *pdev)
 
 #ifdef SUPPORT_PBA
 	/* Create JACK Device file in Sysfs */
-	jack_class = class_create(THIS_MODULE, "jack");
+	jack_class = class_create(THIS_MODULE, "h2w");
 	if(IS_ERR(jack_class))
 	{
 		printk(KERN_ERR "Failed to create class(sec_jack)\n");
