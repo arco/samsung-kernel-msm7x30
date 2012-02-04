@@ -416,24 +416,21 @@ static u32 vid_enc_msg_pending(struct video_client_ctx *client_ctx)
 	return !islist_empty;
 }
 
-static int vid_enc_get_next_msg(struct video_client_ctx *client_ctx,
+static u32 vid_enc_get_next_msg(struct video_client_ctx *client_ctx,
 		struct venc_msg *venc_msg_info)
 {
 	int rc;
 	struct vid_enc_msg *vid_enc_msg = NULL;
 
 	if (!client_ctx)
-		return -EIO;
+		return false;
 
 	rc = wait_event_interruptible(client_ctx->msg_wait,
 		vid_enc_msg_pending(client_ctx));
 
-	if (rc < 0) {
-		DBG("rc = %d,stop_msg= %u\n", rc, client_ctx->stop_msg);
-		return rc;
-	} else if (client_ctx->stop_msg) {
-		DBG("stopped stop_msg = %u\n", client_ctx->stop_msg);
-		return -EIO;
+	if (rc < 0 || client_ctx->stop_msg) {
+		DBG("rc = %d, stop_msg = %u\n", rc, client_ctx->stop_msg);
+		return false;
 	}
 
 	mutex_lock(&client_ctx->msg_queue_lock);
@@ -448,7 +445,7 @@ static int vid_enc_get_next_msg(struct video_client_ctx *client_ctx,
 		kfree(vid_enc_msg);
 	}
 	mutex_unlock(&client_ctx->msg_queue_lock);
-	return 0;
+	return true;
 }
 
 static u32 vid_enc_close_client(struct video_client_ctx *client_ctx)
@@ -735,7 +732,6 @@ static int vid_enc_ioctl(struct inode *inode, struct file *file,
 	struct venc_ioctl_msg venc_msg;
 	void __user *arg = (void __user *)u_arg;
 	u32 result = true;
-	int result_read = -1;
 
 	DBG("%s\n", __func__);
 
@@ -752,9 +748,9 @@ static int vid_enc_ioctl(struct inode *inode, struct file *file,
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 		DBG("VEN_IOCTL_CMD_READ_NEXT_MSG\n");
-		result_read = vid_enc_get_next_msg(client_ctx, &cb_msg);
-		if (result_read < 0)
-			return result_read;
+		result = vid_enc_get_next_msg(client_ctx, &cb_msg);
+		if (!result)
+			return -EIO;
 		if (copy_to_user(venc_msg.out, &cb_msg, sizeof(cb_msg)))
 			return -EFAULT;
 		break;

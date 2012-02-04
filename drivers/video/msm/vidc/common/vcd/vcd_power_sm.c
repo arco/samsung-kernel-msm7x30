@@ -309,8 +309,8 @@ u32 vcd_update_clnt_perf_lvl(
 	u32 rc = VCD_S_SUCCESS;
 	struct vcd_dev_ctxt *dev_ctxt = cctxt->dev_ctxt;
 	u32 new_perf_lvl;
-	new_perf_lvl = frm_p_units *\
-		(fps->fps_numerator / fps->fps_denominator);
+	new_perf_lvl =
+	    frm_p_units * fps->fps_numerator / fps->fps_denominator;
 	if (cctxt->status.req_perf_lvl) {
 		dev_ctxt->reqd_perf_lvl =
 		    dev_ctxt->reqd_perf_lvl - cctxt->reqd_perf_lvl +
@@ -322,9 +322,11 @@ u32 vcd_update_clnt_perf_lvl(
 	return rc;
 }
 
+
 u32 vcd_gate_clock(struct vcd_dev_ctxt *dev_ctxt)
 {
 	u32 rc = VCD_S_SUCCESS;
+#ifndef VIDC_1080p_DISABLE_GATING
 	if (dev_ctxt->pwr_clk_state == VCD_PWRCLK_STATE_OFF ||
 		dev_ctxt->pwr_clk_state == VCD_PWRCLK_STATE_ON_NOTCLOCKED) {
 		VCD_MSG_ERROR("%s(): Clk is Off or Not Clked yet\n", __func__);
@@ -335,12 +337,14 @@ u32 vcd_gate_clock(struct vcd_dev_ctxt *dev_ctxt)
 		dev_ctxt->pwr_clk_state = VCD_PWRCLK_STATE_ON_CLOCKGATED;
 	else
 		rc = VCD_ERR_FAIL;
+#endif
 	return rc;
 }
 
 u32 vcd_un_gate_clock(struct vcd_dev_ctxt *dev_ctxt)
 {
 	u32 rc = VCD_S_SUCCESS;
+#ifndef VIDC_1080p_DISABLE_GATING
 	if (dev_ctxt->pwr_clk_state == VCD_PWRCLK_STATE_OFF ||
 		dev_ctxt->pwr_clk_state == VCD_PWRCLK_STATE_ON_NOTCLOCKED) {
 		VCD_MSG_ERROR("%s(): Clk is Off or Not Clked yet\n", __func__);
@@ -351,6 +355,6 @@ u32 vcd_un_gate_clock(struct vcd_dev_ctxt *dev_ctxt)
 		dev_ctxt->pwr_clk_state = VCD_PWRCLK_STATE_ON_CLOCKED;
 	else
 		rc = VCD_ERR_FAIL;
+#endif
 	return rc;
 }
-
