@@ -1346,6 +1346,9 @@ static void composite_disconnect(struct usb_gadget *gadget)
 		printk("composite_disconnect -> mute_switch\n");
 	}
 	else {
+		// Below line added for compatability with usb legacy in AOSP
+		cdev->connected = 0;
+
 		schedule_work(&cdev->switch_work);
 		printk("composite_disconnect -> switch_work\n");
 	}
