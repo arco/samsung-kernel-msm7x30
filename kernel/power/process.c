@@ -128,16 +128,19 @@ static int try_to_freeze_tasks(bool sig_only)
 		}
 		thaw_workqueues();
 
-		read_lock(&tasklist_lock);
-		do_each_thread(g, p) {
+		if (!wakeup) {
+			read_lock(&tasklist_lock);
+			do_each_thread(g, p) {
 			task_lock(p);
-			if (freezing(p) && !freezer_should_skip(p) &&
-				elapsed_csecs > 100)
-				sched_show_task(p);
+		        if (p != current && !freezer_should_skip(p)
+			    && freezing(p) && !frozen(p) &&
+                               elapsed_csecs > 100)
+			       sched_show_task(p);
 			cancel_freezing(p);
 			task_unlock(p);
-		} while_each_thread(g, p);
-		read_unlock(&tasklist_lock);
+			} while_each_thread(g, p);
+			read_unlock(&tasklist_lock);
+		}
 	} else {
 		printk("(elapsed %d.%02d seconds) ", elapsed_csecs / 100,
 			elapsed_csecs % 100);
