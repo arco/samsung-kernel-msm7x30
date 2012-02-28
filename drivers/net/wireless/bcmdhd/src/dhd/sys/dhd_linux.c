@@ -164,11 +164,10 @@ print_tainted()
 extern wl_iw_extra_params_t  g_wl_iw_params;
 #endif /* defined(CONFIG_WIRELESS_EXT) */
 
-#if defined(CONFIG_HAS_EARLYSUSPEND)
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(DHD_USE_EARLYSUSPEND)
 #include <linux/earlysuspend.h>
-extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len);
-extern int dhd_get_dtim_skip(dhd_pub_t *dhd);
 #endif /* defined(CONFIG_HAS_EARLYSUSPEND) */
+extern int dhd_get_dtim_skip(dhd_pub_t *dhd);
 
 #ifdef PKT_FILTER_SUPPORT
 extern void dhd_pktfilter_offload_set(dhd_pub_t * dhd, char *arg);
@@ -307,6 +306,7 @@ typedef struct dhd_info {
 	 * calls and wifi_on or wifi_off
 	 */
 	struct mutex dhd_net_if_mutex;
+	struct mutex dhd_suspend_mutex;
 #endif
 	spinlock_t wakelock_spinlock;
 	int wakelock_counter;
@@ -319,7 +319,7 @@ typedef struct dhd_info {
 	atomic_t pend_8021x_cnt;
 	dhd_attach_states_t dhd_state;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(DHD_USE_EARLYSUSPEND)
 	struct early_suspend early_suspend;
 #endif /* CONFIG_HAS_EARLYSUSPEND */
 
@@ -511,6 +511,8 @@ static char dhd_version[] = "Dongle Host Driver, version " EPI_VERSION_STR
 ;
 static void dhd_net_if_lock_local(dhd_info_t *dhd);
 static void dhd_net_if_unlock_local(dhd_info_t *dhd);
+static void dhd_suspend_lock(dhd_pub_t *dhdp);
+static void dhd_suspend_unlock(dhd_pub_t *dhdp);
 
 #ifdef WLMEDIA_HTSF
 void htsf_update(dhd_info_t *dhd, void *data);
@@ -608,7 +610,6 @@ static void dhd_set_packet_filter(int value, dhd_pub_t *dhd)
 #endif /* PKT_FILTER_SUPPORT */
 }
 
-#if defined(CONFIG_HAS_EARLYSUSPEND)
 static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 {
 	char iovbuf[32];
@@ -626,6 +627,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 	DHD_ERROR(("%s: enter, value = %d in_suspend=%d\n",
 		__FUNCTION__, value, dhd->in_suspend));
 
+	dhd_suspend_lock(dhd);
 	if (dhd && dhd->up) {
 		if (value && dhd->in_suspend) {
 			if (wl_cfgp2p_p2p_listen_suspend())
@@ -638,7 +640,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			DHD_ERROR(("%s: force extra Suspend setting \n", __FUNCTION__));
 
 			dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
-				sizeof(power_mode), TRUE, 0);
+			                 sizeof(power_mode), TRUE, 0);
 
 			/* Enable packet filter, only allow unicast packet to send up */
 			if (dhd_pkt_filter_enable && !dhd->dhcp_in_progress) {
@@ -717,21 +719,26 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 		}
 	}
 
+	dhd_suspend_unlock(dhd);
 	return 0;
 }
 
-static void dhd_suspend_resume_helper(struct dhd_info *dhd, int val)
+static int dhd_suspend_resume_helper(struct dhd_info *dhd, int val, int force)
 {
 	dhd_pub_t *dhdp = &dhd->pub;
+	int ret = 0;
 
 	DHD_OS_WAKE_LOCK(dhdp);
 	/* Set flag when early suspend was called */
 	dhdp->in_suspend = val;
-	if ((!dhdp->suspend_disable_flag) && (dhd_check_ap_wfd_mode_set(dhdp) == FALSE))
-		dhd_set_suspend(val, dhdp);
+	if ((force || !dhdp->suspend_disable_flag) &&
+	    (dhd_check_ap_wfd_mode_set(dhdp) == FALSE))
+		ret = dhd_set_suspend(val, dhdp);
 	DHD_OS_WAKE_UNLOCK(dhdp);
+	return ret;
 }
 
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(DHD_USE_EARLYSUSPEND)
 static void dhd_early_suspend(struct early_suspend *h)
 {
 	struct dhd_info *dhd = container_of(h, struct dhd_info, early_suspend);
@@ -739,7 +746,7 @@ static void dhd_early_suspend(struct early_suspend *h)
 	DHD_ERROR(("%s: enter\n", __FUNCTION__));
 
 	if (dhd)
-		dhd_suspend_resume_helper(dhd, 1);
+		dhd_suspend_resume_helper(dhd, 1, 0);
 }
 
 static void dhd_late_resume(struct early_suspend *h)
@@ -749,7 +756,7 @@ static void dhd_late_resume(struct early_suspend *h)
 	DHD_ERROR(("%s: enter\n", __FUNCTION__));
 
 	if (dhd)
-		dhd_suspend_resume_helper(dhd, 0);
+		dhd_suspend_resume_helper(dhd, 0, 0);
 }
 #endif /* defined(CONFIG_HAS_EARLYSUSPEND) */
 
@@ -3094,6 +3101,7 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 #endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)) && 1
 	mutex_init(&dhd->dhd_net_if_mutex);
+	mutex_init(&dhd->dhd_suspend_mutex);
 #endif
 	dhd_state |= DHD_ATTACH_STATE_WAKELOCKS_INIT;
 
@@ -3179,7 +3187,7 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	register_pm_notifier(&dhd_sleep_pm_notifier);
 #endif /*  (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP) */
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(DHD_USE_EARLYSUSPEND)
 	dhd->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 20;
 	dhd->early_suspend.suspend = dhd_early_suspend;
 	dhd->early_suspend.resume = dhd_late_resume;
@@ -4250,7 +4258,7 @@ void dhd_detach(dhd_pub_t *dhdp)
 	unregister_inetaddr_notifier(&dhd_notifier);
 #endif /* ARP_OFFLOAD_SUPPORT */
 
-#if defined(CONFIG_HAS_EARLYSUSPEND)
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(DHD_USE_EARLYSUSPEND)
 	if (dhd->dhd_state & DHD_ATTACH_STATE_EARLYSUSPEND_DONE) {
 		if (dhd->early_suspend.suspend)
 			unregister_early_suspend(&dhd->early_suspend);
@@ -5020,16 +5028,18 @@ int net_os_set_suspend_disable(struct net_device *dev, int val)
 	return ret;
 }
 
-int net_os_set_suspend(struct net_device *dev, int val)
+int net_os_set_suspend(struct net_device *dev, int val, int force)
 {
 	int ret = 0;
-#if defined(CONFIG_HAS_EARLYSUSPEND)
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 
 	if (dhd) {
+#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(DHD_USE_EARLYSUSPEND)
 		ret = dhd_set_suspend(val, &dhd->pub);
+#else
+		ret = dhd_suspend_resume_helper(dhd, val, force);
+#endif
 	}
-#endif /* defined(CONFIG_HAS_EARLYSUSPEND) */
 	return ret;
 }
 
@@ -5215,6 +5225,24 @@ static void dhd_net_if_unlock_local(dhd_info_t *dhd)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)) && 1
 	if (dhd)
 		mutex_unlock(&dhd->dhd_net_if_mutex);
+#endif
+}
+
+static void dhd_suspend_lock(dhd_pub_t *pub)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
+	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+	if (dhd)
+		mutex_lock(&dhd->dhd_suspend_mutex);
+#endif
+}
+
+static void dhd_suspend_unlock(dhd_pub_t *pub)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
+	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+	if (dhd)
+		mutex_unlock(&dhd->dhd_suspend_mutex);
 #endif
 }
 
