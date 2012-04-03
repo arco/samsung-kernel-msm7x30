@@ -1981,6 +1981,7 @@ void msm_batt_late_resume(struct early_suspend *h)
 		return;
 	}
 
+	msm_batt_update_psy_status();
 	pr_debug("%s: exit\n", __func__);
 }
 #endif
