@@ -681,6 +681,7 @@ int usb_ept_queue_xfer(struct msm_endpoint *ept, struct usb_request *_req)
 	if (!atomic_read(&ui->configured) && (ept->num != 0)) {
 		req->req.status = -ESHUTDOWN;
 		spin_unlock_irqrestore(&ui->lock, flags);
+		if(!power_down)
 		if (printk_ratelimit())
 			dev_err(&ui->pdev->dev,
 				"%s: called while offline\n", __func__);
