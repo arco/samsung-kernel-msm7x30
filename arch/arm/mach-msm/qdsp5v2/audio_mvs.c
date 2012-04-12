@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -206,7 +206,7 @@ struct audio_mvs_dl_cb_func_args {
 struct audio_mvs_dl_reply {
 	struct rpc_reply_hdr reply_hdr;
 
-	uint32_t voc_pkt[MVS_MAX_VOC_PKT_SIZE/4];
+	uint32_t voc_pkt[Q5V2_MVS_MAX_VOC_PKT_SIZE/4];
 
 	uint32_t valid_frame_info_ptr;
 	uint32_t frame_mode;
@@ -223,7 +223,7 @@ struct audio_mvs_dl_reply {
 
 struct audio_mvs_buf_node {
 	struct list_head list;
-	struct msm_audio_mvs_frame frame;
+	struct q5v2_msm_audio_mvs_frame frame;
 };
 
 /* Each buffer is 20 ms, queue holds 200 ms of data. */
@@ -235,6 +235,7 @@ struct audio_mvs_info_type {
 	uint32_t mvs_mode;
 	uint32_t buf_free_cnt;
 	uint32_t rate_type;
+	struct min_max_rate min_max_rate;
 
 	struct msm_rpc_endpoint *rpc_endpt;
 	uint32_t rpc_prog;
@@ -369,8 +370,10 @@ static int audio_mvs_setup_voc(struct audio_mvs_info_type *audio)
 
 	/* Set EVRC mode. */
 	memset(&set_voc_mode_msg, 0, sizeof(set_voc_mode_msg));
-	set_voc_mode_msg.min_rate = cpu_to_be32(audio->rate_type);
-	set_voc_mode_msg.max_rate = cpu_to_be32(audio->rate_type);
+		set_voc_mode_msg.min_rate =
+				cpu_to_be32(audio->min_max_rate.min_rate);
+		set_voc_mode_msg.max_rate =
+				cpu_to_be32(audio->min_max_rate.max_rate);
 
 	msm_rpc_setup_req(&set_voc_mode_msg.rpc_hdr,
 			  audio->rpc_prog,
@@ -709,10 +712,15 @@ static void audio_mvs_process_rpc_request(uint32_t procedure,
 
 				pr_debug("%s: UL AMR frame_type %d\n",
 					 __func__, be32_to_cpu(*args));
-			} else if ((frame_mode == MVS_FRAME_MODE_PCM_UL) ||
-				   (frame_mode == MVS_FRAME_MODE_VOC_TX)) {
-				/* PCM and EVRC don't have frame_type */
+			} else if (frame_mode == MVS_FRAME_MODE_PCM_UL) {
+				/* PCM don't have frame_type */
 				buf_node->frame.frame_type = 0;
+			} else if (frame_mode == MVS_FRAME_MODE_VOC_TX) {
+				/* Extracting EVRC current buffer frame rate*/
+				buf_node->frame.frame_type = be32_to_cpu(*args);
+
+				pr_debug("%s: UL EVRC frame_type %d\n",
+					__func__, be32_to_cpu(*args));
 			} else {
 				pr_err("%s: UL Unknown frame mode %d\n",
 				       __func__, frame_mode);
@@ -797,7 +805,7 @@ static void audio_mvs_process_rpc_request(uint32_t procedure,
 				dl_reply.param1 = 0;
 				dl_reply.param2 = 0;
 			} else if (frame_mode == MVS_FRAME_MODE_VOC_RX) {
-				dl_reply.param1 = cpu_to_be32(audio->rate_type);
+				dl_reply.param1 = cpu_to_be32(buf_node->frame.frame_type);
 				dl_reply.param2 = 0;
 			} else {
 				pr_err("%s: DL Unknown frame mode %d\n",
@@ -1138,7 +1146,7 @@ static ssize_t audio_mvs_read(struct file *file,
 		if ((audio->state == AUDIO_MVS_STARTED) &&
 		    (!list_empty(&audio->out_queue))) {
 
-			if (count >= sizeof(struct msm_audio_mvs_frame)) {
+			if (count >= sizeof(struct q5v2_msm_audio_mvs_frame)) {
 				buf_node = list_first_entry(&audio->out_queue,
 						struct audio_mvs_buf_node,
 						list);
@@ -1146,7 +1154,8 @@ static ssize_t audio_mvs_read(struct file *file,
 
 				rc = copy_to_user(buf,
 					&buf_node->frame,
-					sizeof(struct msm_audio_mvs_frame));
+					sizeof(struct q5v2_msm_audio_mvs_frame)
+					);
 
 				if (rc == 0) {
 					rc = buf_node->frame.len +
@@ -1164,7 +1173,7 @@ static ssize_t audio_mvs_read(struct file *file,
 			} else {
 				pr_err("%s: Read count %d < sizeof(frame) %d",
 				       __func__, count,
-				       sizeof(struct msm_audio_mvs_frame));
+				       sizeof(struct q5v2_msm_audio_mvs_frame));
 
 				rc = -ENOMEM;
 			}
@@ -1202,7 +1211,7 @@ static ssize_t audio_mvs_write(struct file *file,
 
 	mutex_lock(&audio->in_lock);
 	if (audio->state == AUDIO_MVS_STARTED) {
-		if (count <= sizeof(struct msm_audio_mvs_frame)) {
+		if (count <= sizeof(struct q5v2_msm_audio_mvs_frame)) {
 			if (!list_empty(&audio->free_in_queue)) {
 				buf_node =
 					list_first_entry(&audio->free_in_queue,
@@ -1222,7 +1231,7 @@ static ssize_t audio_mvs_write(struct file *file,
 		} else {
 			pr_err("%s: Write count %d < sizeof(frame) %d",
 			       __func__, count,
-			       sizeof(struct msm_audio_mvs_frame));
+			       sizeof(struct q5v2_msm_audio_mvs_frame));
 
 			rc = -ENOMEM;
 		}
@@ -1255,7 +1264,8 @@ static long audio_mvs_ioctl(struct file *file,
 
 		mutex_lock(&audio->lock);
 		config.mvs_mode = audio->mvs_mode;
-		config.rate_type = audio->rate_type;
+		config.min_max_rate.min_rate = audio->min_max_rate.min_rate;
+		config.min_max_rate.max_rate = audio->min_max_rate.max_rate;
 		mutex_unlock(&audio->lock);
 
 		rc = copy_to_user((void *)arg, &config, sizeof(config));
@@ -1279,6 +1289,10 @@ static long audio_mvs_ioctl(struct file *file,
 			if (audio->state == AUDIO_MVS_OPENED) {
 				audio->mvs_mode = config.mvs_mode;
 				audio->rate_type = config.rate_type;
+				audio->min_max_rate.min_rate =
+						config.min_max_rate.min_rate;
+				audio->min_max_rate.max_rate =
+						config.min_max_rate.max_rate;
 			} else {
 				pr_err("%s: Set confg called in state %d\n",
 				       __func__, audio->state);
