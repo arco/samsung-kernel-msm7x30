@@ -193,7 +193,6 @@ config MACH_ARIESVE
        depends on ARCH_MSM7X30
        depends on !MSM_STACKED_MEMORY
        select APPSBOOT_3M_CONFIG
-       select APPLY_GA_SOLUTION
        default n
        bool "ARIESVE"
        help
@@ -203,7 +202,6 @@ config MACH_ANCORA
        depends on ARCH_MSM7X30
        depends on !MSM_STACKED_MEMORY
        select APPSBOOT_3M_CONFIG
-       select APPLY_GA_SOLUTION
        default n
        bool "ANCORA"
        help
@@ -213,7 +211,6 @@ config MACH_APACHE
        depends on ARCH_MSM7X30
        depends on !MSM_STACKED_MEMORY
        select APPSBOOT_3M_CONFIG
-       select APPLY_GA_SOLUTION
        default n
        bool "APACHE"
        help
@@ -223,7 +220,6 @@ config MACH_ANCORA_TMO
        depends on ARCH_MSM7X30
        depends on !MSM_STACKED_MEMORY
        select APPSBOOT_3M_CONFIG
-       select APPLY_GA_SOLUTION
        default n
        bool "ANCORA_TMO"
        help
@@ -233,7 +229,6 @@ config MACH_GODART
        depends on ARCH_MSM7X30
        depends on !MSM_STACKED_MEMORY
        select APPSBOOT_3M_CONFIG
-       select APPLY_GA_SOLUTION
        default n
        bool "GODART"
        help
@@ -439,9 +434,6 @@ endmenu
 config  APPSBOOT_3M_CONFIG
 	bool
 	
-config APPLY_GA_SOLUTION
-	bool
-
 config MSM_STACKED_MEMORY
 	bool "Stacked Memory"
 	default y

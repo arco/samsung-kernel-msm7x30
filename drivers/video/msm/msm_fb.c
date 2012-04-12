@@ -254,33 +254,6 @@ int msm_fb_detect_client(const char *name)
 	return ret;
 }
 
-#ifdef CONFIG_APPLY_GA_SOLUTION
-/* Mark for GetLog */
-struct struct_frame_buf_mark {
-	u32 special_mark_1;
-	u32 special_mark_2;
-	u32 special_mark_3;
-	u32 special_mark_4;
-	void *p_fb;
-	u32 resX;
-	u32 resY;
-	u32 bpp;    //color depth : 16 or 24
-	u32 frames; // frame buffer count : 2
-};
-
-static struct struct_frame_buf_mark  frame_buf_mark = {
-	.special_mark_1 = (('*' << 24) | ('^' << 16) | ('^' << 8) | ('*' << 0)),
-	.special_mark_2 = (('I' << 24) | ('n' << 16) | ('f' << 8) | ('o' << 0)),
-	.special_mark_3 = (('H' << 24) | ('e' << 16) | ('r' << 8) | ('e' << 0)),
-	.special_mark_4 = (('f' << 24) | ('b' << 16) | ('u' << 8) | ('f' << 0)),
-	.p_fb   = 0,
-	.resX   = 480,//256,
-	.resY   = 800,//320,
-	.bpp    = 24,
-	.frames = 2
-};
-#endif
-
 static ssize_t msm_fb_msm_fb_type(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
@@ -383,11 +356,6 @@ static int msm_fb_probe(struct platform_device *pdev)
 
 	if (!msm_fb_resource_initialized)
 		return -EPERM;
-
-#ifdef CONFIG_APPLY_GA_SOLUTION
-	/* Mark for GetLog */
-	frame_buf_mark.p_fb = fbram_phys;
-#endif
 
 	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
 

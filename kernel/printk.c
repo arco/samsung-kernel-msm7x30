@@ -171,26 +171,6 @@ void log_buf_kexec_setup(void)
 }
 #endif
 
-#ifdef CONFIG_APPLY_GA_SOLUTION
-/* Mark for GetLog */
-
-struct struct_kernel_log_mark {
-	u32 special_mark_1;
-	u32 special_mark_2;
-	u32 special_mark_3;
-	u32 special_mark_4;
-	void *p__log_buf;
-};
-
-static struct struct_kernel_log_mark kernel_log_mark = {
-	.special_mark_1 = (('*' << 24) | ('^' << 16) | ('^' << 8) | ('*' << 0)),
-	.special_mark_2 = (('I' << 24) | ('n' << 16) | ('f' << 8) | ('o' << 0)),
-	.special_mark_3 = (('H' << 24) | ('e' << 16) | ('r' << 8) | ('e' << 0)),
-	.special_mark_4 = (('k' << 24) | ('l' << 16) | ('o' << 8) | ('g' << 0)),
-	.p__log_buf = __log_buf+0x400000, 
-};
-#endif
-
 static int __init log_buf_len_setup(char *str)
 {
 	unsigned size = memparse(str, &str);
@@ -227,10 +207,6 @@ static int __init log_buf_len_setup(char *str)
 		printk(KERN_NOTICE "log_buf_len: %d\n", log_buf_len);
 	}
 out:
-#ifdef CONFIG_APPLY_GA_SOLUTION
-	/* Mark for GetLog */
-	kernel_log_mark.p__log_buf = __log_buf+0x400000;
-#endif
 	return 1;
 }
 

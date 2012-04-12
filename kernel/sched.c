@@ -7825,21 +7825,6 @@ void __init sched_init(void)
 	int i, j;
 	unsigned long alloc_size = 0, ptr;
 
-#ifdef CONFIG_APPLY_GA_SOLUTION
-// GAF
-	GAFINFO.rq_struct_curr = offsetof(struct rq, curr);
-	unsigned short *checksum=&(GAFINFO.GAFINFOCheckSum);
-	unsigned char *memory=&GAFINFO;
-	unsigned char address;
-	for (*checksum=0,address = 0; address < (sizeof(GAFINFO)-sizeof(GAFINFO.GAFINFOCheckSum)); address++)
-	{
-		if ((*checksum) & 0x8000)
-			(*checksum) = (((*checksum) << 1) | 1 ) ^ memory[address];
-		else
-			(*checksum) = ((*checksum) << 1) ^ memory[address];
-	}
-#endif
-
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	alloc_size += 2 * nr_cpu_ids * sizeof(void **);
 #endif
