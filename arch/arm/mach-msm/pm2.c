@@ -126,7 +126,7 @@ module_param_named(
 	int, S_IRUGO | S_IWUSR | S_IWGRP
 );
 
-int msm_pm_idle_sleep_mode = CONFIG_MSM7X00A_IDLE_SLEEP_MODE;
+static int msm_pm_idle_sleep_mode = CONFIG_MSM7X00A_IDLE_SLEEP_MODE;
 module_param_named(
 	idle_sleep_mode, msm_pm_idle_sleep_mode,
 	int, S_IRUGO | S_IWUSR | S_IWGRP
