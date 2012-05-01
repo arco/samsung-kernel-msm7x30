@@ -362,7 +362,11 @@ static int auda2dp_in_enc_config(struct audio_a2dp_in *audio, int enable)
 	struct audpreproc_audrec_cmd_enc_cfg cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+	cmd.cmd_id = AUDPREPROC_AUDREC_CMD_ENC_CFG;
+#else
 	cmd.cmd_id = AUDPREPROC_AUDREC_CMD_ENC_CFG_2;
+#endif
 	cmd.stream_id = audio->enc_id;
 
 	if (enable)
