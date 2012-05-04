@@ -82,7 +82,7 @@ static unsigned long min_sample_time;
 /*
  * The sample rate of the timer used to increase frequency
  */
-#define DEFAULT_TIMER_RATE (20 * USEC_PER_MSEC)
+#define DEFAULT_TIMER_RATE (80 * USEC_PER_MSEC)
 static unsigned long timer_rate;
 
 /*
