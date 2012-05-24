@@ -1578,7 +1578,8 @@ void mdp4_mixer_blend_setup(struct mdp4_overlay_pipe *pipe)
 			/*
 			 * If solid fill is enabled, flip and scale
 			 * have to be disabled. otherwise, h/w
-			 * underruns.
+			 * underruns. Also flush the pipe inorder
+			 * to take solid fill into effect.
 			 */
 			op_mode = inpdw(rgb_base + 0x0058);
 			op_mode &= ~(MDP4_OP_FLIP_LR + MDP4_OP_SCALEX_EN);
@@ -1586,6 +1587,7 @@ void mdp4_mixer_blend_setup(struct mdp4_overlay_pipe *pipe)
 			outpdw(rgb_base + 0x0058, op_mode);
 			outpdw(rgb_base + 0x50, rgb_src_format);
 			outpdw(rgb_base + 0x1008, constant_color);
+			mdp4_overlay_reg_flush(bg_pipe, 0);
 		}
 	} else if (fg_alpha) {
 		if (!alpha_drop) {
