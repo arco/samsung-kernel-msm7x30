@@ -104,9 +104,15 @@ enum msm_audio_g729a_frame_type {
 	MVS_G729A_ERASURE
 };
 
+struct min_max_rate {
+	uint32_t min_rate;
+	uint32_t max_rate;
+};
+
 struct msm_audio_mvs_config {
 	uint32_t mvs_mode;
 	uint32_t rate_type;
+	struct min_max_rate min_max_rate;
 };
 
 #define MVS_MAX_VOC_PKT_SIZE 320
