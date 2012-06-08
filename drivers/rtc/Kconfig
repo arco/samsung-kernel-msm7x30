@@ -652,14 +652,6 @@ config RTC_DRV_MSM
 	help
 	  RTC driver for Qualcomm chipsets
 
-
-config RTC_AUTO_PWRON
-	tristate "RTC Auto power on alarm for CTC"
-	depends on RTC_DRV_MSM = y
-	default y
-	help
-	  RTC Auto power on alarm for CTC
-
 config RTC_SECURE_TIME_SUPPORT
         bool "Support for secure time on Qualcomm Chipsets"
         depends on RTC_DRV_MSM = y

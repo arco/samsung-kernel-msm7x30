@@ -27,9 +27,6 @@
 #include <linux/rtc-msm.h>
 #include <linux/msm_rpcrouter.h>
 #include <mach/msm_rpcrouter.h>
-#ifdef CONFIG_RTC_AUTO_PWRON
-#include "../../arch/arm/mach-msm/proc_comm.h"
-#endif
 
 #define APP_TIMEREMOTE_PDEV_NAME "rs00000000"
 
@@ -312,29 +309,12 @@ msmrtc_timeremote_set_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-#define BOOTALARM_DEBUG
-#ifdef BOOTALARM_DEBUG 
-static int
-msmrtc_getbootalarm(struct device *dev, struct rtc_wkalrm *a); 
-#endif
-
 static int
 msmrtc_timeremote_read_time(struct device *dev, struct rtc_time *tm)
 {
 	int rc;
 	struct rtc_tod_args rtc_args;
 	struct msm_rtc *rtc_pdata = dev_get_drvdata(dev);
-#ifdef BOOTALARM_DEBUG
-	static int once = 0 ; 
-	struct rtc_wkalrm bootalarm; 
-	
-	if ( once==0 ) {
-		pr_debug("++++++++++++++++++++++++++++++++++++++++\n"); 
-		msmrtc_getbootalarm(dev, &bootalarm ); 
-		pr_debug("++++++++++++++++++++++++++++++++++++++++\n"); 
-		once = 1; 
-	}
-#endif
 
 	rtc_args.proc = TIMEREMOTE_PROCEEDURE_GET_JULIAN;
 	rtc_args.tm = tm;
@@ -374,143 +354,10 @@ msmrtc_virtual_alarm_set(struct device *dev, struct rtc_wkalrm *a)
 	return 0;
 }
 
-#ifdef CONFIG_RTC_AUTO_PWRON
-typedef struct {
-	unsigned short year; 
-	unsigned char month; 
-	unsigned char  day; 
-} txt_time_date;
-
-typedef struct {
-	unsigned char  hour; 
-	unsigned char  minute;
-	unsigned char  sec; 
-	unsigned char  wday; 
-} txt_time_time;
-
-static void
-time_encode_txtime(struct rtc_wkalrm *a, txt_time_date *pdate, txt_time_time *ptime)
-{
-	pdate->year = a->time.tm_year + 2000; 
-	pdate->month = a->time.tm_mon + 1;
-	pdate->day = a->time.tm_mday; 
-	ptime->hour = a->time.tm_hour;
-	ptime->minute = a->time.tm_min;
-	ptime->sec = a->time.tm_sec;
-	ptime->wday = a->time.tm_wday;
-}
-
-static void
-time_decode_txtime(txt_time_date *pdate, txt_time_time *ptime, struct rtc_wkalrm *a)
-{
-	a->time.tm_year = pdate->year - 2000; 
-	a->time.tm_mon = pdate->month - 1;
-	a->time.tm_mday = pdate->day; 
-	a->time.tm_hour = ptime->hour;
-	a->time.tm_min = ptime->minute;
-	a->time.tm_sec = ptime->sec;
-	a->time.tm_wday = ptime->wday;
-}
-
-static int
-msmrtc_getbootalarm(struct device *dev, struct rtc_wkalrm *a)
-{
-	txt_time_date date; 
-	txt_time_time time; 
-	struct rtc_wkalrm b; 
-	int cnt = 2; 
-
-	while( cnt > 0 ) {
-		date.year = 0xFFFD + cnt;  // 1st : 0xFFFF , 2st : 0xFFFE 
-		date.month = 0xE0 + charging_boot;
-		msm_proc_comm(PCOM_SET_RTC_ALARM, (unsigned *)&date, (unsigned *)&time); 
-
-		if ( date.year >= 0xFFFE  ) {
-			pr_err("%s -> failed\n", __func__); 
-		} 
-		else {
-			if ( cnt == 2 ) { 
-				time_decode_txtime(&date, &time, a); 
-				a->enabled = 1; 
-				
-				pr_debug("%s [PMIC ALARM] %d-%d-%d %d:%d:%d \n", __func__ ,
-					a->time.tm_year, a->time.tm_mon, a->time.tm_mday,
-					a->time.tm_hour, a->time.tm_min, a->time.tm_sec); 
-			}
-			else { 
-				time_decode_txtime(&date, &time, &b); 
-				b.enabled = 1; 
-
-				pr_debug("%s [PMIC RTC  ] %d-%d-%d %d:%d:%d \n", __func__ ,
-					b.time.tm_year, b.time.tm_mon, b.time.tm_mday,
-					b.time.tm_hour, b.time.tm_min, b.time.tm_sec); 
-			}
-		}
-		cnt--;
-	}
-		
-	return 0; 
-}
-
-static int
-msmrtc_setbootalarm(struct device *dev, struct rtc_wkalrm *a)
-{
-	unsigned long now = get_seconds();
-	txt_time_date date; 
-	txt_time_time time; 
- 	int ret; 	
-	struct msm_rtc *rtc_pdata = dev_get_drvdata(dev);
- 	
-	if (!a->enabled) {
-		date.year = 0xFFFD;  // alarm off
-		ret = msm_proc_comm(PCOM_SET_RTC_ALARM, (unsigned *)&date, (unsigned *)&time); 
-		if ( ret != 0 ) {
-			pr_err( "[%s] PCOM_SET_RTC_ALARM off failed\n", __func__); 
-		}
-		rtc_pdata->rtcalarm_time = 0;
-		return 0;
-	} 
-
-		rtc_tm_to_time(&a->time, &rtc_pdata->rtcalarm_time);
-		pr_debug( "[%s] %d-%d-%d %d:%d:%d => 0x%x\n", __func__ ,
-			a->time.tm_year, a->time.tm_mon, a->time.tm_mday,
-			a->time.tm_hour, a->time.tm_min, a->time.tm_sec,
-			rtc_pdata->rtcalarm_time); 
-
-		/* To ignore invalid data from rtc-sysfs.c */
-		a->time.tm_wday = 0; 
-
-	if (now > rtc_pdata->rtcalarm_time) {
-		pr_err("%s: Attempt to set alarm in the past\n",
-		       __func__);
-		rtc_pdata->rtcalarm_time = 0;
-		return -EINVAL;
-	}
-
-		/* convert to 2 byte time format */
-		time_encode_txtime(a, &date, &time); 
-		 
-		ret = msm_proc_comm(PCOM_SET_RTC_ALARM, (unsigned *)&date, (unsigned *)&time); 
-		if ( ret != 0 ) {
-			pr_err( "[%s] PCOM_SET_RTC_ALARM set failed #1 -> re-try\n", __func__); 
-			ret = msm_proc_comm(PCOM_SET_RTC_ALARM, (unsigned *)&date, (unsigned *)&time); 
-			if ( ret != 0 ) {
-				pr_err( "[%s] PCOM_SET_RTC_ALARM set failed #2\n", __func__); 
-			}
- 		}
-
-	return 0; 
-}
-#endif /*CONFIG_RTC_AUTO_PWRON*/
-
 static struct rtc_class_ops msm_rtc_ops = {
 	.read_time	= msmrtc_timeremote_read_time,
 	.set_time	= msmrtc_timeremote_set_time,
 	.set_alarm	= msmrtc_virtual_alarm_set,
-#ifdef CONFIG_RTC_AUTO_PWRON
-	.read_bootalarm = msmrtc_getbootalarm,
-	.set_bootalarm  = msmrtc_setbootalarm,	
-#endif /*CONFIG_RTC_AUTO_PWRON*/
 };
 
 #ifdef CONFIG_RTC_SECURE_TIME_SUPPORT

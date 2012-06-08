@@ -141,10 +141,6 @@ struct rtc_class_ops {
 	int (*set_time)(struct device *, struct rtc_time *);
 	int (*read_alarm)(struct device *, struct rtc_wkalrm *);
 	int (*set_alarm)(struct device *, struct rtc_wkalrm *);
-#ifdef CONFIG_RTC_AUTO_PWRON
-	int (*read_bootalarm)(struct device *, struct rtc_wkalrm *);
-	int (*set_bootalarm)(struct device *, struct rtc_wkalrm *);
-#endif
 	int (*proc)(struct device *, struct seq_file *);
 	int (*set_mmss)(struct device *, unsigned long secs);
 	int (*irq_set_state)(struct device *, int enabled);
