@@ -791,7 +791,8 @@ kgsl_gem_map(struct drm_gem_object *obj)
 			return -EINVAL;
 		}
 
-		priv->pagetable = kgsl_mmu_getpagetable(KGSL_MMU_GLOBAL_PT);
+		priv->pagetable =
+			kgsl_mmu_getpagetable(mmu, KGSL_MMU_GLOBAL_PT);
 
 		if (priv->pagetable == NULL) {
 			DRM_ERROR("Unable to get the GPU MMU pagetable\n");

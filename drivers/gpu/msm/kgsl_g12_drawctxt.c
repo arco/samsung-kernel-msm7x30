@@ -43,12 +43,9 @@ kgsl_g12_drawctxt_destroy(struct kgsl_device *device,
 {
 	struct kgsl_g12_device *g12_device = KGSL_G12_DEVICE(device);
 
-	kgsl_g12_idle(device, KGSL_TIMEOUT_DEFAULT);
-
 	if (g12_device->ringbuffer.prevctx == context->id) {
-		g12_device->ringbuffer.prevctx = KGSL_G12_INVALID_CONTEXT;
-		device->mmu.hwpagetable = device->mmu.defaultpagetable;
-		kgsl_setstate(device, KGSL_MMUFLAGS_PTUPDATE);
+		kgsl_g12_idle(device, KGSL_TIMEOUT_DEFAULT);
+ 		g12_device->ringbuffer.prevctx = KGSL_G12_INVALID_CONTEXT;
 	}
 
 	return 0;
