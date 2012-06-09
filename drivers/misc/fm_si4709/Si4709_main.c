@@ -53,7 +53,7 @@ static struct file_operations Si4709_fops = {
 
 static struct miscdevice Si4709_misc_device = {
 	.minor = MISC_DYNAMIC_MINOR,
-	.name = "fmradio",
+	.name = "radio0",
 	.fops = &Si4709_fops,
 };
 /* dummy struct which is used as a cookie for FM Radio interrupt */
