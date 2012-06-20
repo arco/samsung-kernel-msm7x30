@@ -36,7 +36,6 @@
 #include <linux/mutex.h>
 #include <linux/if_addr.h>
 #include <linux/pci.h>
-#include <linux/delay.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -60,23 +59,16 @@ struct rtnl_link {
 };
 
 static DEFINE_MUTEX(rtnl_mutex);
-static DEFINE_MUTEX(rtnl_mutex2); //I8150 Mobile AP and Airplane Mode crash fix. CL452376 and CL454116 integration
 
 void rtnl_lock(void)
 {
-	mutex_lock(&rtnl_mutex);	
-	while(mutex_trylock(&rtnl_mutex2)){
-		mutex_unlock(&rtnl_mutex);
-		msleep(1);		
-		mutex_lock(&rtnl_mutex);	
-	}
+	mutex_lock(&rtnl_mutex);
 }
 EXPORT_SYMBOL(rtnl_lock);
 
 void __rtnl_unlock(void)
-{	
+{
 	mutex_unlock(&rtnl_mutex);
-	mutex_unlock(&rtnl_mutex2);		
 }
 
 void rtnl_unlock(void)
@@ -87,14 +79,14 @@ void rtnl_unlock(void)
 EXPORT_SYMBOL(rtnl_unlock);
 
 int rtnl_trylock(void)
-{	
-	return (mutex_trylock(&rtnl_mutex) && mutex_trylock(&rtnl_mutex2));
+{
+	return mutex_trylock(&rtnl_mutex);
 }
 EXPORT_SYMBOL(rtnl_trylock);
 
 int rtnl_is_locked(void)
-{	
-	return (mutex_is_locked(&rtnl_mutex) && mutex_is_locked(&rtnl_mutex2));
+{
+	return mutex_is_locked(&rtnl_mutex);
 }
 EXPORT_SYMBOL(rtnl_is_locked);
 
