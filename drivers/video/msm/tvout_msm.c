@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 
 #include "msm_fb.h"
 #include "tvenc.h"
@@ -49,6 +50,8 @@ static DEFINE_MUTEX(tvout_msm_state_mutex);
 static int tvout_off(struct platform_device *pdev);
 static int tvout_on(struct platform_device *pdev);
 static void tvout_check_status(void);
+
+static int tvout_on_state=0;
 
 static void tvout_msm_turn_on(boolean power_on)
 {
@@ -235,6 +238,10 @@ static int tvout_on(struct platform_device *pdev)
 	struct fb_var_screeninfo *var;
 	struct msm_fb_data_type *mfd = platform_get_drvdata(pdev);
 
+	tvout_on_state=1;
+
+	gpio_set_value_cansleep(195, 0);
+
 	if (!mfd)
 		return -ENODEV;
 
@@ -404,6 +411,11 @@ static int tvout_off(struct platform_device *pdev)
 		mod_timer(&tvout_msm_state->hpd_work_timer, jiffies
 			+ msecs_to_jiffies(TVOUT_HPD_DUTY_CYCLE));
 	}
+	
+	gpio_set_value_cansleep(195, 1);
+
+	tvout_on_state=0;
+
 	return 0;
 }
 
@@ -514,6 +526,12 @@ static int __devexit tvout_remove(struct platform_device *pdev)
 static int tvout_device_pm_suspend(struct device *dev)
 {
 	mutex_lock(&tvout_msm_state_mutex);
+	
+	if(gpio_get_value(26) == 0)
+		gpio_set_value_cansleep(195, 1);	// if earjack connected, keep high
+	else
+		gpio_set_value_cansleep(195, 0);	// making low level when phone goes sleep
+	
 	if (tvout_msm_state->pm_suspended) {
 		mutex_unlock(&tvout_msm_state_mutex);
 		return 0;
@@ -538,7 +556,11 @@ static int tvout_device_pm_resume(struct device *dev)
 		mutex_unlock(&tvout_msm_state_mutex);
 		return 0;
 	}
-
+	if(tvout_on_state == 1)
+		gpio_set_value_cansleep(195, 0);	// if tvout is on, keep low
+	else
+		gpio_set_value_cansleep(195, 1);
+	
 	if (tvenc_pdata->poll) {
 		tvout_msm_state->pm_suspended = FALSE;
 		mod_timer(&tvout_msm_state->hpd_work_timer, jiffies

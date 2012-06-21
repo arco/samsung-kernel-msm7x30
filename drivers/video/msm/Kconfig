@@ -27,6 +27,12 @@ config FB_MSM_LOGO
 	---help---
 	  Show /initlogo.rle during boot.
 
+config FB_MSM_SEC_BOOTLOGO
+	default y
+	bool "MSM FB samsung booting logo"
+	---help---
+	  Show /ARIESVE.rle and kernel progress bar image during boot.
+
 config FB_MSM_LCDC_HW
 	bool
 	default n
@@ -144,6 +150,16 @@ config FB_MSM_LCDC_AUTO_DETECT
 config FB_MSM_LCDC_PANEL
 	bool
 	select FB_MSM_LCDC
+	default n
+
+config FB_MSM_LCDC_SAMSUNG_ANCORA
+	bool
+	select FB_MSM_LCDC_PANEL
+	default n
+
+config FB_MSM_LCDC_S6E63M0_WVGA
+	bool
+	select FB_MSM_LCDC_PANEL
 	default n
 
 config FB_MSM_MIPI_DSI_TOSHIBA
@@ -393,6 +409,20 @@ config FB_MSM_LCDC_SAMSUNG_OLED_PT_PANEL
 	select FB_MSM_LCDC_SAMSUNG_OLED_PT
 	---help---
 	  Support for LCDC Samsung OLED PT (480x800) panel
+
+config FB_MSM_LCDC_SAMSUNG_ANCORA_PANEL
+	depends on FB_MSM_LCDC_HW
+	bool "LCDC SAMSUNG_ANCORA Panel"
+	select FB_MSM_LCDC_SAMSUNG_ANCORA
+	---help---
+	  Support for LCDC SAMSUNG ANCORA panel
+
+config FB_MSM_LCDC_S6E63M0_WVGA_PANEL
+	depends on FB_MSM_LCDC_HW
+	bool "LCDC S6E63M0 WVGA Panel"
+	select FB_MSM_LCDC_S6E63M0_WVGA
+	---help---
+	  Support for LCDC Samsung S6E63M0 WVGA (480x800) panel
 
 config FB_MSM_TRY_MDDI_CATCH_LCDC_PRISM
 	depends on FB_MSM_LCDC_HW

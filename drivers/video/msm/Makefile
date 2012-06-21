@@ -1,6 +1,7 @@
 obj-y := msm_fb.o
 
 obj-$(CONFIG_FB_MSM_LOGO) += logo.o
+obj-$(CONFIG_FB_MSM_SEC_BOOTLOGO) += logo.o
 obj-$(CONFIG_FB_BACKLIGHT) += msm_fb_bl.o
 
 # MDP
@@ -129,6 +130,8 @@ obj-$(CONFIG_FB_MSM_MIPI_CHIMEI_WXGA) += mipi_chimei_wxga_pt.o
 endif
 
 obj-$(CONFIG_FB_MSM_LCDC_PANEL) += lcdc_panel.o
+obj-$(CONFIG_FB_MSM_LCDC_S6E63M0_WVGA) += lcdc_s6e63m0.o
+obj-$(CONFIG_FB_MSM_LCDC_SAMSUNG_ANCORA) += lcdc_samsung_ancora.o
 obj-$(CONFIG_FB_MSM_LCDC_PRISM_WVGA) += lcdc_prism.o
 obj-$(CONFIG_FB_MSM_LCDC_SAMSUNG_WSVGA) += lcdc_samsung_wsvga.o
 obj-$(CONFIG_FB_MSM_LCDC_CHIMEI_WXGA) += lcdc_chimei_wxga.o
