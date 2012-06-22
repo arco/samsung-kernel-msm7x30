@@ -1,7 +1,7 @@
 /* drivers/android/pmem.c
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -24,10 +24,6 @@
 #include <linux/android_pmem.h>
 #include <linux/mempolicy.h>
 #include <linux/kobject.h>
-#ifdef CONFIG_MEMORY_HOTPLUG
-#include <linux/memory.h>
-#include <linux/memory_hotplug.h>
-#endif
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
@@ -38,7 +34,6 @@
 #define PMEM_MAX_KERNEL_SPACE_DEVICES (2)
 #define PMEM_MAX_DEVICES \
 	(PMEM_MAX_USER_SPACE_DEVICES + PMEM_MAX_KERNEL_SPACE_DEVICES)
-
 #define PMEM_MAX_ORDER (128)
 #define PMEM_MIN_ALLOC PAGE_SIZE
 
@@ -127,20 +122,6 @@ enum pmem_align {
 
 #define PMEM_NAME_SIZE 16
 
-#define MEMORY_STABLE				0
-#define MEMORY_UNSTABLE_NO_MEMORY_ALLOCATED	1
-#define MEMORY_UNSTABLE_MEMORY_ALLOCATED	2
-
-#define	NO_UNSTABLE_MEMORY		0
-#define	UNSTABLE_UNINITIALIZED		1
-#define	UNSTABLE_INITIALIZED		2
-
-int unstable_pmem_present;
-/* start of unstable PMEM physical memory */
-unsigned long unstable_pmem_start;
-/* size of unstable PMEM physical memory */
-unsigned long unstable_pmem_size;
-
 struct alloc_list {
 	void *addr;                  /* physical addr of allocation */
 	void *aaddr;                 /* aligned physical addr       */
@@ -161,8 +142,6 @@ struct pmem_info {
 	unsigned long num_entries;
 	/* pfn of the garbage page in memory */
 	unsigned long garbage_pfn;
-	/* memory state (stable/unstable with or without memory */
-	int memory_state;
 
 	char name[PMEM_NAME_SIZE];
 
@@ -916,8 +895,6 @@ static int pmem_open(struct inode *inode, struct file *file)
 	char currtask_name[FIELD_SIZEOF(struct task_struct, comm) + 1];
 #endif
 
-	if (pmem[id].memory_state == MEMORY_UNSTABLE_NO_MEMORY_ALLOCATED)
-		return -ENODEV;
 	DLOG("pid %u(%s) file %p(%ld) dev %s(id: %d)\n",
 		current->pid, get_task_comm(currtask_name, current),
 		file, file_count(file), get_name(file), id);
@@ -1332,7 +1309,7 @@ static int pmem_allocator_system(const int id,
 	return (int)list;
 }
 
-static pgprot_t phys_mem_access_prot(struct file *file, pgprot_t vma_prot)
+static pgprot_t pmem_phys_mem_access_prot(struct file *file, pgprot_t vma_prot)
 {
 	int id = get_id(file);
 #ifdef pgprot_writecombine
@@ -1581,8 +1558,7 @@ static int pmem_mmap(struct file *file, struct vm_area_struct *vma)
 	down_write(&data->sem);
 	/* check this file isn't already mmaped, for submaps check this file
 	 * has never been mmaped */
-	if ((data->flags & PMEM_FLAGS_MASTERMAP) ||
-	    (data->flags & PMEM_FLAGS_SUBMAP) ||
+	if ((data->flags & PMEM_FLAGS_SUBMAP) ||
 	    (data->flags & PMEM_FLAGS_UNSUBMAP)) {
 #if PMEM_DEBUG
 		pr_err("pmem: you can only mmap a pmem file once, "
@@ -1621,7 +1597,7 @@ static int pmem_mmap(struct file *file, struct vm_area_struct *vma)
 
 	vma->vm_pgoff = pmem[id].start_addr(id, data) >> PAGE_SHIFT;
 
-	vma->vm_page_prot = phys_mem_access_prot(file, vma->vm_page_prot);
+	vma->vm_page_prot = pmem_phys_mem_access_prot(file, vma->vm_page_prot);
 
 	if (data->flags & PMEM_FLAGS_CONNECTED) {
 		struct pmem_region_node *region_node;
@@ -2626,173 +2602,6 @@ static void ioremap_pmem(int id)
 		pmem[id].vbase = ioremap(pmem[id].base, pmem[id].size);
 }
 
-#ifdef CONFIG_MEMORY_HOTPLUG
-static int pmem_mapped_regions(int id)
-{
-	struct list_head *elt;
-
-	mutex_lock(&pmem[id].data_list_mutex);
-	list_for_each(elt, &pmem[id].data_list) {
-		struct pmem_data *data =
-			list_entry(elt, struct pmem_data, list);
-
-		if (data) {
-			mutex_unlock(&pmem[id].data_list_mutex);
-			return 1;
-		}
-	}
-	mutex_unlock(&pmem[id].data_list_mutex);
-	return 0;
-}
-
-static int active_unstable_pmem(void)
-{
-	int id;
-
-	for (id = 0; id < id_count; id++) {
-		if (pmem[id].memory_state == MEMORY_STABLE)
-			continue;
-		if (pmem_mapped_regions(id))
-			return 1;
-	}
-
-	return 0;
-}
-
-static void reserve_unstable_pmem(unsigned long unstable_pmem_start,
-	unsigned long unstable_pmem_size)
-{
-	reserve_hotplug_pages(unstable_pmem_start >> PAGE_SHIFT,
-		unstable_pmem_size >> PAGE_SHIFT);
-}
-
-static void unreserve_unstable_pmem(unsigned long unstable_pmem_start,
-	unsigned long unstable_pmem_size)
-{
-	unreserve_hotplug_pages(unstable_pmem_start >> PAGE_SHIFT,
-		unstable_pmem_size >> PAGE_SHIFT);
-}
-
-static void pmem_setup_unstable_devices(unsigned long start_pfn,
-	unsigned long nr_pages)
-{
-	int id;
-	unsigned long tmp;
-
-	unstable_pmem_start = start_pfn << PAGE_SHIFT;
-	tmp = unstable_pmem_start;
-
-	for (id = 0; id < id_count; id++) {
-		if (pmem[id].memory_state == MEMORY_STABLE)
-			continue;
-
-		pmem[id].base = tmp;
-		pr_info("reserving %lx bytes unstable memory at %lx \
-			for %s\n", pmem[id].size, pmem[id].base, pmem[id].name);
-		tmp += pmem[id].size;
-	}
-	unstable_pmem_size = tmp - unstable_pmem_start;
-
-	for (id = 0; id < id_count; id++) {
-		if (pmem[id].memory_state ==
-			MEMORY_UNSTABLE_NO_MEMORY_ALLOCATED) {
-			ioremap_pmem(id);
-			pmem[id].garbage_pfn =
-				page_to_pfn(alloc_page(GFP_KERNEL));
-
-			if (pmem[id].vbase == 0)
-				continue;
-			pmem[id].memory_state =
-				MEMORY_UNSTABLE_MEMORY_ALLOCATED;
-		}
-	}
-}
-
-static int pmem_mem_going_offline_callback(void *arg)
-{
-	struct memory_notify *marg = arg;
-	int id;
-
-	if ((marg->start_pfn << PAGE_SHIFT) != unstable_pmem_start)
-		return 0;
-
-	if (active_unstable_pmem()) {
-		pr_alert("unstable PMEM memory device in use \
-			prevents memory hotremove!\n");
-		return -EAGAIN;
-	}
-
-	unreserve_unstable_pmem(unstable_pmem_start, unstable_pmem_size);
-
-	for (id = 0; id < id_count; id++) {
-		if (pmem[id].memory_state == MEMORY_UNSTABLE_MEMORY_ALLOCATED)
-			pmem[id].memory_state =
-				MEMORY_UNSTABLE_NO_MEMORY_ALLOCATED;
-	}
-	return 0;
-}
-
-static int pmem_mem_online_callback(void *arg)
-{
-	struct memory_notify *marg = arg;
-	int id;
-
-
-	if (unstable_pmem_present == UNSTABLE_UNINITIALIZED) {
-		pmem_setup_unstable_devices(marg->start_pfn, marg->nr_pages);
-		pr_alert("unstable pmem start %lx size %lx\n",
-			unstable_pmem_start, unstable_pmem_size);
-		unstable_pmem_present = UNSTABLE_INITIALIZED;
-	}
-
-	if ((marg->start_pfn << PAGE_SHIFT) != unstable_pmem_start)
-		return 0;
-
-	reserve_unstable_pmem(unstable_pmem_start, unstable_pmem_size);
-
-	for (id = 0; id < id_count; id++) {
-		if (pmem[id].memory_state ==
-			MEMORY_UNSTABLE_NO_MEMORY_ALLOCATED) {
-			if (pmem[id].vbase == 0)
-				ioremap_pmem(id);
-			if (pmem[id].vbase == 0)
-				continue;
-			pmem[id].memory_state =
-				MEMORY_UNSTABLE_MEMORY_ALLOCATED;
-		}
-	}
-	return 0;
-}
-
-static int pmem_memory_callback(struct notifier_block *self,
-				unsigned long action, void *arg)
-{
-	int ret = 0;
-
-	if (unstable_pmem_present == NO_UNSTABLE_MEMORY)
-		return 0;
-
-	switch (action) {
-	case MEM_ONLINE:
-		ret = pmem_mem_online_callback(arg);
-		break;
-	case MEM_GOING_OFFLINE:
-		ret = pmem_mem_going_offline_callback(arg);
-		break;
-	case MEM_OFFLINE:
-	case MEM_GOING_ONLINE:
-	case MEM_CANCEL_ONLINE:
-	case MEM_CANCEL_OFFLINE:
-		break;
-	}
-	if (ret)
-		ret = notifier_from_errno(ret);
-	else
-		ret = NOTIFY_OK;
-	return ret;
-}
-#endif
-
 int pmem_setup(struct android_pmem_platform_data *pdata,
 	       long (*ioctl)(struct file *, unsigned int, unsigned long),
 	       int (*release)(struct inode *, struct file *))
@@ -2883,11 +2692,6 @@ int pmem_setup(struct android_pmem_platform_data *pdata,
 	pmem[id].base = pdata->start;
 	pmem[id].size = pdata->size;
 	strlcpy(pmem[id].name, pdata->name, PMEM_NAME_SIZE);
-
-	if (pdata->unstable) {
-		pmem[id].memory_state = MEMORY_UNSTABLE_NO_MEMORY_ALLOCATED;
-		unstable_pmem_present = UNSTABLE_UNINITIALIZED;
-	}
 
 	pmem[id].num_entries = pmem[id].size / pmem[id].quantum;
 
@@ -2993,10 +2797,6 @@ int pmem_setup(struct android_pmem_platform_data *pdata,
 
 	case PMEM_ALLOCATORTYPE_SYSTEM:
 
-#ifdef CONFIG_MEMORY_HOTPLUG
-		goto err_no_mem;
-#endif
-
 		INIT_LIST_HEAD(&pmem[id].allocator.system_mem.alist);
 
 		pmem[id].allocator.system_mem.used = 0;
@@ -3047,10 +2847,6 @@ int pmem_setup(struct android_pmem_platform_data *pdata,
 		pmem[id].dev.minor = -1;
 		pr_info("pmem: Initializing %s (in-kernel)\n", pdata->name);
 	}
-
-	/* do not set up unstable pmem now, wait until first memory hotplug */
-	if (pmem[id].memory_state == MEMORY_UNSTABLE_NO_MEMORY_ALLOCATED)
-		return 0;
 
 	if ((!is_kernel_memtype) &&
 		(pmem[id].allocator_type != PMEM_ALLOCATORTYPE_SYSTEM)) {
@@ -3148,9 +2944,6 @@ static int __init pmem_init(void)
 		return -ENOMEM;
 	}
 
-#ifdef CONFIG_MEMORY_HOTPLUG
-	hotplug_memory_notifier(pmem_memory_callback, 0);
-#endif
 	return platform_driver_register(&pmem_driver);
 }
 
