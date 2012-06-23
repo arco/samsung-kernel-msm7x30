@@ -17,7 +17,6 @@ obj-y += mdp4_util.o
 ifeq ($(CONFIG_MACH_ARIESVE),y)
 obj-y += mdp4_video_enhance.o
 endif
-obj-y += mdp4_hsic.o
 else
 obj-y += mdp_hw_init.o
 obj-y += mdp_ppp.o
