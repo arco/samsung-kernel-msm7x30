@@ -282,6 +282,9 @@ int mdp_lcdc_on(struct platform_device *pdev)
 	}
 #else //  1) panel on and 2) vsync
 	ret = panel_next_on(pdev);
+	if (ret == 0)
+		mdp_pipe_ctrl(MDP_OVERLAY0_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+
 	/* MDP cmd block disable */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 #endif
@@ -431,7 +434,6 @@ void mdp4_overlay_lcdc_start(void)
 		/* enable LCDC block */
 		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 		MDP_OUTP(MDP_BASE + LCDC_BASE, 1);
-		mdp_pipe_ctrl(MDP_OVERLAY0_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 		lcdc_enabled = 1;
 	}
