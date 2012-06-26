@@ -42,7 +42,8 @@ enum msm_pm_sleep_mode {
 #define MSM_PM_MODE(cpu, mode_nr)  ((cpu) * MSM_PM_SLEEP_MODE_NR + (mode_nr))
 
 struct msm_pm_platform_data {
-	u8 supported;
+	u8 idle_supported;   /* Allow device to enter mode during idle */
+	u8 suspend_supported; /* Allow device to enter mode during suspend */
 	u8 suspend_enabled;  /* enabled for suspend */
 	u8 idle_enabled;     /* enabled for idle low power */
 	u32 latency;         /* interrupt latency in microseconds when entering

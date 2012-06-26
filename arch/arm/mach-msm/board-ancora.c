@@ -4690,41 +4690,53 @@ static struct platform_device hs_device = {
 };
 
 static struct msm_pm_platform_data msm_pm_data[MSM_PM_SLEEP_MODE_NR] = {
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE].supported = 1,
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE].suspend_enabled = 1,
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE].idle_enabled = 1,
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE].latency = 8594,
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE].residency = 23740,
-
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN].supported = 1,
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN].suspend_enabled = 1,
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN].idle_enabled = 1,
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN].latency = 4594,
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN].residency = 23740,
-
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE].supported = 1,
+	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE] = {
+		.idle_supported = 1,
+		.suspend_supported = 1,
+		.idle_enabled = 1,
+		.suspend_enabled = 1,
+		.latency = 8594,
+		.residency = 23740,
+	},
+	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN] = {
+		.idle_supported = 1,
+		.suspend_supported = 1,
+		.idle_enabled = 1,
+		.suspend_enabled = 1,
+		.latency = 4594,
+		.residency = 23740,
+	},
+	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE] = {
 #ifdef CONFIG_MSM_STANDALONE_POWER_COLLAPSE
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE].suspend_enabled = 0,
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE].idle_enabled = 1,
+		.idle_supported = 1,
+		.suspend_supported = 1,
+		.idle_enabled = 1,
+		.suspend_enabled = 0,
 #else /*CONFIG_MSM_STANDALONE_POWER_COLLAPSE*/
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE].suspend_enabled = 0,
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE].idle_enabled = 0,
+		.idle_supported = 0,
+		.suspend_supported = 0,
+		.idle_enabled = 0,
+		.suspend_enabled = 0,
 #endif /*CONFIG_MSM_STANDALONE_POWER_COLLAPSE*/
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE].latency = 500,
-	[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_STANDALONE].residency = 6000,
-
-	[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].supported = 1,
-	[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].suspend_enabled
-		= 1,
-	[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].idle_enabled = 0,
-	[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].latency = 443,
-	[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].residency = 1098,
-
-	[MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT].supported = 1,
-	[MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT].suspend_enabled = 1,
-	[MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT].idle_enabled = 1,
-	[MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT].latency = 2,
-	[MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT].residency = 0,
+		.latency = 500,
+		.residency = 6000,
+	},
+	[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT] = {
+		.idle_supported = 1,
+		.suspend_supported = 1,
+		.idle_enabled = 0,
+		.suspend_enabled = 1,
+		.latency = 443,
+		.residency = 1098,
+	},
+	[MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT] = {
+		.idle_supported = 1,
+		.suspend_supported = 1,
+		.idle_enabled = 1,
+		.suspend_enabled = 1,
+		.latency = 2,
+		.residency = 0,
+	},
 };
 
 #ifdef CONFIG_USB_EHCI_MSM
