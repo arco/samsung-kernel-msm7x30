@@ -88,6 +88,7 @@
 #include <linux/msm_kgsl.h>
 #include <mach/dal_axi.h>
 #include <mach/msm_serial_hs.h>
+#include <mach/bcm_bt_lpm.h>
 #ifdef CONFIG_SENSORS_AK8975
 #include <linux/i2c/ak8975.h>
 #endif
@@ -5209,8 +5210,24 @@ static struct lcdc_platform_data dtv_pdata = {
 };
 
 static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
-       .inject_rx_on_wakeup = 1,
-       .rx_to_inject = 0xFD,
+	.wakeup_irq = -1,
+	.inject_rx_on_wakeup = 0,
+	.exit_lpm_cb = bcm_bt_lpm_exit_lpm_locked,
+};
+
+static struct bcm_bt_lpm_platform_data bcm_bt_lpm_pdata = {
+	.gpio_wake = GPIO_BT_UART_TXD,
+	.gpio_host_wake = GPIO_BT_UART_RXD,
+	.request_clock_off_locked = msm_hs_request_clock_off_locked,
+	.request_clock_on_locked = msm_hs_request_clock_on_locked,
+};
+
+struct platform_device bcm_bt_lpm_device = {
+	.name = "bcm_bt_lpm",
+	.id = 0,
+	.dev = {
+		.platform_data = &bcm_bt_lpm_pdata,
+	},
 };
 
 static struct resource msm_fb_resources[] = {
@@ -6414,6 +6431,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_i2c,
 	&msm_device_i2c_2,
 	&msm_device_uart_dm1,
+	&bcm_bt_lpm_device,
 	&hs_device,
 	&amp_i2c_gpio_device,
 #ifdef CONFIG_SAMSUNG_FM_SI4709
@@ -8416,7 +8434,6 @@ static void __init msm7x30_init(void)
 	msm_device_gadget_peripheral.dev.platform_data = &msm_gadget_pdata;
 #endif
 #endif
-	msm_uart_dm1_pdata.wakeup_irq = gpio_to_irq(136);
 	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
 #if defined(CONFIG_TSIF) || defined(CONFIG_TSIF_MODULE)
 	msm_device_tsif.dev.platform_data = &tsif_platform_data;
