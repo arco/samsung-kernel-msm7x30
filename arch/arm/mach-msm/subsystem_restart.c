@@ -280,7 +280,7 @@ static void do_epoch_check(struct subsys_data *subsys)
 	if (time_first && n >= max_restarts_check) {
 		if ((curr_time->tv_sec - time_first->tv_sec) <
 				max_history_time_check)
-			panic("Subsystems have crashed %d times in less than "
+			WARN(1, "Subsystems have crashed %d times in less than "\
 				"%ld seconds!", max_restarts_check,
 				max_history_time_check);
 	}
@@ -338,7 +338,7 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 	 * out, since a subsystem died in its powerup sequence.
 	 */
 	if (!mutex_trylock(powerup_lock))
-		panic("%s[%p]: Subsystem died during powerup!",
+		WARN(1, "%s[%p]: Subsystem died during powerup!",
 						__func__, current);
 
 	do_epoch_check(subsys);
@@ -365,7 +365,7 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 			restart_list[i]->name);
 
 		if (restart_list[i]->shutdown(subsys) < 0)
-			panic("subsys-restart: %s[%p]: Failed to shutdown %s!",
+			WARN(1, "subsys-restart: %s[%p]: Failed to shutdown %s!",
 				__func__, current, restart_list[i]->name);
 	}
 
@@ -404,7 +404,7 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 					restart_list[i]->name);
 
 		if (restart_list[i]->powerup(subsys) < 0)
-			panic("%s[%p]: Failed to powerup %s!", __func__,
+			WARN(1, "%s[%p]: Failed to powerup %s!", __func__,
 				current, restart_list[i]->name);
 	}
 
@@ -437,8 +437,9 @@ static void __subsystem_restart(struct subsys_data *subsys)
 
 	data = kzalloc(sizeof(struct restart_wq_data), GFP_ATOMIC);
 	if (!data)
-		panic("%s: Unable to allocate memory to restart %s.",
+		pr_err("%s: Unable to allocate memory to restart %s.",
 		      __func__, subsys->name);
+		return;
 
 	data->subsys = subsys;
 
@@ -452,7 +453,7 @@ static void __subsystem_restart(struct subsys_data *subsys)
 	INIT_WORK(&data->work, subsystem_restart_wq_func);
 	rc = queue_work(ssr_wq, &data->work);
 	if (rc < 0)
-		panic("%s: Unable to schedule work to restart %s (%d).",
+		pr_err("%s: Unable to schedule work to restart %s (%d).",
 		     __func__, subsys->name, rc);
 }
 
@@ -486,12 +487,12 @@ int subsystem_restart(const char *subsys_name)
 		break;
 
 	case RESET_SOC:
-		panic("subsys-restart: Resetting the SoC - %s crashed.",
+		WARN(1, "subsys-restart: Resetting the SoC - %s crashed.",
 			subsys->name);
 		break;
 
 	default:
-		panic("subsys-restart: Unknown restart level!\n");
+		pr_err("subsys-restart: Unknown restart level!\n");
 	break;
 
 	}
@@ -594,18 +595,16 @@ static int __init ssr_init_soc_restart_orders(void)
 
 static int __init subsys_restart_init(void)
 {
-	int ret = 0;
-
 	restart_level = RESET_SOC;
 
 	ssr_wq = alloc_workqueue("ssr_wq", WQ_CPU_INTENSIVE, 0);
 
-	if (!ssr_wq)
-		panic("Couldn't allocate workqueue for subsystem restart.\n");
+	if (!ssr_wq) {
+		pr_err("%s: out of memory\n", __func__);
+		return -ENOMEM;
+	}
 
-	ret = ssr_init_soc_restart_orders();
-
-	return ret;
+	return ssr_init_soc_restart_orders();
 }
 
 arch_initcall(subsys_restart_init);
