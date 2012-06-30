@@ -919,6 +919,7 @@ struct vfe32_ctrl_type {
 
 	uint32_t extlen;
 	void *extdata;
+	struct mutex vfe_lock;
 
 	int8_t start_ack_pending;
 	int8_t stop_ack_pending;
