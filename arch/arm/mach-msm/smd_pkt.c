@@ -611,15 +611,15 @@ int smd_pkt_open(struct inode *inode, struct file *file)
 	if (!smd_pkt_devp)
 		return -EINVAL;
 
-	wake_lock_init(&smd_pkt_devp->pa_wake_lock, WAKE_LOCK_SUSPEND,
-			smd_pkt_dev_name[smd_pkt_devp->i]);
-	INIT_WORK(&smd_pkt_devp->packet_arrival_work, packet_arrival_worker);
-
 	file->private_data = smd_pkt_devp;
 
 	mutex_lock(&smd_pkt_devp->ch_lock);
 	if (smd_pkt_devp->ch == 0) {
 
+		wake_lock_init(&smd_pkt_devp->pa_wake_lock, WAKE_LOCK_SUSPEND,
+				smd_pkt_dev_name[smd_pkt_devp->i]);
+		INIT_WORK(&smd_pkt_devp->packet_arrival_work,
+				packet_arrival_worker);
 		if (smd_ch_edge[smd_pkt_devp->i] == SMD_APPS_MODEM)
 			peripheral = "modem";
 		else if (smd_ch_edge[smd_pkt_devp->i] == SMD_APPS_QDSP)
@@ -699,10 +699,11 @@ release_pil:
 	if (peripheral && (r < 0))
 		pil_put(smd_pkt_devp->pil);
 out:
+	if (!smd_pkt_devp->ch)
+		wake_lock_destroy(&smd_pkt_devp->pa_wake_lock);
+
 	mutex_unlock(&smd_pkt_devp->ch_lock);
 
-	if (r < 0)
-		wake_lock_destroy(&smd_pkt_devp->pa_wake_lock);
 
 	return r;
 }
