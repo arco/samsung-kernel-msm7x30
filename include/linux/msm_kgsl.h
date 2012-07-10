@@ -1,39 +1,15 @@
-/* Copyright (c) 2002,2007-2011, Code Aurora Forum. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above
- *       copyright notice, this list of conditions and the following
- *       disclaimer in the documentation and/or other materials provided
- *       with the distribution.
- *     * Neither the name of Code Aurora Forum, Inc. nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- */
 #ifndef _MSM_KGSL_H
 #define _MSM_KGSL_H
+
+#define KGSL_VERSION_MAJOR        3
+#define KGSL_VERSION_MINOR        8
 
 /*context flags */
 #define KGSL_CONTEXT_SAVE_GMEM	1
 #define KGSL_CONTEXT_NO_GMEM_ALLOC	2
 #define KGSL_CONTEXT_SUBMIT_IB_LIST	4
 #define KGSL_CONTEXT_CTX_SWITCH	8
+#define KGSL_CONTEXT_PREAMBLE	16
 
 /* Memory allocayion flags */
 #define KGSL_MEMFLAGS_GPUREADONLY	0x01000000
@@ -50,9 +26,21 @@
 #define KGSL_FLAGS_RESERVED2   0x00000080
 #define KGSL_FLAGS_SOFT_RESET  0x00000100
 
+/*
+ * Reset status values for context
+ */
+enum kgsl_ctx_reset_stat {
+	KGSL_CTX_STAT_NO_ERROR				= 0x00000000,
+	KGSL_CTX_STAT_GUILTY_CONTEXT_RESET_EXT		= 0x00000001,
+	KGSL_CTX_STAT_INNOCENT_CONTEXT_RESET_EXT	= 0x00000002,
+	KGSL_CTX_STAT_UNKNOWN_CONTEXT_RESET_EXT		= 0x00000003
+};
+
+#define KGSL_MAX_PWRLEVELS 5
+
 /* device id */
 enum kgsl_deviceid {
-	KGSL_DEVICE_YAMATO	= 0x00000000,
+	KGSL_DEVICE_3D0		= 0x00000000,
 	KGSL_DEVICE_2D0		= 0x00000001,
 	KGSL_DEVICE_2D1		= 0x00000002,
 	KGSL_DEVICE_MAX		= 0x00000003
@@ -61,7 +49,8 @@ enum kgsl_deviceid {
 enum kgsl_user_mem_type {
 	KGSL_USER_MEM_TYPE_PMEM		= 0x00000000,
 	KGSL_USER_MEM_TYPE_ASHMEM	= 0x00000001,
-	KGSL_USER_MEM_TYPE_ADDR		= 0x00000002
+	KGSL_USER_MEM_TYPE_ADDR		= 0x00000002,
+	KGSL_USER_MEM_TYPE_ION		= 0x00000003,
 };
 
 struct kgsl_devinfo {
@@ -73,9 +62,11 @@ struct kgsl_devinfo {
 	unsigned int chip_id;
 	unsigned int mmu_enabled;
 	unsigned int gmem_gpubaseaddr;
-	/* if gmem_hostbaseaddr is NULL, we would know its not mapped into
-	 * mmio space */
-	unsigned int gmem_hostbaseaddr;
+	/*
+	* This field contains the adreno revision
+	* number 200, 205, 220, etc...
+	*/
+	unsigned int gpu_id;
 	unsigned int gmem_sizebytes;
 };
 
@@ -92,6 +83,8 @@ struct kgsl_devmemstore {
 	unsigned int sbz3;
 	volatile unsigned int ref_wait_ts;
 	unsigned int sbz4;
+	unsigned int current_context;
+	unsigned int sbz5;
 };
 
 #define KGSL_DEVICE_MEMSTORE_OFFSET(field) \
@@ -114,6 +107,8 @@ enum kgsl_property_type {
 	KGSL_PROP_SHMEM_APERTURES = 0x00000005,
 	KGSL_PROP_MMU_ENABLE 	  = 0x00000006,
 	KGSL_PROP_INTERRUPT_WAITS = 0x00000007,
+	KGSL_PROP_VERSION         = 0x00000008,
+	KGSL_PROP_GPU_RESET_STAT  = 0x00000009
 };
 
 struct kgsl_shadowprop {
@@ -122,35 +117,57 @@ struct kgsl_shadowprop {
 	unsigned int flags; /* contains KGSL_FLAGS_ values */
 };
 
-#ifdef __KERNEL__
-#include <mach/msm_bus.h>
+struct kgsl_pwrlevel {
+	unsigned int gpu_freq;
+	unsigned int bus_freq;
+	unsigned int io_fraction;
+};
 
-struct kgsl_platform_data {
-	unsigned int high_axi_2d;
-	unsigned int high_axi_3d;
-	unsigned int max_grp2d_freq;
-	unsigned int min_grp2d_freq;
-	int (*set_grp2d_async)(void);
-	unsigned int max_grp3d_freq;
-	unsigned int min_grp3d_freq;
-	int (*set_grp3d_async)(void);
-	const char *imem_clk_name;
-	const char *imem_pclk_name;
-	const char *grp3d_clk_name;
-	const char *grp3d_pclk_name;
-	const char *grp2d0_clk_name;
-	const char *grp2d0_pclk_name;
-	const char *grp2d1_clk_name;
-	const char *grp2d1_pclk_name;
-	unsigned int idle_timeout_2d;
-	unsigned int idle_timeout_3d;
-	struct msm_bus_scale_pdata *grp3d_bus_scale_table;
-	struct msm_bus_scale_pdata *grp2d0_bus_scale_table;
-	struct msm_bus_scale_pdata *grp2d1_bus_scale_table;
+struct kgsl_version {
+	unsigned int drv_major;
+	unsigned int drv_minor;
+	unsigned int dev_major;
+	unsigned int dev_minor;
+};
+
+#ifdef __KERNEL__
+
+#define KGSL_3D0_REG_MEMORY	"kgsl_3d0_reg_memory"
+#define KGSL_3D0_IRQ		"kgsl_3d0_irq"
+#define KGSL_2D0_REG_MEMORY	"kgsl_2d0_reg_memory"
+#define KGSL_2D0_IRQ		"kgsl_2d0_irq"
+#define KGSL_2D1_REG_MEMORY	"kgsl_2d1_reg_memory"
+#define KGSL_2D1_IRQ		"kgsl_2d1_irq"
+
+struct kgsl_grp_clk_name {
+	const char *clk;
+	const char *pclk;
+};
+
+struct kgsl_device_pwr_data {
+	struct kgsl_pwrlevel pwrlevel[KGSL_MAX_PWRLEVELS];
+	int init_level;
+	int num_levels;
+	int (*set_grp_async)(void);
+	unsigned int idle_timeout;
+	bool strtstp_sleepwake;
 	unsigned int nap_allowed;
-	unsigned int pt_va_size;
-	unsigned int pt_max_count;
-	bool pwrrail_first;
+	unsigned int idle_needed;
+	unsigned int idle_pass;
+};
+
+struct kgsl_clk_data {
+	struct kgsl_grp_clk_name name;
+	struct msm_bus_scale_pdata *bus_scale_table;
+};
+
+struct kgsl_device_platform_data {
+	struct kgsl_device_pwr_data pwr_data;
+	struct kgsl_clk_data clk;
+	/* imem_clk_name is for 3d only, not used in 2d devices */
+	struct kgsl_grp_clk_name imem_clk_name;
+	const char *iommu_user_ctx_name;
+	const char *iommu_priv_ctx_name;
 };
 
 #endif
@@ -239,8 +256,11 @@ struct kgsl_cmdstream_readtimestamp {
 	unsigned int timestamp; /*output param */
 };
 
-#define IOCTL_KGSL_CMDSTREAM_READTIMESTAMP \
+#define IOCTL_KGSL_CMDSTREAM_READTIMESTAMP_OLD \
 	_IOR(KGSL_IOC_TYPE, 0x11, struct kgsl_cmdstream_readtimestamp)
+
+#define IOCTL_KGSL_CMDSTREAM_READTIMESTAMP \
+	_IOWR(KGSL_IOC_TYPE, 0x11, struct kgsl_cmdstream_readtimestamp)
 
 /* free memory when the GPU reaches a given timestamp.
  * gpuaddr specify a memory region created by a
@@ -254,6 +274,15 @@ struct kgsl_cmdstream_freememontimestamp {
 };
 
 #define IOCTL_KGSL_CMDSTREAM_FREEMEMONTIMESTAMP \
+	_IOW(KGSL_IOC_TYPE, 0x12, struct kgsl_cmdstream_freememontimestamp)
+
+/* Previous versions of this header had incorrectly defined
+   IOCTL_KGSL_CMDSTREAM_FREEMEMONTIMESTAMP as a read-only ioctl instead
+   of a write only ioctl.  To ensure binary compatability, the following
+   #define will be used to intercept the incorrect ioctl
+*/
+
+#define IOCTL_KGSL_CMDSTREAM_FREEMEMONTIMESTAMP_OLD \
 	_IOR(KGSL_IOC_TYPE, 0x12, struct kgsl_cmdstream_freememontimestamp)
 
 /* create a draw context, which is used to preserve GPU state.
@@ -310,6 +339,18 @@ struct kgsl_sharedmem_free {
 #define IOCTL_KGSL_SHAREDMEM_FREE \
 	_IOW(KGSL_IOC_TYPE, 0x21, struct kgsl_sharedmem_free)
 
+struct kgsl_cff_user_event {
+	unsigned char cff_opcode;
+	unsigned int op1;
+	unsigned int op2;
+	unsigned int op3;
+	unsigned int op4;
+	unsigned int op5;
+	unsigned int __pad[2];
+};
+
+#define IOCTL_KGSL_CFF_USER_EVENT \
+	_IOW(KGSL_IOC_TYPE, 0x31, struct kgsl_cff_user_event)
 
 struct kgsl_gmem_desc {
 	unsigned int x;
@@ -379,6 +420,48 @@ struct kgsl_cmdwindow_write {
 
 #define IOCTL_KGSL_CMDWINDOW_WRITE \
 	_IOW(KGSL_IOC_TYPE, 0x2e, struct kgsl_cmdwindow_write)
+
+struct kgsl_gpumem_alloc {
+	unsigned long gpuaddr;
+	size_t size;
+	unsigned int flags;
+};
+
+#define IOCTL_KGSL_GPUMEM_ALLOC \
+	_IOWR(KGSL_IOC_TYPE, 0x2f, struct kgsl_gpumem_alloc)
+
+struct kgsl_cff_syncmem {
+	unsigned int gpuaddr;
+	unsigned int len;
+	unsigned int __pad[2]; /* For future binary compatibility */
+};
+
+#define IOCTL_KGSL_CFF_SYNCMEM \
+	_IOW(KGSL_IOC_TYPE, 0x30, struct kgsl_cff_syncmem)
+
+/*
+ * A timestamp event allows the user space to register an action following an
+ * expired timestamp.
+ */
+
+struct kgsl_timestamp_event {
+	int type;                /* Type of event (see list below) */
+	unsigned int timestamp;  /* Timestamp to trigger event on */
+	unsigned int context_id; /* Context for the timestamp */
+	void *priv;              /* Pointer to the event specific blob */
+	size_t len;              /* Size of the event specific blob */
+};
+
+#define IOCTL_KGSL_TIMESTAMP_EVENT \
+	_IOW(KGSL_IOC_TYPE, 0x31, struct kgsl_timestamp_event)
+
+/* A genlock timestamp event releases an existing lock on timestamp expire */
+
+#define KGSL_TIMESTAMP_EVENT_GENLOCK 1
+
+struct kgsl_timestamp_event_genlock {
+	int handle; /* Handle of the genlock lock to release */
+};
 
 #ifdef __KERNEL__
 #ifdef CONFIG_MSM_KGSL_DRM
