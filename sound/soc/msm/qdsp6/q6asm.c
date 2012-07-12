@@ -810,6 +810,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 	uint32_t token;
 	unsigned long dsp_flags;
 	uint32_t *payload;
+	uint32_t wakeup_flag = 1;
 
 
 	if ((ac == NULL) || (data == NULL)) {
@@ -821,7 +822,13 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 			ac->session);
 		return -EINVAL;
 	}
-
+	if (atomic_read(&ac->nowait_cmd_cnt) > 0) {
+		pr_debug("%s: nowait_cmd_cnt %d\n",
+				__func__,
+				atomic_read(&ac->nowait_cmd_cnt));
+		atomic_dec(&ac->nowait_cmd_cnt);
+		wakeup_flag = 0;
+	}
 	payload = data->payload;
 
 	if (data->opcode == RESET_EVENTS) {
@@ -865,7 +872,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 		case ASM_STREAM_CMD_OPEN_READWRITE:
 		case ASM_DATA_CMD_MEDIA_FORMAT_UPDATE:
 		case ASM_STREAM_CMD_SET_ENCDEC_PARAM:
-			if (atomic_read(&ac->cmd_state)) {
+			if (atomic_read(&ac->cmd_state) && wakeup_flag) {
 				atomic_set(&ac->cmd_state, 0);
 				wake_up(&ac->cmd_wait);
 			}
@@ -1503,12 +1510,12 @@ int q6asm_run_nowait(struct audio_client *ac, uint32_t flags,
 	run.flags    = flags;
 	run.msw_ts   = msw_ts;
 	run.lsw_ts   = lsw_ts;
-
 	rc = apr_send_pkt(ac->apr, (uint32_t *) &run);
 	if (rc < 0) {
 		pr_err("%s:Commmand run failed[%d]", __func__, rc);
 		return -EINVAL;
 	}
+	atomic_inc(&ac->nowait_cmd_cnt);
 	return 0;
 }
 
@@ -3303,11 +3310,13 @@ int q6asm_cmd_nowait(struct audio_client *ac, int cmd)
 	pr_debug("%s:session[%d]opcode[0x%x] ", __func__,
 						ac->session,
 						hdr.opcode);
+
 	rc = apr_send_pkt(ac->apr, (uint32_t *) &hdr);
 	if (rc < 0) {
 		pr_err("%s:Commmand 0x%x failed\n", __func__, hdr.opcode);
 		goto fail_cmd;
 	}
+	atomic_inc(&ac->nowait_cmd_cnt);
 	return 0;
 fail_cmd:
 	return -EINVAL;
