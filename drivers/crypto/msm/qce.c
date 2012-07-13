@@ -29,13 +29,13 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/crypto.h>
+#include <linux/qcedev.h>
 #include <crypto/hash.h>
 #include <crypto/sha.h>
-
 #include <mach/dma.h>
-#include "inc/qce.h"
-#include "inc/qcedev.h"
-#include "inc/qcryptohw.h"
+
+#include "qce.h"
+#include "qcryptohw.h"
 
 /* ADM definitions */
 #define LI_SG_CMD  (1 << 31)    /* last index in the scatter gather cmd */
@@ -543,11 +543,7 @@ static int _init_ce_engine(struct qce_device *pce_dev)
 
 	/* reset qce */
 	writel(1 << CRYPTO_SW_RST, pce_dev->iobase + CRYPTO_CONFIG_REG);
-
-	/* Ensure previous instruction (write to reset bit)
-	 * was completed.
-	 */
-	dsb();
+	wmb(); /* barrier */
 	msleep(1);
 	/* configure ce */
 	val = (1 << CRYPTO_MASK_DOUT_INTR) | (1 << CRYPTO_MASK_DIN_INTR) |
@@ -650,10 +646,7 @@ static int _sha_ce_setup(struct qce_device *pce_dev, struct qce_sha_req *sreq)
 	/* issue go to crypto   */
 	wmb(); /* barrier */
 	writel(1 << CRYPTO_GO, pce_dev->iobase + CRYPTO_GOPROC_REG);
-	/* Ensure previous instructions (setting the GO register)
-	 * was completed before issuing a DMA transfer request
-	 */
-	dsb();
+	wmb(); /* barrier */
 
 	return 0;
 }
@@ -869,10 +862,7 @@ static int _ce_setup(struct qce_device *pce_dev, struct qce_req *q_req,
 	/* issue go to crypto   */
 	wmb(); /* barrier */
 	writel(1 << CRYPTO_GO, pce_dev->iobase + CRYPTO_GOPROC_REG);
-	/* Ensure previous instructions (setting the GO register)
-	 * was completed before issuing a DMA transfer request
-	 */
-	dsb();
+	wmb(); /* barrier */
 	return 0;
 };
 
@@ -934,7 +924,6 @@ static void _sha_complete(struct qce_device *pce_dev)
 
 	auth_data[0] = readl(pce_dev->iobase + CRYPTO_AUTH_BYTECNT0_REG);
 	auth_data[1] = readl(pce_dev->iobase + CRYPTO_AUTH_BYTECNT1_REG);
-	dsb();
 	clk_disable(pce_dev->ce_clk);
 	pce_dev->qce_cb(areq,  pce_dev->dig_result, (unsigned char *)auth_data,
 				pce_dev->chan_ce_in_status);
@@ -1436,8 +1425,6 @@ static int _setup_cmd_template(struct qce_device *pce_dev)
 	pce_dev->chan_ce_in_cmd->exec_func = NULL;
 	pce_dev->chan_ce_in_cmd->cmdptr = DMOV_CMD_ADDR(
 			(unsigned int) pce_dev->phy_cmd_pointer_list_ce_in);
-	pce_dev->chan_ce_in_cmd->crci_mask = msm_dmov_build_crci_mask(2,
-			pce_dev->crci_in, pce_dev->crci_hash);
 	/*
 	 * The first command in the command list ce_out.
 	 * It is for encry/decryp output.
@@ -1478,8 +1465,6 @@ static int _setup_cmd_template(struct qce_device *pce_dev)
 	pce_dev->chan_ce_out_cmd->exec_func = NULL;
 	pce_dev->chan_ce_out_cmd->cmdptr = DMOV_CMD_ADDR(
 			(unsigned int) pce_dev->phy_cmd_pointer_list_ce_out);
-	pce_dev->chan_ce_out_cmd->crci_mask = msm_dmov_build_crci_mask(2,
-			pce_dev->crci_out, pce_dev->crci_hash);
 
 
 	return 0;
@@ -1600,10 +1585,8 @@ int qce_aead_req(void *handle, struct qce_req *q_req)
 
 	/* set up crypto device */
 	rc = _ce_setup(pce_dev, q_req, totallen, ivsize + areq->assoclen);
-	if (rc < 0) {
-		clk_disable(pce_dev->ce_clk);
+	if (rc < 0)
 		goto bad;
-	}
 
 	/* setup for callback, and issue command to adm */
 	pce_dev->areq = q_req->areq;
@@ -1708,10 +1691,8 @@ int qce_ablk_cipher_req(void *handle, struct qce_req *c_req)
 #endif
 	/* set up crypto device */
 	rc = _ce_setup(pce_dev, c_req, areq->nbytes, 0);
-	if (rc < 0) {
-		clk_disable(pce_dev->ce_clk);
+	if (rc < 0)
 		goto bad;
-	}
 
 	/* setup for callback, and issue command to adm */
 	pce_dev->areq = areq;
@@ -1776,10 +1757,8 @@ int qce_process_sha_req(void *handle, struct qce_sha_req *sreq)
 
 	rc =  _sha_ce_setup(pce_dev, sreq);
 
-	if (rc < 0) {
-		clk_disable(pce_dev->ce_clk);
+	if (rc < 0)
 		goto bad;
-	}
 
 	pce_dev->areq = areq;
 	pce_dev->qce_cb = sreq->qce_cb;
@@ -1817,10 +1796,16 @@ void *qce_open(struct platform_device *pdev, int *rc)
 	pce_dev->pdev = &pdev->dev;
 	ce_clk = clk_get(pce_dev->pdev, "ce_clk");
 	if (IS_ERR(ce_clk)) {
+		kfree(pce_dev);
 		*rc = PTR_ERR(ce_clk);
 		return NULL;
 	}
 	pce_dev->ce_clk = ce_clk;
+	*rc = clk_enable(pce_dev->ce_clk);
+	if (*rc) {
+		kfree(pce_dev);
+		return NULL;
+	}
 
 	resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!resource) {
@@ -1894,10 +1879,6 @@ void *qce_open(struct platform_device *pdev, int *rc)
 	pce_dev->chan_ce_in_state = QCE_CHAN_STATE_IDLE;
 	pce_dev->chan_ce_out_state = QCE_CHAN_STATE_IDLE;
 
-	*rc = clk_enable(pce_dev->ce_clk);
-	if (*rc)
-		return NULL;
-
 	if (_init_ce_engine(pce_dev)) {
 		*rc = -ENXIO;
 		clk_disable(pce_dev->ce_clk);
@@ -1931,8 +1912,8 @@ int qce_close(void *handle)
 	kfree(pce_dev->chan_ce_in_cmd);
 	kfree(pce_dev->chan_ce_out_cmd);
 
-	kfree(handle);
 	clk_put(pce_dev->ce_clk);
+	kfree(handle);
 	return 0;
 }
 EXPORT_SYMBOL(qce_close);
@@ -1960,8 +1941,7 @@ static void __exit _qce_exit(void)
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Mona Hossain <mhossain@codeaurora.org>");
 MODULE_DESCRIPTION("Crypto Engine driver");
-MODULE_VERSION("1.05");
+MODULE_VERSION("1.13");
 
 module_init(_qce_init);
 module_exit(_qce_exit);
-

@@ -1,31 +1,5 @@
 /* Qualcomm Crypto Engine driver QCEDEV API
  *
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above
- *       copyright notice, this list of conditions and the following
- *       disclaimer in the documentation and/or other materials provided
- *       with the distribution.
- *     * Neither the name of Code Aurora Forum, Inc. nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #ifndef __QCEDEV__H
 #define __QCEDEV__H
@@ -82,24 +56,36 @@ enum qcedev_cipher_alg_enum {
 * @QCEDEV_AES_MODE_CBC:		CBC
 * @QCEDEV_AES_MODE_ECB:		ECB
 * @QCEDEV_AES_MODE_CTR:		CTR
+* @QCEDEV_AES_MODE_XTS:		XTS
+* @QCEDEV_AES_MODE_CCM:		CCM
+* @QCEDEV_DES_MODE_CBC:		CBC
+* @QCEDEV_DES_MODE_ECB:		ECB
 */
 enum qcedev_cipher_mode_enum {
 	QCEDEV_AES_MODE_CBC	= 0,
 	QCEDEV_AES_MODE_ECB	= 1,
 	QCEDEV_AES_MODE_CTR	= 2,
-	QCEDEV_DES_MODE_CBC	= 3,
-	QCEDEV_DES_MODE_ECB	= 4,
+	QCEDEV_AES_MODE_XTS	= 3,
+	QCEDEV_AES_MODE_CCM	= 4,
+	QCEDEV_DES_MODE_CBC	= 5,
+	QCEDEV_DES_MODE_ECB	= 6,
 	QCEDEV_AES_DES_MODE_LAST
 };
 
 /**
 *enum qcedev_sha_alg_enum : Secure Hashing Algorithm
-* @QCEDEV_ALG_SHA1:		Digest returned 20 bytes (160 bits)
-* @QCEDEV_ALG_SHA256:		Digest returned 32 bytes (256 bit)
+* @QCEDEV_ALG_SHA1:		Digest returned: 20 bytes (160 bits)
+* @QCEDEV_ALG_SHA256:		Digest returned: 32 bytes (256 bit)
+* @QCEDEV_ALG_SHA1_HMAC:	HMAC returned 20 bytes (160 bits)
+* @QCEDEV_ALG_SHA256_HMAC:	HMAC returned 32 bytes (256 bit)
+* @QCEDEV_ALG_AES_CMAC:		Configurable MAC size
 */
 enum qcedev_sha_alg_enum {
 	QCEDEV_ALG_SHA1		= 0,
 	QCEDEV_ALG_SHA256	= 1,
+	QCEDEV_ALG_SHA1_HMAC	= 2,
+	QCEDEV_ALG_SHA256_HMAC	= 3,
+	QCEDEV_ALG_AES_CMAC	= 4,
 	QCEDEV_ALG_SHA_ALG_LAST
 };
 
