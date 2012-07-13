@@ -21,7 +21,7 @@
  * and <linux/sched.h> loads <linux/kernel.h>
  */
 
-#define DEBUG 1
+//#define DEBUG 1
 #include <linux/device.h>
 
 #define MAX17043_FUEL_GAUGE		// Support low battery alert
@@ -1445,8 +1445,8 @@ static void msm_batt_update_psy_status(void)
 	/* Check what is changed */
 
 	/* check temperature */
-//	msm_batt_info.battery_temp_adc = msm_batt_average_temperature(battery_temp_adc);	
-	status_changed += msm_batt_control_temperature(msm_batt_info.battery_temp_adc);
+//	msm_batt_info.battery_temp_adc = msm_batt_average_temperature(battery_temp_adc);
+	status_changed += msm_batt_control_temperature(msm_batt_info.battery_temp_adc);
 
 	/* check full charging */
 	msm_batt_info.chg_current_adc = msm_batt_average_chg_current(chg_current_adc);
@@ -1637,6 +1637,7 @@ void msm_batt_late_resume(struct early_suspend *h)
 		return;
 	}
 
+	msm_batt_update_psy_status();
 	pr_debug("%s: exit\n", __func__);
 }
 #endif

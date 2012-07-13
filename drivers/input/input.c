@@ -780,7 +780,11 @@ static int input_attach_handler(struct input_dev *dev, struct input_handler *han
 	if (!id)
 		return -ENODEV;
 
+#ifdef CONFIG_MACH_ARIESVE
+        if( ( (strcmp(dev->name,"accelerometer")==0) || (strcmp(dev->name,"compass")==0) ) && strcmp(handler->name,"cpufreq_ond")==0)
+#else
 	if( ( (strcmp(dev->name,"accelerometer")==0) || (strcmp(dev->name,"compass_sensor")==0) ) && strcmp(handler->name,"cpufreq_ond")==0)
+#endif
 	 {
 	 	return -ENODEV;
 	 }

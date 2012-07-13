@@ -1003,6 +1003,7 @@ int s5ka3dfx_sensor_probe(const struct msm_camera_sensor_info *info,    struct m
     s->s_init        = s5ka3dfx_sensor_init;
     s->s_release    = s5ka3dfx_sensor_release;
     s->s_config    = s5ka3dfx_sensor_config;
+    s->s_camera_type = FRONT_CAMERA_2D;
 
     printk(KERN_ERR "[CAMDRV/S5KA3DFX] S5KA3DFX sensor probe successful\n");
     return rc;

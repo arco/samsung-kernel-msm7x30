@@ -1103,6 +1103,9 @@ void yda165_speaker_onoff(int onoff) /* speaker path amp onoff */
 		#ifdef CONFIG_MACH_ANCORA_TMO
 		stInfo.bSpNcpl_NonClipRatio = 3;	/* SP Non-Clip power limiter : Non-Clip distortion ratio */
 		stInfo.bSpNcpl_PowerLimit = 8;	/* SP Non-Clip power limiter : Power Limit */
+		#elif defined(CONFIG_MACH_ARIESVE)
+		stInfo.bSpNcpl_NonClipRatio = 1;	/* SP Non-Clip power limiter : Non-Clip distortion ratio */
+		stInfo.bSpNcpl_PowerLimit = 1;	/* SP Non-Clip power limiter : Power Limit */
 		#else
 		stInfo.bSpNcpl_NonClipRatio = 0;	/* SP Non-Clip power limiter : Non-Clip distortion ratio */
 		stInfo.bSpNcpl_PowerLimit = 6;	/* SP Non-Clip power limiter : Power Limit */
@@ -1198,6 +1201,9 @@ void yda165_speaker_call_onoff(int onoff) /* speaker_call path amp onoff */
 		#ifdef CONFIG_MACH_ANCORA_TMO
 		stInfo.bSpNcpl_NonClipRatio = 0;	/* SP Non-Clip power limiter : Non-Clip distortion ratio */
 		stInfo.bSpNcpl_PowerLimit = 8;	/* SP Non-Clip power limiter : Power Limit */
+		#elif defined(CONFIG_MACH_ARIESVE)
+		stInfo.bSpNcpl_NonClipRatio = 1;	/* SP Non-Clip power limiter : Non-Clip distortion ratio */
+		stInfo.bSpNcpl_PowerLimit = 4;	/* SP Non-Clip power limiter : Power Limit */
 		#else
 		stInfo.bSpNcpl_NonClipRatio = 0;	/* SP Non-Clip power limiter : Non-Clip distortion ratio */
 		stInfo.bSpNcpl_PowerLimit = 6;	/* SP Non-Clip power limiter : Power Limit */
@@ -1441,6 +1447,9 @@ void yda165_speaker_headset_onoff(int onoff) /* speaker+headset path amp onoff *
 		#ifdef CONFIG_MACH_ANCORA_TMO
 		stInfo.bSpNcpl_NonClipRatio = 3;	/* SP Non-Clip power limiter : Non-Clip distortion ratio */
 		stInfo.bSpNcpl_PowerLimit = 8;	/* SP Non-Clip power limiter : Power Limit */
+		#elif defined(CONFIG_MACH_ARIESVE)
+		stInfo.bSpNcpl_NonClipRatio = 1;	/* SP Non-Clip power limiter : Non-Clip distortion ratio */
+		stInfo.bSpNcpl_PowerLimit = 1;	/* SP Non-Clip power limiter : Power Limit */
 		#else
 		stInfo.bSpNcpl_NonClipRatio = 0;	/* SP Non-Clip power limiter : Non-Clip distortion ratio */
 		stInfo.bSpNcpl_PowerLimit = 6;	/* SP Non-Clip power limiter : Power Limit */

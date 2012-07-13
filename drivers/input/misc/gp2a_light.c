@@ -45,7 +45,11 @@
 /*******************************************************************************/
 
 
+#ifdef CONFIG_MACH_ARIESVE
+#define SENSOR_NAME "light"
+#else
 #define SENSOR_NAME "light_sensor"
+#endif
 
 #define SENSOR_DEFAULT_DELAY            (200)   /* 200 ms */
 #define SENSOR_MAX_DELAY                (2000)  /* 2000 ms */

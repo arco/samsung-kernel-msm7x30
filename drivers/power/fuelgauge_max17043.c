@@ -113,7 +113,12 @@ unsigned int fg_read_vcell(void)
 		pr_err("%s: Failed to read VCELL1\n", __func__);
 		return -1;
 	}
+
+#if defined(CONFIG_BATT_MICROVOLT_UNIT)
+	vcell = (((data[0] << 4) & 0xFF0) | ((data[1] >> 4) & 0xF)) * 1250;
+#else
 	vcell = ((((data[0] << 4) & 0xFF0) | ((data[1] >> 4) & 0xF)) * 125)/100;
+#endif
 
 	if(!power_down)
 		pr_debug("%s: VCELL=%d\n", __func__, vcell);
@@ -149,6 +154,8 @@ unsigned int fg_read_soc(void)
 
 	/*Adjusted SOC(Ancora)
 	**RCOMP : B0h, FULL : 96.7, EMPTY : 0.0
+	**Adjusted SOC(Aries VE)
+	**RCOMP : D0h, FULL : 97.7, EMPTY : 0.4
 	**Adj_soc = (SOC%-EMPTY)/(FULL-EMPTY)*100
 	*/
 
@@ -157,12 +164,20 @@ unsigned int fg_read_soc(void)
 
 	// hsil for get Adjusted SOC%
 	if(FGPureSOC >= 0)
+#ifdef CONFIG_MACH_ARIESVE
+		FGAdjustSOC = ((FGPureSOC*10000)-40)/9730;
+#else
 		FGAdjustSOC = ((FGPureSOC*10000)-0)/9670;
+#endif
 	else
 		FGAdjustSOC = 0;
 
 	// rounding off and Changing to percentage.
+#ifdef CONFIG_MACH_ARIESVE
+	if(FGAdjustSOC%100 >= 50)
+#else
 	FGSOC=FGAdjustSOC/100;
+#endif
 
 	if(FGAdjustSOC%100 >= 50 && FGSOC > 1)
 		FGSOC+=1;
@@ -272,7 +287,7 @@ void fuel_gauge_rcomp(void)
 
 	if (!client)
 		return ;
-#if defined(CONFIG_MACH_APACHE)
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_APACHE)
 	rst_cmd[0] = 0xC0; /* MAXIM recommend */
 #else
 	rst_cmd[0] = 0xB0;

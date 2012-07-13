@@ -44,11 +44,17 @@ obj-$(CONFIG_PMIC8058_PWRKEY)           += pmic8058-pwrkey.o
 obj-$(CONFIG_PMIC8058_OTHC)             += pmic8058-othc.o
 obj-$(CONFIG_INPUT_PMIC8058_VIBRA_MEMLESS) += pmic8058-vib-memless.o
 obj-$(CONFIG_BOSCH_BMA150)              += bma150.o
-obj-$(CONFIG_SENSORS_BMA023_ACCEL)		+= bma_accel_driver.o
-obj-$(CONFIG_SENSORS_YAS529_MAGNETIC) 	+= yas_mag_kernel_driver.o
-obj-$(CONFIG_SENSORS_ORIENTATION) 	+= orientation.o
-obj-$(CONFIG_OPTICAL_GP2A)		+= gp2a_proximity.o gp2a_rpc.o
-obj-$(CONFIG_GYRO_L3G4200D) 	+= l3g4200d.o
-obj-$(CONFIG_SENSORS_AK8975)	+= ak8975.o
-obj-$(CONFIG_GYRO_K3G)	+= k3g.o
+obj-$(CONFIG_SENSORS_YAS529_MAGNETIC)	+= yas_mag_kernel_driver.o
+ifeq ($(CONFIG_MACH_ARIESVE),y)
+  obj-$(CONFIG_SENSORS_BMA023_ACCEL)	+= yas_acc_kernel_driver_ariesve.o
+  obj-$(CONFIG_SENSORS_ORIENTATION)	+= yas_ori_kernel_driver.o
+  obj-$(CONFIG_OPTICAL_GP2A)		+= gp2a_proximity_ariesve.o gp2a_rpc.o gp2a_light.o
+else
+  obj-$(CONFIG_SENSORS_BMA023_ACCEL)	+= bma_accel_driver.o
+  obj-$(CONFIG_SENSORS_ORIENTATION) 	+= orientation.o
+  obj-$(CONFIG_OPTICAL_GP2A)		+= gp2a_proximity.o gp2a_rpc.o
+endif
+obj-$(CONFIG_GYRO_L3G4200D)		+= l3g4200d.o
+obj-$(CONFIG_SENSORS_AK8975)		+= ak8975.o
+obj-$(CONFIG_GYRO_K3G)			+= k3g.o
 

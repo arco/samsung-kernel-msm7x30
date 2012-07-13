@@ -1685,7 +1685,7 @@ static int msm_pm_enter(suspend_state_t state)
 		for (i = 0; i < 30 && msm_pm_modem_busy(); i++)
 			udelay(500);
 
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
 		if(MicroJigUARTOffStatus)
 		{
 			printk("############ CONNECT MicroJigUARTOffStatus = %d ########### \n",MicroJigUARTOffStatus);
@@ -1745,7 +1745,7 @@ static struct platform_suspend_ops msm_pm_ops = {
 
 static uint32_t restart_reason = 0x776655AA;
 
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
 struct smem_info {
 	    unsigned int info;
 };
@@ -1777,7 +1777,7 @@ volatile smem_proc_comm_data_type *proc_comm;
 
 static void msm_pm_power_off(void)
 {
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
 
 	msm_rpcrouter_close();
  	proc_comm = (volatile smem_proc_comm_data_type *)MSM_SHARED_RAM_BASE;
@@ -1816,7 +1816,7 @@ static void msm_pm_power_off(void)
 
 static void msm_pm_restart(char str, const char *cmd)
 {
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
 
 	msm_rpcrouter_close();
 
@@ -1998,7 +1998,7 @@ static int __init msm_pm_init(void)
 	}
 #endif
 
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
 	reset_base = ioremap(RESET_ALL, PAGE_SIZE);
 	msm_m_gpio2_owner_base = ioremap(MSM_M_GPIO2_OWNER, PAGE_SIZE);
 #endif

@@ -111,37 +111,20 @@ static int vibrator_value = 0;
 
 struct pwm_device	*vib_pwm;
 
-static int set_vibetonz(int timeout)
-{
+static int set_vibetonz(int timeout) {
 	if(!timeout) {
-		//pwm_disable(Immvib_pwm);
-		//printk("[VIBETONZ] DISABLE\n");
-		gpio_set_value(GPIO_VIBTONE_EN1, GPIO_LEVEL_LOW);
-		gpio_direction_input(GPIO_VIBTONE_EN1);
-#if 0
-		s3c_gpio_setpull(GPIO_VIBTONE_EN1,S3C_GPIO_PULL_DOWN);
-#endif
-		if (gpio_tlmm_config(GPIO_CFG(GPIO_VIBTONE_EN1, 0, GPIO_CFG_OUTPUT,
-						  GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), GPIO_CFG_ENABLE))
-				pr_err("%s: gpio_tlmm_config (gpio=%d) failed\n",
-				       __func__, GPIO_VIBTONE_EN1);
-
-
-    wake_unlock(&vib_wake_lock);
-	}
-	else {
-            	wake_lock(&vib_wake_lock);
-		//pwm_config(Immvib_pwm, VIBRATOR_DUTY, VIBRATOR_PERIOD);
-		//pwm_enable(Immvib_pwm);
-		
-		//printk("[VIBETONZ] ENABLE\n");
-		gpio_direction_output(GPIO_VIBTONE_EN1, GPIO_LEVEL_LOW);
-		mdelay(1);
-		gpio_set_value(GPIO_VIBTONE_EN1, GPIO_LEVEL_HIGH);
+		//printk("[VIBETONZ] FIXED DISABLE\n");
+		ImmVibeSPI_ForceOut_AmpDisable(0);
+		wake_unlock(&vib_wake_lock);
+	} else {
+		wake_lock(&vib_wake_lock);
+		//printk("[VIBETONZ] FIXED ENABLE\n");
+		ImmVibeSPI_ForceOut_AmpEnable(0);
+		vibe_set_pwm_freq(121);
 	}
 
 	vibrator_value = timeout;
-	
+
 	return 0;
 }
 

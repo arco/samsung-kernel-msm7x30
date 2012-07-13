@@ -65,7 +65,7 @@ extern void android_usb_switch(int mode);
 #include <linux/syscalls.h>
 
 extern int charging_boot;
-#if defined (CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
 extern int power_off_done;  // For Device Reset/Off
 extern bool power_down;
 #endif
@@ -552,7 +552,7 @@ static void usb_switch_mode(int mode)
 {
 	curr_usb_path = SWITCH_MSM;
 	fsa9480_i2c_write(REGISTER_CONTROL, 0x1E);
-#if defined (CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
 	if(fsa9480_probe_done && curr_usb_status && !power_off_done) {
 #else
 	if(fsa9480_probe_done && curr_usb_status) {
@@ -1275,7 +1275,7 @@ static irqreturn_t fsa9480_interrupt_handler(int irq, void *data)
 {
 	printk("[FSA9480]: interrupt called\n");
 
-#if defined (CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
 	if(!power_off_done)
 #endif
 	{
