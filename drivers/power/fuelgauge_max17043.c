@@ -173,13 +173,13 @@ unsigned int fg_read_soc(void)
 		FGAdjustSOC = 0;
 
 	// rounding off and Changing to percentage.
+	FGSOC=FGAdjustSOC/100;
+
 #ifdef CONFIG_MACH_ARIESVE
 	if(FGAdjustSOC%100 >= 50)
 #else
-	FGSOC=FGAdjustSOC/100;
-#endif
-
 	if(FGAdjustSOC%100 >= 50 && FGSOC > 1)
+#endif
 		FGSOC+=1;
 
 	if(FGSOC>=100)
