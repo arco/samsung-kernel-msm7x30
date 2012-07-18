@@ -230,6 +230,7 @@ static void vid_dec_output_frame_done(struct video_client_ctx *client_ctx,
 	struct file *file;
 	s32 buffer_index = -1;
 	enum vdec_picture pic_type;
+	struct vdec_output_frameinfo  *output_frame;
 
 	if (!client_ctx || !vcd_frame_data) {
 		ERR("vid_dec_input_frame_done() NULL pointer\n");
@@ -323,6 +324,13 @@ static void vid_dec_output_frame_done(struct video_client_ctx *client_ctx,
 		}
 		vdec_msg->vdec_msg_info.msgdata.output_frame.pic_type =
 			pic_type;
+		output_frame = &vdec_msg->vdec_msg_info.msgdata.output_frame;
+		output_frame->aspect_ratio_info.aspect_ratio =
+			vcd_frame_data->aspect_ratio_info.aspect_ratio;
+		output_frame->aspect_ratio_info.par_width =
+			vcd_frame_data->aspect_ratio_info.extended_par_width;
+		output_frame->aspect_ratio_info.par_height =
+			vcd_frame_data->aspect_ratio_info.extended_par_height;
 		vdec_msg->vdec_msg_info.msgdatasize =
 		    sizeof(struct vdec_output_frameinfo);
 	} else {
