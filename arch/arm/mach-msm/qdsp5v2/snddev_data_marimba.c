@@ -2531,7 +2531,7 @@ static struct snddev_icodec_data headset_tx_data = {
 	.pmctl_id = NULL,
 	.pmctl_id_sz = 0,
 	.default_sample_rate = 48000,
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_USA) || defined(CONFIG_MACH_APACHE)
 	.pamp_on = msm_snddev_tx_ear_route_config,
 	.pamp_off = msm_snddev_tx_ear_route_deconfig,
 #else
@@ -3148,7 +3148,7 @@ static struct snddev_icodec_data headset_voip_tx_data = {
 	.pmctl_id = NULL,
 	.pmctl_id_sz = 0,
 	.default_sample_rate = 48000,
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_USA) || defined(CONFIG_MACH_APACHE)
 	.pamp_on = msm_snddev_tx_ear_route_config,
 	.pamp_off = msm_snddev_tx_ear_route_deconfig,
 #else
@@ -3330,7 +3330,7 @@ static struct snddev_icodec_data headset_gan_tx_data = {
 	.pmctl_id = NULL,
 	.pmctl_id_sz = 0,
 	.default_sample_rate = 48000,
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_USA) || defined(CONFIG_MACH_APACHE)
 	.pamp_on = msm_snddev_tx_ear_route_config,
 	.pamp_off = msm_snddev_tx_ear_route_deconfig,
 #else
@@ -3451,7 +3451,7 @@ static struct snddev_icodec_data headset_gtalk_tx_data = {
 	.pmctl_id = NULL,
 	.pmctl_id_sz = 0,
 	.default_sample_rate = 48000,
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_USA) || defined(CONFIG_MACH_APACHE)
 	.pamp_on = msm_snddev_tx_ear_route_config,
 	.pamp_off = msm_snddev_tx_ear_route_deconfig,
 #else
