@@ -1198,7 +1198,7 @@ static DECLARE_WORK ( lcd_esd_work, s6d16a0x_esd );
 
 static irqreturn_t s6d16a0x_esd_irq_handler(int irq, void *handle)
 {
-	pr_info("%s - IRQ\n", __func__ );
+	//pr_info("%s - IRQ\n", __func__ );
 
 	if( samsung_state.disp_initialized )
 	{

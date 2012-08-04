@@ -1312,6 +1312,7 @@ fail:
 		MFREE(dhd->osh, buf, BUF_SIZE);
 }
 
+#ifdef ARP_OFFLOAD_SUPPORT
 void
 dhd_arp_offload_set(dhd_pub_t * dhd, int arp_mode)
 {
@@ -1345,6 +1346,53 @@ dhd_arp_offload_enable(dhd_pub_t * dhd, int arp_enable)
 		DHD_TRACE(("%s: successfully enabed ARP offload to %d\n",
 		__FUNCTION__, arp_enable));
 }
+
+void
+dhd_aoe_arp_clr(dhd_pub_t *dhd)
+{
+	int ret = 0;
+	int iov_len = 0;
+	char iovbuf[128];
+
+	if (dhd == NULL) return;
+
+	iov_len = bcm_mkiovar("arp_table_clear", 0, 0, iovbuf, sizeof(iovbuf));
+	if ((ret  = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, iov_len) < 0))
+		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
+}
+
+void
+dhd_aoe_hostip_clr(dhd_pub_t *dhd)
+{
+	int ret = 0;
+	int iov_len = 0;
+	char iovbuf[128];
+
+	if (dhd == NULL) return;
+
+	iov_len = bcm_mkiovar("arp_hostip_clear", 0, 0, iovbuf, sizeof(iovbuf));
+	if ((ret  = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, iov_len)) < 0)
+		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
+}
+
+void
+dhd_arp_offload_add_ip(dhd_pub_t *dhd, uint32 ipaddr)
+{
+	int iov_len = 0;
+	char iovbuf[32];
+	int retcode;
+
+	iov_len = bcm_mkiovar("arp_hostip", (char *)&ipaddr, 4, iovbuf, sizeof(iovbuf));
+	retcode = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, iov_len);
+
+	if (retcode)
+		DHD_TRACE(("%s: ARP ip addr add failed, retcode = %d\n",
+		__FUNCTION__, retcode));
+	else
+		DHD_TRACE(("%s: sARP H ipaddr entry added \n",
+		__FUNCTION__));
+}
+#endif /* ARP_OFFLOAD_SUPPORT  */
 
 #ifdef USE_KEEP_ALIVE
 int

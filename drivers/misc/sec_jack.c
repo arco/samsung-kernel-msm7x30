@@ -35,7 +35,7 @@
 
 #define MODULE_NAME "sec_jack:"
 #define MAX_ZONE_LIMIT		10
-#define SEND_KEY_CHECK_TIME_MS	140		/* 140ms */
+#define SEND_KEY_CHECK_TIME_MS	120		/* 120ms */
 #define DET_CHECK_TIME_MS	100			/* 100ms */
 #define WAKE_LOCK_TIME		(HZ * 5)	/* 5 sec */
 #define SUPPORT_PBA
@@ -101,7 +101,17 @@ static void set_send_key_state(struct sec_jack_info *hi, int state)
 	/* when button is pressed */
 	adc = pdata->get_adc_value();
 
-      pr_err("[HSS][%s]: adc=%d\n", __func__, adc);
+	pr_err("[HSS][%s]: adc=%d\n", __func__, adc);
+      
+	msleep(40);
+  
+	if(!pdata->get_send_key_state() || !pdata->get_det_jack_state())
+	{
+		pr_warn("%s: key is skipped. ADC value is %d, send_key_state is %d, jack_state is %d.\n", __func__, adc, pdata->get_send_key_state(), pdata->get_det_jack_state());
+		hi->send_key_pressed = 0;
+     	
+		return;
+ 	}
 
 	for (i = 0; i < pdata->num_buttons_zones; i++)
 		if (adc >= btn_zones[i].adc_low &&
@@ -116,7 +126,7 @@ static void set_send_key_state(struct sec_jack_info *hi, int state)
 			return;
 		}
 
-	pr_warn("%s: key is skipped. ADC value is %d\n", __func__, adc);
+	pr_warn("%s: key is skipped. ADC value is %d.\n", __func__, adc);
      	hi->send_key_pressed = 0;
 
     return;
@@ -195,7 +205,7 @@ static void determine_jack_type(struct sec_jack_info *hi)
 
 	while (hi->pdata->get_det_jack_state()) {
 		adc = hi->pdata->get_adc_value();
-		pr_debug(MODULE_NAME "adc = %d\n", adc);
+		pr_err("[%s]: adc=%d\n", __func__, adc);
 
 		/* determine the type of headset based on the
 		 * adc value.  An adc value can fall in various

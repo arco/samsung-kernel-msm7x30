@@ -72,7 +72,7 @@ struct smb328a_chip {
 };
 
 static enum power_supply_property smb328a_battery_props[] = {
-#ifndef CONFIG_MACH_APACHE
+#if !(defined(CONFIG_MACH_APACHE)||defined(CONFIG_MACH_ANCORA_TMO))
 	POWER_SUPPLY_PROP_STATUS,
 #endif
 	POWER_SUPPLY_PROP_PRESENT,
@@ -573,7 +573,7 @@ static int smb328a_chg_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
-#ifdef CONFIG_MACH_APACHE
+#if defined(CONFIG_MACH_APACHE) || defined(CONFIG_MACH_ANCORA_TMO)
 		if(smb328a_read_chg_status(chip->client , &val->intval)==false)
 			return -EIO;
 #else

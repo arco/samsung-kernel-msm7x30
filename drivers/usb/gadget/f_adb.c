@@ -461,31 +461,31 @@ static int adb_enable_open(struct inode *ip, struct file *fp)
 
 	pr_debug("%s: Enabling adb\n", __func__);
 	
-	// [[ *#7284# SETTING CHECK adb_enable_open skip if *#7284# USB is set as MODEM ( CP USB must be detected if *#7284# USB is set as MODEM )
+	// [[ SETTING CHECK adb_enable_open skip if *#7284# USB is set as MODEM ( CP USB must be detected if *#7284# USB is set as MODEM )
 	mm_segment_t fs = get_fs();
 	set_fs(get_ds());
 	
 	if ((fd = sys_open("/persist/usb_sel.bin", O_RDONLY,0)) < 0){	
-		printk("%s :: *#7284# SETTING CHECK open failed %s ,fd=0x%x\n",__func__,"/persist/usb_sel.bin",fd);
+		printk("%s :: SETTING CHECK open failed %s ,fd=0x%x\n",__func__,"/persist/usb_sel.bin",fd);
 	}
 	if( fd >= 0)
 		ret = sys_read(fd,buffer,1);
 	
 	if(ret<0) {
-		printk("*#7284# SETTING CHECK usb_switch_show READ FAIL!\n");
+		printk("SETTING CHECK usb_switch_show READ FAIL!\n");
 	}	
 	if( fd >= 0)	
 		sys_close(fd);
 
 	set_fs(fs);
 	
-	printk("*#7284# SETTING CHECK usb_switch_show usb_sel.bin = %s \n",buffer);
+	printk("SETTING CHECK usb_switch_show usb_sel.bin = %s \n",buffer);
 	
 	if (!strcmp(buffer, "2")){
-		printk("*#7284# SETTING CHECK %s !! \n",buffer);
+		printk("SETTING CHECK %s !! \n",buffer);
 		return -EBUSY;		
 	}
-	// *#7284# SETTING CHECK ]]
+	// SETTING CHECK ]]
 	
 	android_enable_function(&_adb_dev->function, 1);
 

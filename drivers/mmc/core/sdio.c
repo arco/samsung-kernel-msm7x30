@@ -399,7 +399,7 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		 * high-speed, but it seems that 50 MHz is
 		 * mandatory.
 		 */
-		mmc_set_clock(host, 50000000);
+		mmc_set_clock(host, 48000000);
 	} else {
 		mmc_set_clock(host, card->cis.max_dtr);
 	}
@@ -748,7 +748,7 @@ int sdio_reset_comm(struct mmc_card *card)
 		 * high-speed, but it seems that 50 MHz is
 		 * mandatory.
 		 */
-		mmc_set_clock(host, 50000000);
+		mmc_set_clock(host, 48000000);
 	} else {
 		mmc_set_clock(host, card->cis.max_dtr);
 	}

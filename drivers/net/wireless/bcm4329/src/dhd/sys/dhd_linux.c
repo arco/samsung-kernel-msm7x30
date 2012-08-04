@@ -37,6 +37,9 @@
 #include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#ifdef ARP_OFFLOAD_SUPPORT
+#include <linux/inetdevice.h>
+#endif
 #include <linux/etherdevice.h>
 #include <linux/random.h>
 #include <linux/spinlock.h>
@@ -189,6 +192,16 @@ static int32 nStatic_allocated = 0;
 static void __iomem *static_ptr = NULL;
 
 #endif /* defined(DHD_USE_STATIC_BUF) && defined(SAMSUNG_STATIC_BUF) */
+
+#ifdef ARP_OFFLOAD_SUPPORT
+static int dhd_device_event(struct notifier_block *this,
+	unsigned long event,
+	void *ptr);
+
+static struct notifier_block dhd_notifier = {
+	.notifier_call = dhd_device_event
+};
+#endif /* ARP_OFFLOAD_SUPPORT */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP)
 #include <linux/suspend.h>
@@ -598,18 +611,10 @@ static void dhd_suspend_resume_helper(struct dhd_info *dhd, int val)
 	dhd_pub_t *dhdp = &dhd->pub;
 
 	dhd_os_proto_block(dhdp);
-
-	WAKE_LOCK_INIT(&dhd->pub, WAKE_LOCK_DHD_SUSPEND, "dhd_suspend_resume_helper");
-	WAKE_LOCK(&dhd->pub, WAKE_LOCK_DHD_SUSPEND);
-	
 	/* Set flag when early suspend was called */
 	dhdp->in_suspend = val;
 	if (!dhdp->suspend_disable_flag)
 		dhd_set_suspend(val, dhdp);
-
-	WAKE_UNLOCK(&dhd->pub, WAKE_LOCK_DHD_SUSPEND);
-	WAKE_LOCK_DESTROY(&dhd->pub, WAKE_LOCK_DHD_SUSPEND); 
-	
 	dhd_os_proto_unblock(dhdp);
 }
 
@@ -1739,44 +1744,29 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 	uint driver = 0;
 	int ifidx;
 	bool is_set_key_cmd;
-	int ret;
-	
-	WAKE_LOCK_INIT(&dhd->pub, WAKE_LOCK_IOCTL, "dhd_ioctl_entry");
-	WAKE_LOCK(&dhd->pub, WAKE_LOCK_IOCTL);
 
 	ifidx = dhd_net2idx(dhd, net);
 	DHD_TRACE(("%s: ifidx %d, cmd 0x%04x\n", __FUNCTION__, ifidx, cmd));
 
-	if (ifidx == DHD_BAD_IF) {
-		WAKE_UNLOCK(&dhd->pub, WAKE_LOCK_IOCTL);
-		WAKE_LOCK_DESTROY(&dhd->pub, WAKE_LOCK_IOCTL);
+	if (ifidx == DHD_BAD_IF)
 		return -1;
-	}
+
 #if defined(CONFIG_WIRELESS_EXT)
 	/* linux wireless extensions */
 	if ((cmd >= SIOCIWFIRST) && (cmd <= SIOCIWLAST)) {
 		/* may recurse, do NOT lock */
-		ret = wl_iw_ioctl(net, ifr, cmd);
-		WAKE_UNLOCK(&dhd->pub, WAKE_LOCK_IOCTL);
-		WAKE_LOCK_DESTROY(&dhd->pub, WAKE_LOCK_IOCTL);
-		return ret;
+		return wl_iw_ioctl(net, ifr, cmd);
 	}
 #endif /* defined(CONFIG_WIRELESS_EXT) */
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 4, 2)
-	if (cmd == SIOCETHTOOL) {
-		ret = dhd_ethtool(dhd, (void*)ifr->ifr_data);
-		WAKE_UNLOCK(&dhd->pub, WAKE_LOCK_IOCTL);
-		WAKE_LOCK_DESTROY(&dhd->pub, WAKE_LOCK_IOCTL);
-		return ret;
-		}
+	if (cmd == SIOCETHTOOL)
+		return (dhd_ethtool(dhd, (void*)ifr->ifr_data));
 #endif /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 4, 2) */
 
-	if (cmd != SIOCDEVPRIVATE) {
-		WAKE_UNLOCK(&dhd->pub, WAKE_LOCK_IOCTL);
-		WAKE_LOCK_DESTROY(&dhd->pub, WAKE_LOCK_IOCTL);
+	if (cmd != SIOCDEVPRIVATE)
 		return -EOPNOTSUPP;
-	}
+
 	memset(&ioc, 0, sizeof(ioc));
 
 	/* Copy the ioc control structure part of ioctl request */
@@ -1850,9 +1840,13 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 	if (is_set_key_cmd) {
 		dhd_wait_pend8021x(net);
 	}
+	WAKE_LOCK_INIT(&dhd->pub, WAKE_LOCK_IOCTL, "dhd_ioctl_entry");
+	WAKE_LOCK(&dhd->pub, WAKE_LOCK_IOCTL);
 
 	bcmerror = dhd_prot_ioctl(&dhd->pub, ifidx, (wl_ioctl_t *)&ioc, buf, buflen);
 
+	WAKE_UNLOCK(&dhd->pub, WAKE_LOCK_IOCTL);
+	WAKE_LOCK_DESTROY(&dhd->pub, WAKE_LOCK_IOCTL);
 	if ((bcmerror == -ETIMEDOUT) || ((dhd->pub.busstate == DHD_BUS_DOWN) && \
 			(!dhd->pub.dongle_reset))) {
 		DHD_ERROR(("%s: Event HANG send up\n", __FUNCTION__));
@@ -1867,9 +1861,6 @@ done:
 	if (buf)
 		MFREE(dhd->pub.osh, buf, buflen);
 
-	WAKE_UNLOCK(&dhd->pub, WAKE_LOCK_IOCTL);
-	WAKE_LOCK_DESTROY(&dhd->pub, WAKE_LOCK_IOCTL);
-		
 	return OSL_ERROR(bcmerror);
 }
 
@@ -2164,6 +2155,10 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	register_early_suspend(&dhd->early_suspend);
 #endif
 
+#ifdef ARP_OFFLOAD_SUPPORT
+	register_inetaddr_notifier(&dhd_notifier);
+#endif /* ARP_OFFLOAD_SUPPORT */
+
 	return &dhd->pub;
 
 fail:
@@ -2185,10 +2180,10 @@ dhd_write_macaddr(char *addr)
     int ret           = 0;
     mm_segment_t oldfs= {0};
 
+
     strcpy(filepath, "/data/.mac.info");
 
-    //fp = filp_open(filepath, O_RDONLY, 0);
-    fp = filp_open(filepath, O_RDWR, 0);
+    fp = filp_open(filepath, O_RDONLY, 0);
     if(IS_ERR(fp))
     {
 	/* File Doesn't Exist. Create and write mac addr.*/
@@ -2214,57 +2209,6 @@ dhd_write_macaddr(char *addr)
 
 	set_fs(oldfs);
     }
-else {
-	char buf[18]         = {0};
-    int nread = kernel_read(fp, 0,  buf, 256);
-    if(nread < 10) {
-	oldfs = get_fs();
-	set_fs(get_ds());
-
-	sprintf(macbuffer,"%02X:%02X:%02X:%02X:%02X:%02X\n",
-		addr[0],addr[1],addr[2],addr[3],addr[4],addr[5]);
-
-	if(fp->f_mode & FMODE_WRITE)
-	{
-	   ret = fp->f_op->write(fp, (const char *)macbuffer, sizeof(macbuffer), &fp->f_pos);
-		   DHD_INFO(("[WIFI] Mac address [%s] written into File:%s \n", macbuffer, filepath));
-	}
-
-	set_fs(oldfs);
-
-
-    }
-    
-
-}
-
-/*
-else if (stat(MACINFO, &sb) == 0 && sb.st_size < 10) {
-
-	fp = filp_open(filepath, O_RDWR | O_CREAT, 0666);
-    	if(IS_ERR(fp))
-	{
-		fp = NULL;
-			DHD_ERROR(("[WIFI] %s: File open error \n", filepath));
-		return -1;
-	}
-
-	oldfs = get_fs();
-	set_fs(get_ds());
-
-	sprintf(macbuffer,"%02X:%02X:%02X:%02X:%02X:%02X\n",
-		addr[0],addr[1],addr[2],addr[3],addr[4],addr[5]);
-
-	if(fp->f_mode & FMODE_WRITE)
-	{
-	   ret = fp->f_op->write(fp, (const char *)macbuffer, sizeof(macbuffer), &fp->f_pos);
-		   DHD_INFO(("[WIFI] Mac address [%s] written into File:%s \n", macbuffer, filepath));
-	}
-
-	set_fs(oldfs);
-}
-*/
-
 
     if(fp)
 	filp_close(fp, NULL);
@@ -2553,6 +2497,53 @@ static struct net_device_ops dhd_ops_virt = {
 	.ndo_set_multicast_list = dhd_set_multicast_list
 };
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31)) */
+
+#ifdef ARP_OFFLOAD_SUPPORT
+static int dhd_device_event(struct notifier_block *this,
+	unsigned long event,
+	void *ptr)
+{
+	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
+
+	dhd_info_t *dhd;
+	dhd_pub_t *dhd_pub;
+
+	if (!ifa)
+		return NOTIFY_DONE;
+
+	dhd = *(dhd_info_t **)netdev_priv(ifa->ifa_dev->dev);
+	dhd_pub = &dhd->pub;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31))
+	if (ifa->ifa_dev->dev->netdev_ops == &dhd_ops_pri) {
+#else
+	if (ifa->ifa_dev->dev) {
+#endif
+		switch (event) {
+		case NETDEV_UP:
+			DHD_ARPOE(("%s: [%s] Up IP: 0x%x\n",
+				__FUNCTION__, ifa->ifa_label, ifa->ifa_address));
+
+			if (dhd->pub.busstate != DHD_BUS_DATA) {
+				DHD_ERROR(("%s: bus not ready, exit\n", __FUNCTION__));
+				break;
+			}
+
+			dhd_aoe_hostip_clr(dhd_pub);
+			dhd_aoe_arp_clr(dhd_pub);
+			dhd_arp_offload_add_ip(dhd_pub, ifa->ifa_address);
+			break;
+
+		default:
+			DHD_ARPOE(("%s: do noting for [%s] Event: %lu\n",
+				__func__, ifa->ifa_label, event));
+			break;
+		}
+	}
+	return NOTIFY_DONE;
+}
+#endif /* ARP_OFFLOAD_SUPPORT */
+
 int
 dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 {
@@ -2695,6 +2686,10 @@ dhd_detach(dhd_pub_t *dhdp)
 		if (dhd) {
 			dhd_if_t *ifp;
 			int i;
+
+#ifdef ARP_OFFLOAD_SUPPORT
+		unregister_inetaddr_notifier(&dhd_notifier);
+#endif /* ARP_OFFLOAD_SUPPORT */
 
 #if defined(CONFIG_HAS_EARLYSUSPEND)
 		if (dhd->early_suspend.suspend)

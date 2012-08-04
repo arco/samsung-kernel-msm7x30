@@ -93,6 +93,12 @@
 #include <linux/i2c/ak8975.h>
 #endif
 
+/*
+ * sec input bridge for ancora force ramdump
+ */
+#ifdef CONFIG_INPUT_SECBRIDGE
+#include <linux/input/sec-input-bridge.h>
+#endif
 
 /* 2011-06-20 hyeokseon.yu */
 #ifdef CONFIG_CHARGER_SMB328A
@@ -1011,6 +1017,36 @@ static int pm8058_pwm_enable(struct pwm_device *pwm, int ch, int on)
 	}
 	return rc;
 }
+
+#ifdef CONFIG_INPUT_SECBRIDGE
+/*
+ * sec-input-bridge
+ */
+static const struct sec_input_bridge_mkey ancora_mkey_map[] = {
+	{ .type = EV_KEY, .code = KEY_VOLUMEUP      },
+	{ .type = EV_KEY, .code = KEY_HOME          },
+	{ .type = EV_KEY, .code = KEY_VOLUMEDOWN    },
+	{ .type = EV_KEY, .code = KEY_VOLUMEUP      },
+	{ .type = EV_KEY, .code = KEY_HOME          },
+	{ .type = EV_KEY, .code = KEY_VOLUMEDOWN    },
+	{ .type = EV_KEY, .code = KEY_VOLUMEUP      },
+	{ .type = EV_KEY, .code = KEY_HOME          },
+	{ .type = EV_KEY, .code = KEY_VOLUMEDOWN    },
+};
+
+static struct sec_input_bridge_platform_data ancora_input_bridge_data = {
+	.mkey_map = ancora_mkey_map,
+	.num_mkey = ARRAY_SIZE(ancora_mkey_map),
+};
+
+static struct platform_device ancora_input_bridge = {
+	.name	= "samsung_input_bridge",
+	.id	= -1,
+	.dev	= {
+	.platform_data = &ancora_input_bridge_data,
+	},
+};
+#endif
 
 static const unsigned int ancora_keymap[] = {
 	KEY(0, 0, KEY_RESERVED),
@@ -6593,6 +6629,10 @@ static struct platform_device *devices[] __initdata = {
 	&msm_ebi1_thermal,
 #ifdef CONFIG_SAMSUNG_JACK
 	&sec_device_jack,
+#endif
+
+#ifdef CONFIG_INPUT_SECBRIDGE
+	&ancora_input_bridge,
 #endif
 };
 

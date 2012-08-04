@@ -42,6 +42,9 @@
 #define DHD_EVENT(args)		do {if (dhd_msg_level & DHD_EVENT_VAL) printf args;} while (0)
 #define DHD_BTA(args)		do {if (dhd_msg_level & DHD_BTA_VAL)   printf args;} while (0)
 #define DHD_ISCAN(args)		do {if (dhd_msg_level & DHD_ISCAN_VAL) printf args;} while (0)
+#ifdef ARP_OFFLOAD_SUPPORT
+#define DHD_ARPOE(args)		do {if (dhd_msg_level & DHD_ARPOE_VAL) printf args;} while (0)
+#endif	
 
 #define DHD_ERROR_ON()		(dhd_msg_level & DHD_ERROR_VAL)
 #define DHD_TRACE_ON()		(dhd_msg_level & DHD_TRACE_VAL)
@@ -56,6 +59,9 @@
 #define DHD_EVENT_ON()		(dhd_msg_level & DHD_EVENT_VAL)
 #define DHD_BTA_ON()		(dhd_msg_level & DHD_BTA_VAL)
 #define DHD_ISCAN_ON()		(dhd_msg_level & DHD_ISCAN_VAL)
+#ifdef ARP_OFFLOAD_SUPPORT
+#define DHD_ARPOE_ON()		(dhd_msg_level & DHD_ARPOE_VAL)
+#endif
 
 #else /* (defined BCMDBG) || (defined DHD_DEBUG) */
 
@@ -72,6 +78,9 @@
 #define DHD_EVENT(args)
 #define DHD_BTA(args)
 #define DHD_ISCAN(args)
+#ifdef ARP_OFFLOAD_SUPPORT
+#define DHD_ARPOE(args)
+#endif
 
 #define DHD_ERROR_ON()		0
 #define DHD_TRACE_ON()		0
@@ -86,6 +95,9 @@
 #define DHD_EVENT_ON()		0
 #define DHD_BTA_ON()		0
 #define DHD_ISCAN_ON()		0
+#ifdef ARP_OFFLOAD_SUPPORT
+#define DHD_ARPOE_ON()		0
+#endif
 #endif 
 
 #define DHD_LOG(args)

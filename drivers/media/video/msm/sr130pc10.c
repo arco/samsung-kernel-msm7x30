@@ -198,16 +198,14 @@ void sr130pc10_set_preview(void)
     int shade_value = 0;
     unsigned short agc_value = 0;
 	preview_enable = 1; //Setting preview flag 
-#if 0
     if(prev_vtcall_mode==sr130pc10_ctrl->vtcall_mode)
         return;
-#endif
+    
     printk(KERN_ERR "[SR130PC10] sr130pc10_set_preview : dtp(%d), vt(%d)\n",sr130pc10_ctrl->dtp_mode, sr130pc10_ctrl->vtcall_mode);
 
     if(!sr130pc10_ctrl->dtp_mode) {
         if(sr130pc10_ctrl->vtcall_mode) {
-            SR130PC10_WRITE_LIST(sr130pc10_preview_reg); // preview start
-            //SR130PC10_WRITE_LIST(sr130pc10_init_vt_reg);
+            SR130PC10_WRITE_LIST(sr130pc10_init_vt_reg);
             SR130PC10_WRITE_LIST(sr130pc10_fps_15);
         } else {
             SR130PC10_WRITE_LIST(sr130pc10_preview_reg); // preview start
@@ -694,7 +692,7 @@ int sr130pc10_regs_table_init(void)
 	printk("%s %d\n", __func__, __LINE__);
 
 	set_fs(get_ds());
-#if 1
+#if 0
 	//filp = filp_open("/data/camera/sr130pc10.h", O_RDONLY, 0);
 	filp = filp_open("/data/sr130pc10.h", O_RDONLY, 0);
 #else
@@ -914,24 +912,6 @@ static int sr130pc10_set_dtp(int onoff)
     return 0;
 }
 
-static int sr130pc10_set_fps_mode(unsigned int mode) 
-{
-    printk(KERN_ERR "[CAMDRV/sr130pc10]  %s -mode : %d \n",__FUNCTION__,mode);
-    
-    if((mode == EXT_CFG_FRAME_AUTO) || (mode > EXT_CFG_FRAME_FIX_30))
-    { 
-        printk(KERN_ERR "[CAMDRV/sr130pc10] mode change to CAMERA_MODE");
-        sr130pc10_ctrl->vtcall_mode = 0;
-    }     
-    else
-    {
-        printk(KERN_ERR "[CAMDRV/sr130pc10] mode change to CAMCORDER_MODE");
-        sr130pc10_ctrl->vtcall_mode = 1;
-    }
-   
-    return 0;
-}
-
 int sr130pc10_sensor_ext_config(void __user *argp)
 {
     long ext_config_return = 0;
@@ -980,7 +960,6 @@ int sr130pc10_sensor_ext_config(void __user *argp)
             break;
          case EXT_CFG_SET_FPS_MODE:
          // printk(KERN_ERR "[CAMDRV/SR130PC100] EXT_CFG_SET_FPS_MODE ***(%d %d)\n",cfg_data.cmd,cfg_data.value_1);
-            sr130pc10_set_fps_mode(cfg_data.value_1); 
             break;
         case EXT_CFG_SET_WB:
             sr1_whiteBalance = cfg_data.value_1;

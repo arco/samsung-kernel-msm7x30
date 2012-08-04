@@ -1098,7 +1098,7 @@ static ssize_t UsbMenuSel_switch_store(struct device *dev, struct device_attribu
 			CSY_DBG("Fail : value(%d) is not invaild.\n", value);
 	}
 
-	// [[ *#7284# SETTING CHECK adb_enable_open skip if *#7284# USB is set as MODEM ( CP USB must be detected if *#7284# USB is set as MODEM )
+	// [[ SETTING CHECK adb_enable_open skip if  USB is set as MODEM ( CP USB must be detected if USB is set as MODEM )
 	if ( usb_switch_init == 0){
 		printk("usb_switch_init ENTRY \n"); 		
 		mm_segment_t fs = get_fs();
@@ -1128,7 +1128,7 @@ static ssize_t UsbMenuSel_switch_store(struct device *dev, struct device_attribu
 		}
 		usb_switch_init = 1;
 	}
-	// *#7284# SETTING CHECK ]]
+	// SETTING CHECK ]]
 		
 	return size;
 
