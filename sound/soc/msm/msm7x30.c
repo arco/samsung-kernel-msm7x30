@@ -38,7 +38,6 @@
 #include <asm/mach-types.h>
 #include <mach/qdsp5v2/audio_dev_ctl.h>
 #include <mach/debug_mm.h>
-#include <mach/qdsp5v2/afe.h>
 
 static struct platform_device *msm_audio_snd_device;
 struct audio_locks the_locks;
@@ -643,54 +642,6 @@ static int msm_dual_mic_put(struct snd_kcontrol *kcontrol,
 	return msm_set_dual_mic_config(enc_session_id, dual_mic_config);
 }
 
-static int msm_device_mute_info(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = msm_snddev_devcount();
-	return 0;
-}
-
-static int msm_device_mute_get(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
-{
-	return 0;
-}
-
-static int msm_device_mute_put(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
-{
-	int dev_id = ucontrol->value.integer.value[0];
-	int mute = ucontrol->value.integer.value[1];
-	struct msm_snddev_info *dev_info;
-	int afe_dev_id = 0;
-	int volume = 0x4000;
-
-	dev_info = audio_dev_ctrl_find_dev(dev_id);
-	if (IS_ERR(dev_info)) {
-		MM_ERR("pass invalid dev_id %d\n", dev_id);
-		return PTR_ERR(dev_info);
-	}
-
-	if (dev_info->capability & SNDDEV_CAP_RX)
-		return -EPERM;
-
-	MM_DBG("Muting device id %d(%s)\n", dev_id, dev_info->name);
-
-	if (dev_info->copp_id == 0)
-		afe_dev_id = AFE_HW_PATH_CODEC_TX;
-	if (dev_info->copp_id == 1)
-		afe_dev_id = AFE_HW_PATH_AUXPCM_TX;
-	if (dev_info->copp_id == 2)
-		afe_dev_id = AFE_HW_PATH_MI2S_TX;
-	if (mute)
-		volume = 0;
-	afe_device_volume_ctrl(afe_dev_id, volume);
-	return 0;
-}
-
 static struct snd_kcontrol_new snd_dev_controls[AUDIO_DEV_CTL_MAX_DEV];
 
 static int snd_dev_ctl_index(int idx)
@@ -749,8 +700,6 @@ static struct snd_kcontrol_new snd_msm_controls[] = {
 			msm_reset_get, msm_reset_put, 0),
 	MSM_EXT("DualMic Switch", msm_dual_mic_info,
 			msm_dual_mic_get, msm_dual_mic_put, 0),
-	MSM_EXT("Device_Mute", msm_device_mute_info,
-			msm_device_mute_get, msm_device_mute_put, 0),
 };
 
 static int msm_new_mixer(struct snd_card *card)
