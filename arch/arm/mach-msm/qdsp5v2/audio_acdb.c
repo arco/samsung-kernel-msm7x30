@@ -40,7 +40,6 @@
 #include <mach/qdsp5v2/acdb_commands.h>
 #include <mach/qdsp5v2/audio_acdb_def.h>
 #include <mach/debug_mm.h>
-#include <linux/debugfs.h>
 
 /* this is the ACDB device ID */
 #define DALDEVICEID_ACDB		0x02000069
@@ -49,14 +48,10 @@
 #define ACDB_BUF_SIZE			4096
 #define PBE_BUF_SIZE                    (33*1024)
 
-#define ACDB_VALUES_NOT_FILLED		0
-#define ACDB_VALUES_FILLED		1
+#define ACDB_VALUES_NOT_FILLED  	0
+#define ACDB_VALUES_FILLED      	1
 #define MAX_RETRY			10
 
-/*below macro is used to align the session info received from
-Devctl driver with the state mentioned as not to alter the
-Existing code*/
-#define AUDREC_OFFSET	2
 /* rpc table index */
 enum {
 	ACDB_DalACDB_ioctl = DALDEVICE_FIRST_DEVICE_API_IDX
@@ -67,7 +62,6 @@ enum {
 	AUDPP_READY	= 0x2,
 	AUDREC0_READY	= 0x4,
 	AUDREC1_READY	= 0x8,
-	AUDREC2_READY	= 0x10,
 };
 
 
@@ -99,7 +93,8 @@ struct acdb_data {
 	u32 audpp_cb_compl;
 	u32 preproc_cb_compl;
 	u8 preproc_stream_id;
-	u8 audrec_applied;
+	u8 audrec0_applied;
+	u8 audrec1_applied;
 	u32 multiple_sessions;
 	u32 cur_tx_session;
 	struct acdb_result acdb_result;
@@ -140,1039 +135,8 @@ struct acdb_cache_node acdb_cache_rx[MAX_COPP_NODE_SUPPORTED];
 the depth of the tx cache is define by number of AUDREC sessions supported*/
 struct acdb_cache_node acdb_cache_tx[MAX_AUDREC_SESSIONS];
 
-/*Audrec session info includes Attributes Sampling frequency and enc_id */
-struct audrec_session_info session_info[MAX_AUDREC_SESSIONS];
-#ifdef CONFIG_DEBUG_FS
-
-#define RTC_MAX_TIMEOUT 500 /* 500 ms */
-#define PMEM_RTC_ACDB_QUERY_MEM 4096
-#define EXTRACT_HIGH_WORD(x) ((x & 0xFFFF0000)>>16)
-#define EXTRACT_LOW_WORD(x) (0x0000FFFF & x)
-#define	ACDB_RTC_TX 0xF1
-#define	ACDB_RTC_RX 0x1F
 
 
-static u32 acdb_audpp_entry[][4] = {
-
-  { ABID_AUDIO_RTC_VOLUME_PAN_RX,\
-    IID_AUDIO_RTC_VOLUME_PAN_PARAMETERS,\
-    AUDPP_CMD_VOLUME_PAN,\
-    ACDB_RTC_RX
-   },
-  { ABID_AUDIO_IIR_RX,\
-     IID_AUDIO_IIR_COEFF,\
-     AUDPP_CMD_IIR_TUNING_FILTER,
-     ACDB_RTC_RX
-   },
-  { ABID_AUDIO_RTC_EQUALIZER_PARAMETERS,\
-     IID_AUDIO_RTC_EQUALIZER_PARAMETERS,\
-     AUDPP_CMD_EQUALIZER,\
-     ACDB_RTC_RX
-   },
-  { ABID_AUDIO_RTC_SPA,\
-     IID_AUDIO_RTC_SPA_PARAMETERS,\
-     AUDPP_CMD_SPECTROGRAM,
-     ACDB_RTC_RX
-   },
-  { ABID_AUDIO_STF_RX,\
-     IID_AUDIO_IIR_COEFF,\
-     AUDPP_CMD_SIDECHAIN_TUNING_FILTER,\
-     ACDB_RTC_RX
-  },
-  {
-     ABID_AUDIO_MBADRC_RX,\
-     IID_AUDIO_RTC_MBADRC_PARAMETERS,\
-     AUDPP_CMD_MBADRC,\
-     ACDB_RTC_RX
-  },
-  {
-    ABID_AUDIO_AGC_TX,\
-    IID_AUDIO_AGC_PARAMETERS,\
-    AUDPREPROC_CMD_CFG_AGC_PARAMS,\
-    ACDB_RTC_TX
-  },
-  {
-    ABID_AUDIO_AGC_TX,\
-    IID_AUDIO_RTC_AGC_PARAMETERS,\
-    AUDPREPROC_CMD_CFG_AGC_PARAMS,\
-    ACDB_RTC_TX
-  },
-  {
-    ABID_AUDIO_NS_TX,\
-    IID_NS_PARAMETERS,\
-    AUDPREPROC_CMD_CFG_NS_PARAMS,\
-    ACDB_RTC_TX
-  },
-  {
-     ABID_AUDIO_IIR_TX,\
-     IID_AUDIO_RTC_TX_IIR_COEFF,\
-     AUDPREPROC_CMD_CFG_IIR_TUNING_FILTER_PARAMS,\
-     ACDB_RTC_TX
-  },
-  {
-     ABID_AUDIO_IIR_TX,\
-     IID_AUDIO_IIR_COEFF,\
-     AUDPREPROC_CMD_CFG_IIR_TUNING_FILTER_PARAMS,\
-     ACDB_RTC_TX
-  }
- /*Any new entries should be added here*/
-};
-
-static struct dentry *get_set_abid_dentry;
-static struct dentry *get_set_abid_data_dentry;
-
-struct rtc_acdb_pmem {
-	u8 *viraddr;
-	int32_t phys;
-};
-
-struct rtc_acdb_data {
-	u32 acdb_id;
-	u32 cmd_id;
-	u32 set_abid;
-	u32 set_iid;
-	u32 abid;
-	u32 err;
-	bool valid_abid;
-	u32 tx_rx_ctl;
-	struct rtc_acdb_pmem rtc_read;
-	struct rtc_acdb_pmem rtc_write;
-	wait_queue_head_t  wait;
-};
-
-struct get_abid {
-	u32	cmd_id;
-	u32	acdb_id;
-	u32	set_abid;
-	u32	set_iid;
-};
-
-struct acdb_block_mbadrc_rtc {
-	u16 enable;
-	u16 num_bands;
-	u16 down_samp_level;
-	u16 adrc_delay;
-	u16 ext_buf_size;
-	u16 ext_partition;
-	u16 ext_buf_msw;
-	u16 ext_buf_lsw;
-	struct adrc_config adrc_band[AUDPP_MAX_MBADRC_BANDS];
-	signed int ExtBuff[196];
-} __attribute__((packed));
-
-enum {
-	ACDB_RTC_SUCCESS,
-	ACDB_RTC_ERR_INVALID_DEVICE,
-	ACDB_RTC_ERR_DEVICE_INACTIVE,
-	ACDB_RTC_ERR_INVALID_ABID,
-	ACDB_RTC_DSP_FAILURE,
-	ACDB_RTC_DSP_FEATURE_NOT_AVAILABLE,
-	ACDB_RTC_ERR_INVALID_LEN,
-	ACDB_RTC_ERR_UNKNOWN_FAILURE,
-	ACDB_RTC_PENDING_RESPONSE,
-	ACDB_RTC_INIT_FAILURE,
-};
-
-static  struct rtc_acdb_data rtc_acdb;
-
-static int rtc_getsetabid_dbg_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	MM_INFO("GET-SET ABID Open debug intf %s\n",
-			(char *) file->private_data);
-	return 0;
-}
-
-static bool get_feature_id(u32 set_abid, u32 iid, unsigned short *feature_id)
-{
-	bool ret_value = false;
-	int i = 0;
-
-	for (; i < (sizeof(acdb_audpp_entry) / sizeof(acdb_audpp_entry[0]));\
-		i++) {
-		if (acdb_audpp_entry[i][0] == set_abid &&
-			acdb_audpp_entry[i][1] == iid) {
-			*feature_id =  acdb_audpp_entry[i][2];
-			rtc_acdb.tx_rx_ctl = acdb_audpp_entry[i][3];
-			ret_value = true;
-			break;
-		}
-	}
-	return ret_value;
-}
-static ssize_t rtc_getsetabid_dbg_write(struct file *filp,
-					const char __user *ubuf,
-					size_t cnt, loff_t *ppos)
-{
-	struct  get_abid write_abid;
-	unsigned short feat_id = 0;
-	rtc_acdb.valid_abid = false;
-
-	if (copy_from_user(&write_abid, \
-		(void *)ubuf, sizeof(struct get_abid))) {
-		MM_ERR("ACDB DATA WRITE - INVALID READ LEN\n");
-		rtc_acdb.err = ACDB_RTC_ERR_INVALID_LEN;
-		return cnt;
-	}
-	MM_INFO("SET ABID : Cmd ID: %d Device:%d ABID:%d IID : %d cnt: %d\n",\
-		write_abid.cmd_id, write_abid.acdb_id,
-		write_abid.set_abid, write_abid.set_iid, cnt);
-	if (write_abid.acdb_id > ACDB_ID_MAX ||
-		write_abid.acdb_id < ACDB_ID_HANDSET_SPKR){
-		rtc_acdb.err = ACDB_RTC_ERR_INVALID_DEVICE;
-		return cnt;
-	}
-	if (!is_dev_opened(write_abid.acdb_id))	{
-		rtc_acdb.err = ACDB_RTC_ERR_DEVICE_INACTIVE;
-		return cnt;
-	}
-	rtc_acdb.err = ACDB_RTC_ERR_INVALID_ABID;
-	rtc_acdb.abid = write_abid.set_abid;
-	if (get_feature_id(write_abid.set_abid, \
-		write_abid.set_iid, &feat_id)) {
-		rtc_acdb.err = ACDB_RTC_SUCCESS;
-		rtc_acdb.cmd_id = write_abid.cmd_id;
-		rtc_acdb.acdb_id = write_abid.acdb_id;
-		rtc_acdb.set_abid = feat_id;
-		rtc_acdb.valid_abid = true;
-		rtc_acdb.set_iid = write_abid.set_iid;
-	}
-	return cnt;
-}
-static ssize_t	rtc_getsetabid_dbg_read(struct file *file, char __user *buf,
-					size_t count, loff_t *ppos)
-{
-	static char buffer[1024];
-	int n = 0;
-	u32 msg = rtc_acdb.err;
-	memcpy(buffer, &rtc_acdb.cmd_id, sizeof(struct get_abid));
-	memcpy(buffer+16, &msg, 4);
-	n = 20;
-	MM_INFO("SET ABID : Cmd ID: %x Device:%x ABID:%x IID : %x Err: %d\n",\
-		rtc_acdb.cmd_id, rtc_acdb.acdb_id, rtc_acdb.set_abid,\
-		rtc_acdb.set_iid, rtc_acdb.err);
-	return simple_read_from_buffer(buf, count, ppos, buffer, n);
-}
-
-static int rtc_getsetabid_data_dbg_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	MM_INFO("GET-SET ABID DATA Open debug intf %s\n",
-		(char *) file->private_data);
-	return 0;
-}
-
-void acdb_rtc_set_err(u32 ErrCode)
-{
-	if (rtc_acdb.err == ACDB_RTC_PENDING_RESPONSE) {
-		if (ErrCode == 0xFFFF) {
-			rtc_acdb.err = ACDB_RTC_SUCCESS;
-			MM_INFO("RTC READ SUCCESS---\n");
-		} else if (ErrCode == 0) {
-			rtc_acdb.err = ACDB_RTC_DSP_FAILURE;
-			MM_INFO("RTC READ FAIL---\n");
-		} else if (ErrCode == 1) {
-			rtc_acdb.err = ACDB_RTC_DSP_FEATURE_NOT_AVAILABLE;
-			MM_INFO("RTC READ FEAT UNAVAILABLE---\n");
-		} else {
-			rtc_acdb.err = ACDB_RTC_DSP_FAILURE;
-			MM_ERR("RTC Err CODE---\n");
-		}
-	} else {
-		rtc_acdb.err = ACDB_RTC_DSP_FAILURE;
-		MM_ERR("RTC Err code Invalid State\n");
-	}
-	wake_up(&rtc_acdb.wait);
-}
-static ssize_t	rtc_getsetabid_data_dbg_read(struct file *file,
-					char __user *buf, size_t count,
-					loff_t *ppos)
-{
-	static char buffer[PMEM_RTC_ACDB_QUERY_MEM];
-	int rc, n = 0;
-	int counter = 0;
-	struct rtc_acdb_pmem *rtc_read = &rtc_acdb.rtc_read;
-	memset(&buffer, 0, PMEM_RTC_ACDB_QUERY_MEM);
-
-	if (rtc_acdb.valid_abid != true) {
-		MM_ERR("ACDB DATA READ ---INVALID ABID\n");
-		n = 0;
-		rtc_acdb.err = ACDB_RTC_ERR_INVALID_ABID;
-	} else {
-		if (PMEM_RTC_ACDB_QUERY_MEM < count) {
-			MM_ERR("ACDB DATA READ ---\
-				INVALID READ LEN %x\n", count);
-			n = 0;
-			rtc_acdb.err = ACDB_RTC_ERR_INVALID_LEN;
-		} else {
-			rtc_acdb.err = ACDB_RTC_PENDING_RESPONSE;
-			if (rtc_read->viraddr != NULL) {
-				memset(rtc_read->viraddr,
-					0, PMEM_RTC_ACDB_QUERY_MEM);
-			}
-			if (rtc_acdb.tx_rx_ctl == ACDB_RTC_RX) {
-				struct rtc_audpp_read_data rtc_read_cmd;
-				rtc_read_cmd.cmd_id =
-					AUDPP_CMD_PP_FEAT_QUERY_PARAMS;
-				rtc_read_cmd.obj_id =
-					AUDPP_CMD_COPP_STREAM;
-				rtc_read_cmd.route_id =
-					acdb_data.device_info->dev_id;
-				rtc_read_cmd.feature_id = rtc_acdb.set_abid;
-				rtc_read_cmd.extbufsizemsw =
-					EXTRACT_HIGH_WORD(\
-						PMEM_RTC_ACDB_QUERY_MEM);
-				rtc_read_cmd.extbufsizelsw =
-					EXTRACT_LOW_WORD(\
-						PMEM_RTC_ACDB_QUERY_MEM);
-				rtc_read_cmd.extpart = 0x0000;
-				rtc_read_cmd.extbufstartmsw =
-					EXTRACT_HIGH_WORD(rtc_read->phys);
-				rtc_read_cmd.extbufstartlsw =
-					EXTRACT_LOW_WORD(rtc_read->phys);
-				rc = audpp_send_queue2(&rtc_read_cmd,
-						sizeof(rtc_read_cmd));
-				MM_INFO("ACDB READ Command RC --->%x\
-					Route ID=%x\n", rc,\
-					acdb_data.device_info->dev_id);
-			} else if (rtc_acdb.tx_rx_ctl == ACDB_RTC_TX) {
-				struct rtc_audpreproc_read_data rtc_audpreproc;
-				rtc_audpreproc.cmd_id =
-					AUDPREPROC_CMD_FEAT_QUERY_PARAMS;
-				rtc_audpreproc.stream_id =
-					acdb_data.preproc_stream_id;
-				rtc_audpreproc.feature_id = rtc_acdb.set_abid;
-				rtc_audpreproc.extbufsizemsw =
-					EXTRACT_HIGH_WORD(\
-						PMEM_RTC_ACDB_QUERY_MEM);
-				rtc_audpreproc.extbufsizelsw =
-					EXTRACT_LOW_WORD(\
-						PMEM_RTC_ACDB_QUERY_MEM);
-				rtc_audpreproc.extpart = 0x0000;
-				rtc_audpreproc.extbufstartmsw =
-					EXTRACT_HIGH_WORD(rtc_read->phys);
-				rtc_audpreproc.extbufstartlsw =
-					EXTRACT_LOW_WORD(rtc_read->phys);
-				rc =  audpreproc_send_preproccmdqueue(
-						&rtc_audpreproc,\
-						sizeof(rtc_audpreproc));
-				MM_INFO("ACDB READ Command RC --->%x,\
-					stream_id %x\n", rc,\
-					acdb_data.preproc_stream_id);
-			}
-		rc = wait_event_timeout(rtc_acdb.wait,
-					(rtc_acdb.err !=
-					ACDB_RTC_PENDING_RESPONSE),
-					msecs_to_jiffies(RTC_MAX_TIMEOUT));
-		MM_INFO("ACDB READ ACK Count = %x Err = %x\n",
-			count, rtc_acdb.err);
-		{
-			if (rtc_acdb.err == ACDB_RTC_SUCCESS
-				&& rtc_read->viraddr != NULL) {
-				memcpy(buffer, rtc_read->viraddr, count);
-				n = count;
-				while (counter < count) {
-					MM_DBG("%x", \
-						rtc_read->viraddr[counter]);
-					counter++;
-					}
-				}
-		}
-	}
-	}
-	return simple_read_from_buffer(buf, count, ppos, buffer, n);
-}
-
-static bool acdb_set_tx_rtc(const char *ubuf, size_t writecount)
-{
-	struct audpreproc_cmd_cfg_iir_tuning_filter_params *preproc_iir;
-	struct audpreproc_cmd_cfg_agc_params *preproc_agc;
-	struct audpreproc_cmd_cfg_ns_params *preproc_ns;
-	s32	result = 0;
-	bool retval = false;
-	unsigned short iircmdsize =
-		sizeof(struct audpreproc_cmd_cfg_iir_tuning_filter_params);
-	unsigned short iircmdid = AUDPREPROC_CMD_CFG_IIR_TUNING_FILTER_PARAMS;
-
-	rtc_acdb.err = ACDB_RTC_ERR_UNKNOWN_FAILURE;
-
-	switch (rtc_acdb.set_abid) {
-
-	case AUDPREPROC_CMD_CFG_AGC_PARAMS:
-	case AUDPREPROC_CMD_CFG_AGC_PARAMS_2:
-	{
-		preproc_agc = kmalloc(sizeof(\
-					struct audpreproc_cmd_cfg_agc_params),\
-					GFP_KERNEL);
-		if ((sizeof(struct audpreproc_cmd_cfg_agc_params) -\
-			(2*sizeof(unsigned short)))
-			< writecount) {
-				MM_ERR("ACDB DATA WRITE --\
-					AGC TX writecount > DSP struct\n");
-		} else {
-			if (preproc_agc != NULL) {
-				char *base; unsigned short offset;
-				unsigned short *offset_addr;
-				base = (char *)preproc_agc;
-				offset = offsetof(struct \
-						audpreproc_cmd_cfg_agc_params,\
-						tx_agc_param_mask);
-				offset_addr = (unsigned short *)(base + offset);
-				if ((copy_from_user(offset_addr,\
-					(void *)ubuf, writecount)) == 0x00) {
-					preproc_agc->cmd_id =
-						AUDPREPROC_CMD_CFG_AGC_PARAMS;
-					preproc_agc->stream_id =
-						acdb_data.preproc_stream_id;
-					result = audpreproc_dsp_set_agc(
-						preproc_agc,
-						sizeof(struct \
-						audpreproc_cmd_cfg_agc_params));
-					if (result) {
-						MM_ERR("ACDB=> Failed to \
-							send AGC data to \
-							preproc)\n");
-					} else {
-						retval = true;
-					       }
-				} else {
-					MM_ERR("ACDB DATA WRITE ---\
-						GC Tx copy_from_user Fail\n");
-				}
-			} else {
-				MM_ERR("ACDB DATA WRITE --\
-					AGC TX kalloc Failed LEN\n");
-			}
-		}
-		if (preproc_agc != NULL)
-			kfree(preproc_agc);
-		break;
-	}
-	case AUDPREPROC_CMD_CFG_NS_PARAMS:
-	{
-
-		preproc_ns = kmalloc(sizeof(struct \
-					audpreproc_cmd_cfg_ns_params),\
-					GFP_KERNEL);
-		if ((sizeof(struct audpreproc_cmd_cfg_ns_params) -\
-				(2 * sizeof(unsigned short)))
-				< writecount) {
-				MM_ERR("ACDB DATA WRITE --\
-					NS TX writecount > DSP struct\n");
-		} else {
-			if (preproc_ns != NULL) {
-				char *base; unsigned short offset;
-				unsigned short *offset_addr;
-				base = (char *)preproc_ns;
-				offset = offsetof(struct \
-						audpreproc_cmd_cfg_ns_params,\
-						ec_mode_new);
-				offset_addr = (unsigned short *)(base + offset);
-				if ((copy_from_user(offset_addr,\
-					(void *)ubuf, writecount)) == 0x00) {
-					preproc_ns->cmd_id =
-						AUDPREPROC_CMD_CFG_NS_PARAMS;
-					preproc_ns->stream_id =
-						acdb_data.preproc_stream_id;
-					result = audpreproc_dsp_set_ns(
-						preproc_ns,
-						sizeof(struct \
-						audpreproc_cmd_cfg_ns_params));
-					if (result) {
-						MM_ERR("ACDB=> Failed to send \
-							NS data to preproc\n");
-					} else {
-						retval = true;
-					}
-				} else {
-					MM_ERR("ACDB DATA WRITE ---NS Tx \
-						copy_from_user Fail\n");
-					}
-			} else {
-				MM_ERR("ACDB DATA WRITE --NS TX\
-					kalloc Failed LEN\n");
-			}
-		}
-		if (preproc_ns != NULL)
-			kfree(preproc_ns);
-		break;
-	}
-	case AUDPREPROC_CMD_CFG_IIR_TUNING_FILTER_PARAMS:
-	{
-
-		preproc_iir = kmalloc(sizeof(struct \
-				audpreproc_cmd_cfg_iir_tuning_filter_params),\
-				GFP_KERNEL);
-		if ((sizeof(struct \
-			audpreproc_cmd_cfg_iir_tuning_filter_params)-\
-			(2 * sizeof(unsigned short)))
-			< writecount) {
-			MM_ERR("ACDB DATA WRITE --IIR TX writecount\
-						> DSP struct\n");
-		} else {
-			if (preproc_iir != NULL) {
-				char *base; unsigned short offset;
-				unsigned short *offset_addr;
-				base = (char *)preproc_iir;
-				offset = offsetof(struct \
-				audpreproc_cmd_cfg_iir_tuning_filter_params,\
-				active_flag);
-				offset_addr = (unsigned short *)(base + \
-						offset);
-				if ((copy_from_user(offset_addr,\
-					(void *)ubuf, writecount)) == 0x00) {
-					preproc_iir->cmd_id = iircmdid;
-					preproc_iir->stream_id =
-						acdb_data.preproc_stream_id;
-					result = audpreproc_dsp_set_iir(\
-							preproc_iir,
-							iircmdsize);
-					if (result) {
-						MM_ERR("ACDB=> Failed to send\
-						IIR data to preproc\n");
-					} else {
-						retval = true;
-					}
-				} else {
-					MM_ERR("ACDB DATA WRITE ---IIR Tx \
-						copy_from_user Fail\n");
-				}
-			} else {
-				MM_ERR("ACDB DATA WRITE --IIR TX kalloc \
-					Failed LEN\n");
-		     }
-		}
-		if (preproc_iir != NULL)
-			kfree(preproc_iir);
-		break;
-	}
-	}
-	return retval;
-}
-
-static bool acdb_set_rx_rtc(const char *ubuf, size_t writecount)
-{
-
-	struct audpp_cmd_cfg_object_params_volpan *volpan_config;
-	struct audpp_cmd_cfg_object_params_mbadrc *mbadrc_config;
-	struct acdb_block_mbadrc_rtc *acdb_mbadrc_rtc;
-	struct audpp_cmd_cfg_object_params_sidechain *stf_config;
-	struct audpp_cmd_cfg_object_params_spectram *spa_config;
-	struct audpp_cmd_cfg_object_params_eqalizer *eq_config;
-	struct audpp_cmd_cfg_object_params_pcm *iir_config;
-	unsigned short temp_spa[34];
-	struct rtc_acdb_pmem *rtc_write = &rtc_acdb.rtc_write;
-	s32	result = 0;
-	bool retval = false;
-
-	switch (rtc_acdb.set_abid) {
-	case AUDPP_CMD_VOLUME_PAN:
-	{
-		volpan_config =  kmalloc(sizeof(struct \
-					 audpp_cmd_cfg_object_params_volpan),\
-					 GFP_KERNEL);
-		if ((sizeof(struct audpp_cmd_cfg_object_params_volpan) -\
-			sizeof(struct audpp_cmd_cfg_object_params_common))
-			< writecount) {
-			MM_ERR("ACDB DATA WRITE --\
-				VolPan writecount > DSP struct\n");
-		} else {
-			if (volpan_config != NULL) {
-				char *base; unsigned short offset;
-				unsigned short *offset_addr;
-				base = (char *)volpan_config;
-				offset = offsetof(struct \
-					audpp_cmd_cfg_object_params_volpan,\
-					volume);
-				offset_addr = (unsigned short *)(base+offset);
-				if ((copy_from_user(offset_addr,\
-					(void *)ubuf, writecount)) == 0x00) {
-					MM_ERR("ACDB RX WRITE DATA:\
-						AUDPP_CMD_VOLUME_PAN\n");
-					result = audpp_set_volume_and_pan(
-						acdb_data.device_info->dev_id,\
-						volpan_config->volume,
-						volpan_config->pan,
-						COPP);
-					if (result) {
-						MM_ERR("ACDB=> Failed to \
-							send VOLPAN data to"
-							" postproc\n");
-					} else {
-						retval = true;
-					}
-				} else {
-					MM_ERR("ACDB DATA WRITE ---\
-						copy_from_user Fail\n");
-				}
-			} else {
-				MM_ERR("ACDB DATA WRITE --\
-					Vol Pan kalloc Failed LEN\n");
-			}
-		}
-	if (volpan_config != NULL)
-		kfree(volpan_config);
-	break;
-	}
-
-	case AUDPP_CMD_IIR_TUNING_FILTER:
-	{
-		iir_config =  kmalloc(sizeof(struct \
-				audpp_cmd_cfg_object_params_pcm),\
-				GFP_KERNEL);
-		if ((sizeof(struct audpp_cmd_cfg_object_params_pcm) -\
-			sizeof(struct audpp_cmd_cfg_object_params_common))
-			< writecount) {
-			MM_ERR("ACDB DATA WRITE --\
-					IIR RX writecount > DSP struct\n");
-		} else {
-			if (iir_config != NULL) {
-				char *base; unsigned short offset;
-				unsigned short *offset_addr;
-				base = (char *)iir_config;
-				offset = offsetof(struct \
-					audpp_cmd_cfg_object_params_pcm,\
-					active_flag);
-				offset_addr = (unsigned short *)(base+offset);
-				if ((copy_from_user(offset_addr,\
-					(void *)ubuf, writecount)) == 0x00) {
-
-					iir_config->common.cmd_id =
-						AUDPP_CMD_CFG_OBJECT_PARAMS;
-					iir_config->common.stream =
-						AUDPP_CMD_COPP_STREAM;
-					iir_config->common.stream_id = 0;
-					iir_config->common.obj_cfg =
-						AUDPP_CMD_OBJ0_UPDATE;
-					iir_config->common.command_type = 0;
-					MM_ERR("ACDB RX WRITE DATA:\
-					AUDPP_CMD_IIR_TUNING_FILTER\n");
-					result = audpp_dsp_set_rx_iir(
-						acdb_data.device_info->dev_id,
-						iir_config->active_flag,\
-						iir_config, COPP);
-					if (result) {
-						MM_ERR("ACDB=> Failed to send\
-							IIR data to\
-							postproc\n");
-					} else {
-						retval = true;
-					}
-				} else {
-					MM_ERR("ACDB DATA WRITE ---\
-						IIR Rx copy_from_user Fail\n");
-				      }
-			 } else {
-				MM_ERR("ACDB DATA WRITE --\
-					acdb_iir_block kalloc Failed LEN\n");
-			}
-		}
-		if (iir_config != NULL)
-			kfree(iir_config);
-		break;
-	}
-	case AUDPP_CMD_EQUALIZER:
-	{
-		eq_config =  kmalloc(sizeof(struct \
-				audpp_cmd_cfg_object_params_eqalizer),\
-				GFP_KERNEL);
-	if ((sizeof(struct audpp_cmd_cfg_object_params_eqalizer) -\
-			sizeof(struct audpp_cmd_cfg_object_params_common))
-			< writecount) {
-			MM_ERR("ACDB DATA WRITE --\
-			EQ RX writecount > DSP struct\n");
-		} else {
-			if (eq_config != NULL) {
-				char *base; unsigned short offset;
-				unsigned short *offset_addr;
-				base = (char *)eq_config;
-				offset = offsetof(struct \
-					audpp_cmd_cfg_object_params_eqalizer,\
-					eq_flag);
-				offset_addr = (unsigned short *)(base+offset);
-				if ((copy_from_user(offset_addr,\
-					(void *)ubuf, writecount)) == 0x00) {
-					eq_config->common.cmd_id =
-						AUDPP_CMD_CFG_OBJECT_PARAMS;
-					eq_config->common.stream =
-						AUDPP_CMD_COPP_STREAM;
-					eq_config->common.stream_id = 0;
-					eq_config->common.obj_cfg =
-						AUDPP_CMD_OBJ0_UPDATE;
-					eq_config->common.command_type = 0;
-					MM_ERR("ACDB RX WRITE\
-					DATA:AUDPP_CMD_EQUALIZER\n");
-					result = audpp_dsp_set_eq(
-						acdb_data.device_info->dev_id,
-						eq_config->eq_flag,\
-						eq_config,
-						COPP);
-					if (result) {
-						MM_ERR("ACDB=> Failed to \
-						send EQ data to postproc\n");
-					} else {
-						retval = true;
-					}
-				} else {
-					MM_ERR("ACDB DATA WRITE ---\
-					EQ Rx copy_from_user Fail\n");
-				}
-			} else {
-				MM_ERR("ACDB DATA WRITE --\
-					EQ kalloc Failed LEN\n");
-			}
-		}
-		if (eq_config != NULL)
-			kfree(eq_config);
-		break;
-	}
-
-	case AUDPP_CMD_SPECTROGRAM:
-	{
-		spa_config =  kmalloc(sizeof(struct \
-				audpp_cmd_cfg_object_params_spectram),\
-				GFP_KERNEL);
-		if ((sizeof(struct audpp_cmd_cfg_object_params_spectram)-\
-				sizeof(struct \
-				audpp_cmd_cfg_object_params_common))
-				< (2 * sizeof(unsigned short))) {
-					MM_ERR("ACDB DATA WRITE --SPA \
-					RX writecount > DSP struct\n");
-		} else {
-			if (spa_config != NULL) {
-				if ((copy_from_user(&temp_spa[0],\
-					(void *)ubuf,
-					(34 * sizeof(unsigned short))))
-					== 0x00) {
-					spa_config->common.cmd_id =
-						AUDPP_CMD_CFG_OBJECT_PARAMS;
-					spa_config->common.stream =
-						AUDPP_CMD_COPP_STREAM;
-					spa_config->common.stream_id = 0;
-					spa_config->common.obj_cfg =
-						AUDPP_CMD_OBJ0_UPDATE;
-					spa_config->common.command_type = 0;
-					spa_config->sample_interval =
-						temp_spa[0];
-					spa_config->num_coeff = temp_spa[1];
-					MM_ERR("ACDB RX WRITE DATA:\
-						AUDPP_CMD_SPECTROGRAM\n");
-					result = audpp_dsp_set_spa(
-						acdb_data.device_info->dev_id,\
-						spa_config, COPP);
-					if (result) {
-						MM_ERR("ACDB=> Failed to \
-							send SPA data \
-							to postproc\n");
-					} else {
-						retval = true;
-					      }
-				} else {
-					MM_ERR("ACDB DATA WRITE \
-					---SPA Rx copy_from_user\
-					Fail\n");
-				}
-			} else {
-				MM_ERR("ACDB DATA WRITE --\
-				SPA kalloc Failed LEN\n");
-			       }
-			}
-		if (spa_config != NULL)
-			kfree(spa_config);
-	break;
-	}
-	case AUDPP_CMD_MBADRC:
-	{
-		acdb_mbadrc_rtc =  kmalloc(sizeof(struct \
-					acdb_block_mbadrc_rtc),\
-					GFP_KERNEL);
-		mbadrc_config =  kmalloc(sizeof(struct \
-					audpp_cmd_cfg_object_params_mbadrc),\
-					GFP_KERNEL);
-		if (mbadrc_config != NULL && acdb_mbadrc_rtc != NULL) {
-			if ((copy_from_user(acdb_mbadrc_rtc,\
-				(void *)ubuf,
-				sizeof(struct acdb_block_mbadrc_rtc)))
-				== 0x00) {
-				mbadrc_config->common.cmd_id =
-					AUDPP_CMD_CFG_OBJECT_PARAMS;
-				mbadrc_config->common.stream =
-					AUDPP_CMD_COPP_STREAM;
-				mbadrc_config->common.stream_id = 0;
-				mbadrc_config->common.obj_cfg =
-					AUDPP_CMD_OBJ0_UPDATE;
-				mbadrc_config->common.command_type = 0;
-				mbadrc_config->enable =
-						acdb_mbadrc_rtc->enable;
-				mbadrc_config->num_bands =
-						acdb_mbadrc_rtc->num_bands;
-				mbadrc_config->down_samp_level =
-				acdb_mbadrc_rtc->down_samp_level;
-				mbadrc_config->adrc_delay =
-					acdb_mbadrc_rtc->adrc_delay;
-				memcpy(mbadrc_config->adrc_band,\
-					acdb_mbadrc_rtc->adrc_band,\
-					AUDPP_MAX_MBADRC_BANDS *\
-					sizeof(struct adrc_config));
-				if (mbadrc_config->num_bands > 1) {
-					mbadrc_config->ext_buf_size =
-						(97 * 2) + (33 * 2 * \
-					(mbadrc_config->num_bands - 2));
-				}
-				mbadrc_config->ext_partition = 0;
-				mbadrc_config->ext_buf_lsw =
-					(u16) EXTRACT_LOW_WORD(\
-						rtc_write->phys);
-				mbadrc_config->ext_buf_msw =
-					(u16) EXTRACT_HIGH_WORD(\
-						rtc_write->phys);
-				memcpy(rtc_write->viraddr,
-					acdb_mbadrc_rtc->ExtBuff,
-					(196*sizeof(signed int)));
-				result = audpp_dsp_set_mbadrc(
-						acdb_data.device_info->dev_id,
-						mbadrc_config->enable,
-						mbadrc_config, COPP);
-				if (result) {
-					MM_ERR("ACDB=> Failed to \
-						Send MBADRC data \
-						to postproc\n");
-				} else {
-					retval = true;
-				}
-			} else {
-				MM_ERR("ACDB DATA WRITE ---\
-					MBADRC Rx copy_from_user Fail\n");
-			}
-		} else {
-			MM_ERR("ACDB DATA WRITE --MBADRC kalloc Failed LEN\n");
-		}
-		if (mbadrc_config != NULL)
-			kfree(mbadrc_config);
-		if (acdb_mbadrc_rtc != NULL)
-			kfree(acdb_mbadrc_rtc);
-	break;
-	}
-	case AUDPP_CMD_SIDECHAIN_TUNING_FILTER:
-	{
-		stf_config =  kmalloc(sizeof(struct \
-				audpp_cmd_cfg_object_params_sidechain),\
-				GFP_KERNEL);
-		if ((sizeof(struct audpp_cmd_cfg_object_params_sidechain) -\
-			sizeof(struct audpp_cmd_cfg_object_params_common))
-			< writecount) {
-				MM_ERR("ACDB DATA WRITE --\
-					STF RX writecount > DSP struct\n");
-		} else {
-			if (stf_config != NULL) {
-				char *base; unsigned short offset;
-				unsigned short *offset_addr;
-				base = (char *)stf_config;
-				offset = offsetof(struct \
-					audpp_cmd_cfg_object_params_sidechain,\
-					active_flag);
-				offset_addr = (unsigned short *)(base+offset);
-				if ((copy_from_user(offset_addr,\
-					(void *)ubuf, writecount)) == 0x00) {
-					stf_config->common.cmd_id =
-						AUDPP_CMD_CFG_OBJECT_PARAMS;
-					stf_config->common.stream =
-						AUDPP_CMD_COPP_STREAM;
-					stf_config->common.stream_id = 0;
-					stf_config->common.obj_cfg =
-						AUDPP_CMD_OBJ0_UPDATE;
-					stf_config->common.command_type = 0;
-					MM_ERR("ACDB RX WRITE DATA:\
-					AUDPP_CMD_SIDECHAIN_TUNING_FILTER\n");
-				result = audpp_dsp_set_stf(
-						acdb_data.device_info->dev_id,\
-						stf_config->active_flag,\
-						stf_config, COPP);
-					if (result) {
-						MM_ERR("ACDB=> Failed to send \
-						STF data to postproc\n");
-					} else {
-						retval = true;
-					}
-				} else {
-					MM_ERR("ACDB DATA WRITE ---\
-					STF Rx copy_from_user Fail\n");
-				}
-			} else {
-				MM_ERR("ACDB DATA WRITE \
-					STF kalloc Failed LEN\n");
-		}
-	}
-	if (stf_config != NULL)
-		kfree(stf_config);
-	break;
-	}
-	}
-	return retval;
-}
-static ssize_t rtc_getsetabid_data_dbg_write(struct file *filp,
-						const char __user *ubuf,
-						size_t cnt, loff_t *ppos)
-{
-	if (rtc_acdb.valid_abid != true) {
-		MM_INFO("ACDB DATA READ ---INVALID ABID\n");
-		rtc_acdb.err = ACDB_RTC_ERR_INVALID_ABID;
-	} else {
-		if (rtc_acdb.tx_rx_ctl == ACDB_RTC_RX) {
-			if (acdb_set_rx_rtc(ubuf, cnt)) {
-				rtc_acdb.err = ACDB_RTC_SUCCESS;
-			} else {
-			rtc_acdb.err = ACDB_RTC_ERR_UNKNOWN_FAILURE;
-			cnt = 0;
-		}
-	} else if (rtc_acdb.tx_rx_ctl == ACDB_RTC_TX) {
-		if (acdb_set_tx_rtc(ubuf, cnt)) {
-			rtc_acdb.err = ACDB_RTC_SUCCESS;
-		} else {
-			rtc_acdb.err = ACDB_RTC_ERR_UNKNOWN_FAILURE;
-			cnt = 0;
-		}
-	}
-  }
-	return cnt;
-}
-
-
-static const	struct file_operations rtc_acdb_data_debug_fops = {
-	.open = rtc_getsetabid_data_dbg_open,
-	.write = rtc_getsetabid_data_dbg_write,
-	.read = rtc_getsetabid_data_dbg_read
-};
-
-static const	struct file_operations rtc_acdb_debug_fops = {
-	.open = rtc_getsetabid_dbg_open,
-	.write = rtc_getsetabid_dbg_write,
-	.read = rtc_getsetabid_dbg_read
-};
-
-static void rtc_acdb_deinit(void)
-{
-	struct rtc_acdb_pmem *rtc_read = &rtc_acdb.rtc_read;
-	struct rtc_acdb_pmem *rtc_write = &rtc_acdb.rtc_write;
-	if (get_set_abid_dentry) {
-		MM_DBG("GetSet ABID remove debugfs\n");
-		debugfs_remove(get_set_abid_dentry);
-	}
-
-	if (get_set_abid_data_dentry) {
-		MM_DBG("GetSet ABID remove debugfs\n");
-		debugfs_remove(get_set_abid_data_dentry);
-	}
-	rtc_acdb.abid = 0;
-	rtc_acdb.acdb_id = 0;
-	rtc_acdb.cmd_id = 0;
-	rtc_acdb.err = 1;
-	rtc_acdb.set_abid = 0;
-	rtc_acdb.set_iid = 0;
-	rtc_acdb.tx_rx_ctl = 0;
-	rtc_acdb.valid_abid = false;
-
-	if (rtc_read->viraddr != NULL || ((void *)rtc_read->phys) != NULL) {
-		iounmap(rtc_read->viraddr);
-		pmem_kfree(rtc_read->phys);
-	}
-	if (rtc_write->viraddr != NULL || ((void *)rtc_write->phys) != NULL) {
-		iounmap(rtc_write->viraddr);
-		pmem_kfree(rtc_write->phys);
-	}
-}
-
-static bool rtc_acdb_init(void)
-{
-	struct rtc_acdb_pmem *rtc_read = &rtc_acdb.rtc_read;
-	struct rtc_acdb_pmem *rtc_write = &rtc_acdb.rtc_write;
-	s32 result = 0;
-	char name[sizeof "get_set_abid"+1];
-	char name1[sizeof "get_set_abid_data"+1];
-	rtc_acdb.abid = 0;
-	rtc_acdb.acdb_id = 0;
-	rtc_acdb.cmd_id = 0;
-	rtc_acdb.err = 1;
-	rtc_acdb.set_abid = 0;
-	rtc_acdb.set_iid = 0;
-	rtc_acdb.valid_abid = false;
-	rtc_acdb.tx_rx_ctl = 0;
-	snprintf(name, sizeof name, "get_set_abid");
-	get_set_abid_dentry = debugfs_create_file(name,
-					S_IFREG | S_IRUGO | S_IWUGO,
-					NULL, NULL, &rtc_acdb_debug_fops);
-	if (IS_ERR(get_set_abid_dentry)) {
-		MM_ERR("SET GET ABID debugfs_create_file failed\n");
-		return false;
-	}
-
-    snprintf(name1, sizeof name1, "get_set_abid_data");
-	get_set_abid_data_dentry = debugfs_create_file(name1,
-					S_IFREG | S_IRUGO | S_IWUGO,
-					NULL, NULL,
-					&rtc_acdb_data_debug_fops);
-	if (IS_ERR(get_set_abid_data_dentry)) {
-		MM_ERR("SET GET ABID DATA debugfs_create_file failed\n");
-		return false;
-	}
-
-	rtc_read->phys = pmem_kalloc(PMEM_RTC_ACDB_QUERY_MEM,
-					PMEM_MEMTYPE_EBI1|PMEM_ALIGNMENT_4K);
-
-	if (IS_ERR((void *)rtc_read->phys)) {
-		MM_ERR("ACDB Cannot allocate physical memory\n");
-		result = -ENOMEM;
-		goto error;
-	}
-	rtc_read->viraddr = ioremap(rtc_read->phys, PMEM_RTC_ACDB_QUERY_MEM);
-
-	if (rtc_read->viraddr == NULL) {
-		MM_ERR("ACDB Could not map physical address\n");
-		result = -ENOMEM;
-		goto error;
-	}
-	memset(rtc_read->viraddr, 0, PMEM_RTC_ACDB_QUERY_MEM);
-
-	rtc_write->phys = pmem_kalloc(PMEM_RTC_ACDB_QUERY_MEM,
-					PMEM_MEMTYPE_EBI1|PMEM_ALIGNMENT_4K);
-
-	if (IS_ERR((void *)rtc_write->phys)) {
-		MM_ERR("ACDB Cannot allocate physical memory\n");
-		result = -ENOMEM;
-		goto error;
-	}
-	rtc_write->viraddr = ioremap(rtc_write->phys, PMEM_RTC_ACDB_QUERY_MEM);
-
-	if (rtc_write->viraddr == NULL) {
-		MM_ERR("ACDB Could not map physical address\n");
-		result = -ENOMEM;
-		goto error;
-	}
-	memset(rtc_write->viraddr, 0, PMEM_RTC_ACDB_QUERY_MEM);
-	init_waitqueue_head(&rtc_acdb.wait);
-	return true;
-error:
-	MM_DBG("INIT RTC FAILED REMOVING RTC DEBUG FS\n");
-	if (get_set_abid_dentry) {
-		MM_DBG("GetSet ABID remove debugfs\n");
-		debugfs_remove(get_set_abid_dentry);
-	}
-
-	if (get_set_abid_data_dentry) {
-		MM_DBG("GetSet ABID remove debugfs\n");
-		debugfs_remove(get_set_abid_data_dentry);
-	}
-	if (rtc_read->viraddr != NULL || ((void *)rtc_read->phys) != NULL) {
-		iounmap(rtc_read->viraddr);
-		pmem_kfree(rtc_read->phys);
-	}
-	if (rtc_write->viraddr != NULL || ((void *)rtc_write->phys) != NULL) {
-		iounmap(rtc_write->viraddr);
-		pmem_kfree(rtc_write->phys);
-	}
-	return false;
-}
-#endif /*CONFIG_DEBUG_FS*/
 static s32 acdb_set_calibration_blk(unsigned long arg)
 {
 	struct acdb_cmd_device acdb_cmd;
@@ -1334,62 +298,6 @@ struct miscdevice acdb_misc = {
 	.fops	= &acdb_fops,
 };
 
-static s32 acdb_get_calibration(void)
-{
-	struct acdb_cmd_get_device_table	acdb_cmd;
-	s32					result = 0;
-	u32 iterations = 0;
-
-	MM_DBG("acdb state = %d\n", acdb_data.acdb_state);
-
-	acdb_cmd.command_id = ACDB_GET_DEVICE_TABLE;
-	acdb_cmd.device_id = acdb_data.device_info->acdb_id;
-	acdb_cmd.network_id = 0x0108B153;
-	acdb_cmd.sample_rate_id = acdb_data.device_info->sample_rate;
-	acdb_cmd.total_bytes = ACDB_BUF_SIZE;
-	acdb_cmd.phys_buf = (u32 *)acdb_data.phys_addr;
-	MM_DBG("device_id = %d, sampling_freq = %d\n",
-				acdb_cmd.device_id, acdb_cmd.sample_rate_id);
-
-	do {
-		result = dalrpc_fcn_8(ACDB_DalACDB_ioctl, acdb_data.handle,
-				(const void *)&acdb_cmd, sizeof(acdb_cmd),
-				&acdb_data.acdb_result,
-				sizeof(acdb_data.acdb_result));
-
-		if (result < 0) {
-			MM_ERR("ACDB=> Device table RPC failure"
-				" result = %d\n", result);
-			goto error;
-		}
-		/*following check is introduced to handle boot up race
-		condition between AUDCAL SW peers running on apps
-		and modem (ACDB_RES_BADSTATE indicates modem AUDCAL SW is
-		not in initialized sate) we need to retry to get ACDB
-		values*/
-		if (acdb_data.acdb_result.result == ACDB_RES_BADSTATE) {
-			msleep(500);
-			iterations++;
-		} else if (acdb_data.acdb_result.result == ACDB_RES_SUCCESS) {
-			MM_DBG("Modem query for acdb values is successful"
-					" (iterations = %d)\n", iterations);
-			acdb_data.acdb_state |= CAL_DATA_READY;
-			return result;
-		} else {
-			MM_ERR("ACDB=> modem failed to fill acdb values,"
-					" reuslt = %d, (iterations = %d)\n",
-					acdb_data.acdb_result.result,
-					iterations);
-			goto error;
-		}
-	} while (iterations < MAX_RETRY);
-	MM_ERR("ACDB=> AUDCAL SW on modem is not in intiailized state (%d)\n",
-			acdb_data.acdb_result.result);
-error:
-	result = -EINVAL;
-	return result;
-}
-
 s32 acdb_get_calibration_data(struct acdb_get_block *get_block)
 {
 	s32 result = -EINVAL;
@@ -1454,8 +362,7 @@ static u8 check_device_info_already_present(
 		/*checking for cache node status if it is not filled then the
 		acdb values are not cleaned from node so update node status
 		with acdb value filled*/
-		if ((acdb_cache_free_node->node_status != ACDB_VALUES_FILLED) &&
-			((audcal_info.dev_type & RX_DEVICE) == 1)) {
+		if (acdb_cache_free_node->node_status != ACDB_VALUES_FILLED) {
 			MM_DBG("device was released earlier\n");
 			acdb_cache_free_node->node_status = ACDB_VALUES_FILLED;
 			return 2; /*node is presnet but status as not filled*/
@@ -1563,7 +470,7 @@ static void extract_mbadrc(u32 *phy_addr, struct header *prs_hdr, u32 *index)
 					sizeof(struct header);
 		memcpy(acdb_data.mbadrc_block.ext_buf,
 				(acdb_data.virt_addr + *index +
-					sizeof(struct header)), 196*2);
+					sizeof(struct header)), 197*2);
 		MM_DBG("phy_addr = %x\n", *phy_addr);
 		*index += prs_hdr->data_len + sizeof(struct header);
 	} else if (prs_hdr->iid == IID_MBADRC_BAND_CONFIG) {
@@ -1622,6 +529,7 @@ static void get_audpp_mbadrc_block(u32 *phy_addr)
 static s32 acdb_fill_audpp_mbadrc(void)
 {
 	u32 mbadrc_phys_addr = -1;
+
 	get_audpp_mbadrc_block(&mbadrc_phys_addr);
 	if (IS_ERR_VALUE(mbadrc_phys_addr)) {
 		MM_ERR("failed to get mbadrc block\n");
@@ -1661,7 +569,7 @@ static s32 acdb_fill_audpp_mbadrc(void)
 	memcpy(acdb_data.pp_mbadrc->adrc_band, acdb_data.mbadrc_block.\
 					band_config,
 		sizeof(struct mbadrc_band_config_type) *
-		acdb_data.mbadrc_block.parameters.mbadrc_num_bands);
+			acdb_data.mbadrc_block.parameters.mbadrc_num_bands);
 	return 0;
 }
 
@@ -2286,46 +1194,23 @@ static s32 acdb_send_calibration(void)
 			goto done;
 	} else if ((acdb_data.device_info->dev_type & TX_DEVICE) == 2) {
 		result = acdb_calibrate_audpreproc();
+		if (acdb_data.preproc_stream_id == 1)
+			acdb_data.audrec1_applied = 1;
+		else
+			acdb_data.audrec0_applied = 1;
 		if (result)
 			goto done;
-		if (acdb_data.preproc_stream_id == 0)
-			acdb_data.audrec_applied |= AUDREC0_READY;
-		else if (acdb_data.preproc_stream_id == 1)
-			acdb_data.audrec_applied |= AUDREC1_READY;
-		else if (acdb_data.preproc_stream_id == 2)
-			acdb_data.audrec_applied |= AUDREC2_READY;
-		MM_DBG("acdb_data.audrec_applied = %x\n",
-					acdb_data.audrec_applied);
 	}
 done:
 	return result;
-}
-
-static u8 check_tx_acdb_values_cached(void)
-{
-	u8 stream_id  = acdb_data.preproc_stream_id;
-
-	if ((acdb_data.device_info->dev_id ==
-		acdb_cache_tx[stream_id].device_info.dev_id) &&
-		(acdb_data.device_info->sample_rate ==
-		acdb_cache_tx[stream_id].device_info.sample_rate) &&
-		(acdb_data.device_info->acdb_id ==
-		acdb_cache_tx[stream_id].device_info.acdb_id) &&
-		(acdb_cache_tx[stream_id].node_status ==
-						ACDB_VALUES_FILLED))
-		return 0;
-	else
-		return 1;
 }
 
 static void handle_tx_device_ready_callback(void)
 {
 	u8 i = 0;
 	u8 ret = 0;
-	u8 acdb_value_apply = 0;
-	u8 result = 0;
-	u8 stream_id = acdb_data.preproc_stream_id;
-
+	acdb_cache_tx[acdb_data.cur_tx_session].node_status =
+							ACDB_VALUES_FILLED;
 	if (acdb_data.multiple_sessions) {
 		for (i = 0; i < MAX_AUDREC_SESSIONS; i++) {
 			/*check is to exclude copying acdb values in the
@@ -2349,43 +1234,25 @@ static void handle_tx_device_ready_callback(void)
 	}
 	/*check wheather AUDREC enabled before device call backs*/
 	if ((acdb_data.acdb_state & AUDREC0_READY) &&
-			!(acdb_data.audrec_applied & AUDREC0_READY)) {
+					(!acdb_data.audrec0_applied)) {
 		MM_DBG("AUDREC0 already enabled apply acdb values\n");
-		acdb_value_apply |= AUDREC0_READY;
-	} else if ((acdb_data.acdb_state & AUDREC1_READY) &&
-			!(acdb_data.audrec_applied & AUDREC1_READY)) {
-		MM_DBG("AUDREC1 already enabled apply acdb values\n");
-		acdb_value_apply |= AUDREC1_READY;
-	} else if ((acdb_data.acdb_state & AUDREC2_READY) &&
-			!(acdb_data.audrec_applied & AUDREC2_READY)) {
-		MM_DBG("AUDREC2 already enabled apply acdb values\n");
-		acdb_value_apply |= AUDREC2_READY;
+		acdb_send_calibration();
 	}
-	if (acdb_value_apply) {
-		if (session_info[stream_id].sampling_freq)
-			acdb_data.device_info->sample_rate =
-					session_info[stream_id].sampling_freq;
-		result = check_tx_acdb_values_cached();
-		if (result) {
-			result = acdb_get_calibration();
-			if (result < 0) {
-				MM_ERR("Not able to get calibration"
-						" data continue\n");
-				return;
-			}
-		}
-		acdb_cache_tx[stream_id].node_status = ACDB_VALUES_FILLED;
+	if ((acdb_data.acdb_state & AUDREC1_READY) &&
+					(!acdb_data.audrec1_applied)) {
+		MM_DBG("AUDREC1 already enabled apply acdb values\n");
 		acdb_send_calibration();
 	}
 }
 
-static struct acdb_cache_node *get_acdb_values_from_cache_tx(u32 stream_id)
+static struct acdb_cache_node *get_acdb_values_from_cache_tx(
+						u32 preproc_stream_id)
 {
-	MM_DBG("searching node with stream_id %d\n", stream_id);
-	if ((acdb_cache_tx[stream_id].stream_id == stream_id) &&
-			(acdb_cache_tx[stream_id].node_status ==
-					ACDB_VALUES_NOT_FILLED)) {
-			return &acdb_cache_tx[stream_id];
+	MM_DBG("searching node with stream_id %d\n", preproc_stream_id);
+	if ((acdb_cache_tx[preproc_stream_id].stream_id == preproc_stream_id) &&
+			(acdb_cache_tx[preproc_stream_id].node_status ==
+					ACDB_VALUES_FILLED)) {
+			return &acdb_cache_tx[preproc_stream_id];
 	}
 	MM_DBG("Error! in finding node\n");
 	return NULL;
@@ -2412,6 +1279,59 @@ static void send_acdb_values_for_active_devices(void)
 				acdb_send_calibration();
 		}
 	}
+}
+
+static s32 acdb_get_calibration(void)
+{
+	struct acdb_cmd_get_device_table	acdb_cmd;
+	s32					result = 0;
+	u32 iterations = 0;
+
+	MM_DBG("acdb state = %d\n", acdb_data.acdb_state);
+	acdb_cmd.command_id = ACDB_GET_DEVICE_TABLE;
+	acdb_cmd.device_id = acdb_data.device_info->acdb_id;
+	acdb_cmd.network_id = 0x0108B153;
+	acdb_cmd.sample_rate_id = acdb_data.device_info->sample_rate;
+	acdb_cmd.total_bytes = ACDB_BUF_SIZE;
+	acdb_cmd.phys_buf = (u32 *)acdb_data.phys_addr;
+
+	do {
+		result = dalrpc_fcn_8(ACDB_DalACDB_ioctl, acdb_data.handle,
+				(const void *)&acdb_cmd, sizeof(acdb_cmd),
+				&acdb_data.acdb_result,
+				sizeof(acdb_data.acdb_result));
+
+		if (result < 0) {
+			MM_ERR("ACDB=> Device table RPC failure"
+				" result = %d\n", result);
+			goto error;
+		}
+		/*following check is introduced to handle boot up race
+		condition between AUDCAL SW peers running on apps
+		and modem (ACDB_RES_BADSTATE indicates modem AUDCAL SW is
+		not in initialized sate) we need to retry to get ACDB
+		values*/
+		if (acdb_data.acdb_result.result == ACDB_RES_BADSTATE) {
+			msleep(500);
+			iterations++;
+		} else if (acdb_data.acdb_result.result == ACDB_RES_SUCCESS) {
+			MM_DBG("Modem query for acdb values is successful"
+					" (iterations = %d)\n", iterations);
+			acdb_data.acdb_state |= CAL_DATA_READY;
+			return result;
+		} else {
+			MM_ERR("ACDB=> modem failed to fill acdb values,"
+					" reuslt = %d, (iterations = %d)\n",
+					acdb_data.acdb_result.result,
+					iterations);
+			goto error;
+		}
+	} while (iterations < MAX_RETRY);
+	MM_ERR("ACDB=> AUDCAL SW on modem is not in intiailized state (%d)\n",
+			acdb_data.acdb_result.result);
+error:
+	result = -EINVAL;
+	return result;
 }
 
 static s32 initialize_rpc(void)
@@ -2705,38 +1625,22 @@ static u32 free_acdb_cache_node(union auddev_evt_data *evt)
 {
 	u32 session_id;
 	if ((evt->audcal_info.dev_type & TX_DEVICE) == 2) {
-		/*Second argument to find_first_bit should be maximum number
-		of bits interested
-		*/
 		session_id = find_first_bit(
 				(unsigned long *)&(evt->audcal_info.sessions),
-				sizeof(evt->audcal_info.sessions) * 8);
+				sizeof(evt->audcal_info.sessions));
 		MM_DBG("freeing node %d for tx device", session_id);
 		acdb_cache_tx[session_id].
 			node_status = ACDB_VALUES_NOT_FILLED;
 	} else {
+		if (--(acdb_cache_rx[evt->audcal_info.dev_id].stream_id) <= 0) {
 			MM_DBG("freeing rx cache node %d\n",
 						evt->audcal_info.dev_id);
 			acdb_cache_rx[evt->audcal_info.dev_id].
 				node_status = ACDB_VALUES_NOT_FILLED;
+			acdb_cache_rx[evt->audcal_info.dev_id].stream_id = 0;
+		}
 	}
 	return 0;
-}
-
-static u8 check_device_change(struct auddev_evt_audcal_info audcal_info)
-{
-	if (!acdb_data.device_info) {
-		MM_ERR("not pointing to previous valid device detail\n");
-		return 1; /*device info will not be pointing to*/
-			/* valid device when acdb driver comes up*/
-	}
-	if ((audcal_info.dev_id == acdb_data.device_info->dev_id) &&
-		(audcal_info.sample_rate ==
-				acdb_data.device_info->sample_rate) &&
-		(audcal_info.acdb_id == acdb_data.device_info->acdb_id)) {
-		return 0;
-	}
-	return 1;
 }
 
 static void device_cb(u32 evt_id, union auddev_evt_data *evt, void *private)
@@ -2747,10 +1651,10 @@ static void device_cb(u32 evt_id, union auddev_evt_data *evt, void *private)
 	u8 ret = 0;
 	u8 count = 0;
 	u8 i = 0;
-	u8 device_change = 0;
 
 	if (!((evt_id == AUDDEV_EVT_DEV_RDY) ||
-		(evt_id == AUDDEV_EVT_DEV_RLS))) {
+		(evt_id == AUDDEV_EVT_DEV_RLS)) ||
+		(evt->audcal_info.acdb_id == PSEUDO_ACDB_ID)) {
 		goto done;
 	}
 	/*if session value is zero it indicates that device call back is for
@@ -2766,14 +1670,6 @@ static void device_cb(u32 evt_id, union auddev_evt_data *evt, void *private)
 					evt->audcal_info.dev_id);
 		acdb_data.acdb_state &= ~CAL_DATA_READY;
 		free_acdb_cache_node(evt);
-		/*reset the applied flag for the session routed to the device*/
-		acdb_data.audrec_applied &= ~(evt->audcal_info.sessions
-							<< AUDREC_OFFSET);
-		goto done;
-	}
-	if (((evt->audcal_info.dev_type & RX_DEVICE) == 1) &&
-			(evt->audcal_info.acdb_id == PSEUDO_ACDB_ID)) {
-		MM_INFO("device cb is for rx device with pseudo acdb id\n");
 		goto done;
 	}
 	audcal_info = evt->audcal_info;
@@ -2781,24 +1677,28 @@ static void device_cb(u32 evt_id, union auddev_evt_data *evt, void *private)
 	MM_DBG("sample_rate = %d\n", audcal_info.sample_rate);
 	MM_DBG("acdb_id = %d\n", audcal_info.acdb_id);
 	MM_DBG("sessions = %d\n", audcal_info.sessions);
-	MM_DBG("acdb_state = %x\n", acdb_data.acdb_state);
+	MM_DBG("acdb_state = %d\n", acdb_data.acdb_state);
 	mutex_lock(&acdb_data.acdb_mutex);
-	device_change = check_device_change(audcal_info);
-	if (!device_change) {
-		if ((audcal_info.dev_type & TX_DEVICE) == 2) {
-			if (!(acdb_data.acdb_state & AUDREC0_READY))
-				acdb_data.audrec_applied &= ~AUDREC0_READY;
-			if (!(acdb_data.acdb_state & AUDREC1_READY))
-				acdb_data.audrec_applied &= ~AUDREC1_READY;
-			if (!(acdb_data.acdb_state & AUDREC2_READY))
-				acdb_data.audrec_applied &= ~AUDREC2_READY;
-				acdb_data.acdb_state &= ~CAL_DATA_READY;
-				goto update_cache;
-		}
-	} else
-		/* state is updated to querry the modem for values */
-		acdb_data.acdb_state &= ~CAL_DATA_READY;
-
+	if (acdb_data.acdb_state & CAL_DATA_READY) {
+		if ((audcal_info.dev_id ==
+				 acdb_data.device_info->dev_id) &&
+			(audcal_info.sample_rate ==
+				 acdb_data.device_info->sample_rate) &&
+			(audcal_info.acdb_id == acdb_data.device_info->
+							acdb_id)) {
+			MM_DBG("called for same device type and sample rate\n");
+			if ((audcal_info.dev_type & TX_DEVICE) == 2) {
+				if (!(acdb_data.acdb_state & AUDREC0_READY))
+					acdb_data.audrec0_applied = 0;
+				if (!(acdb_data.acdb_state & AUDREC1_READY))
+					acdb_data.audrec1_applied = 0;
+					acdb_data.acdb_state &= ~CAL_DATA_READY;
+					goto update_cache;
+			}
+		} else
+			/* state is updated to querry the modem for values */
+			acdb_data.acdb_state &= ~CAL_DATA_READY;
+	}
 update_cache:
 	if ((audcal_info.dev_type & TX_DEVICE) == 2) {
 		/*loop is to take care of use case:- multiple Audrec
@@ -2809,7 +1709,7 @@ update_cache:
 		for (i = 0; i < MAX_AUDREC_SESSIONS; i++) {
 			stream_id = ((audcal_info.sessions >> i) & 0x01);
 			if (stream_id) {
-				acdb_cache_free_node =	&acdb_cache_tx[i];
+				acdb_cache_free_node = 	&acdb_cache_tx[i];
 				ret  = check_device_info_already_present(
 							audcal_info,
 							acdb_cache_free_node);
@@ -2868,13 +1768,8 @@ static void audpp_cb(void *private, u32 id, u16 *msg)
 		goto done;
 
 	if (msg[0] == AUDPP_MSG_ENA_DIS) {
-		if (--acdb_cache_rx[acdb_data.\
-				device_info->dev_id].stream_id <= 0) {
-			acdb_data.acdb_state &= ~AUDPP_READY;
-			acdb_cache_rx[acdb_data.device_info->dev_id]\
-					.stream_id = 0;
-			MM_DBG("AUDPP_MSG_ENA_DIS\n");
-		}
+		acdb_data.acdb_state &= ~AUDPP_READY;
+		MM_DBG("AUDPP_MSG_ENA_DIS\n");
 		goto done;
 	}
 
@@ -2885,95 +1780,34 @@ done:
 	return;
 }
 
-static s8 handle_audpreproc_cb(void)
-{
-	struct acdb_cache_node *acdb_cached_values;
-	s8 result = 0;
-	u8 stream_id = acdb_data.preproc_stream_id;
-	acdb_data.preproc_cb_compl = 0;
-	acdb_cached_values = get_acdb_values_from_cache_tx(stream_id);
-	if (acdb_cached_values == NULL) {
-		MM_DBG("ERROR: to get chached acdb values\n");
-		return -EPERM;
-	}
-	update_acdb_data_struct(acdb_cached_values);
-	if (acdb_data.device_info->dev_id == PSEUDO_ACDB_ID) {
-		MM_INFO("audpreproc is routed to pseudo device\n");
-		return result;
-	}
-	if (session_info[stream_id].sampling_freq)
-		acdb_data.device_info->sample_rate =
-					session_info[stream_id].sampling_freq;
-	if (!(acdb_data.acdb_state & CAL_DATA_READY)) {
-		result = check_tx_acdb_values_cached();
-		if (result) {
-			result = acdb_get_calibration();
-			if (result < 0) {
-				MM_ERR("failed to get calibration data\n");
-				return result;
-			}
-		}
-		acdb_cached_values->node_status = ACDB_VALUES_FILLED;
-	}
-	return result;
-}
 
 static void audpreproc_cb(void *private, u32 id, void *msg)
 {
 	struct audpreproc_cmd_enc_cfg_done_msg *tmp;
-	u8 result = 0;
-	int stream_id = 0;
+
 	if (id != AUDPREPROC_CMD_ENC_CFG_DONE_MSG)
 		goto done;
 
 	tmp = (struct audpreproc_cmd_enc_cfg_done_msg *)msg;
 	acdb_data.preproc_stream_id = tmp->stream_id;
-	stream_id = acdb_data.preproc_stream_id;
-	get_audrec_session_info(stream_id, &session_info[stream_id]);
 	MM_DBG("rec_enc_type = %x\n", tmp->rec_enc_type);
 	if ((tmp->rec_enc_type & 0x8000) ==
 				AUD_PREPROC_CONFIG_DISABLED) {
 		if (acdb_data.preproc_stream_id == 0) {
 			acdb_data.acdb_state &= ~AUDREC0_READY;
-			acdb_data.audrec_applied &= ~AUDREC0_READY;
-		} else if (acdb_data.preproc_stream_id == 1) {
-			acdb_data.acdb_state &= ~AUDREC1_READY;
-			acdb_data.audrec_applied &= ~AUDREC1_READY;
-		} else if (acdb_data.preproc_stream_id == 2) {
-			acdb_data.acdb_state &= ~AUDREC2_READY;
-			acdb_data.audrec_applied &= ~AUDREC2_READY;
-		}
-		acdb_cache_tx[tmp->stream_id].node_status =\
-						ACDB_VALUES_NOT_FILLED;
-		acdb_data.acdb_state &= ~CAL_DATA_READY;
-		goto done;
-	}
-	/*Following check is added to make sure that device info
-	  is updated. audpre proc layer enabled without device
-	  callback at this scenario we should not access
-	  device information
-	 */
-	if (acdb_data.device_info &&
-		session_info[stream_id].sampling_freq) {
-		acdb_data.device_info->sample_rate =
-					session_info[stream_id].sampling_freq;
-		result = check_tx_acdb_values_cached();
-		if (!result) {
-			MM_INFO("acdb values for the stream is" \
-						" querried from modem");
-			acdb_data.acdb_state |= CAL_DATA_READY;
+			acdb_data.audrec0_applied = 0;
 		} else {
-			acdb_data.acdb_state &= ~CAL_DATA_READY;
+			acdb_data.acdb_state &= ~AUDREC1_READY;
+			acdb_data.audrec1_applied = 0;
 		}
+		MM_DBG("AUD_PREPROC_CONFIG_DISABLED\n");
+		goto done;
 	}
 	if (acdb_data.preproc_stream_id == 0)
 		acdb_data.acdb_state |= AUDREC0_READY;
-	else if (acdb_data.preproc_stream_id == 1)
+	else
 		acdb_data.acdb_state |= AUDREC1_READY;
-	else if (acdb_data.preproc_stream_id == 2)
-		acdb_data.acdb_state |= AUDREC2_READY;
 	acdb_data.preproc_cb_compl = 1;
-	MM_DBG("acdb_data.acdb_state = %x\n", acdb_data.acdb_state);
 	wake_up(&acdb_data.wait);
 done:
 	return;
@@ -3078,25 +1912,12 @@ static s32 acdb_calibrate_device(void *data)
 		if (acdb_data.device_cb_compl) {
 			acdb_data.device_cb_compl = 0;
 			if (!(acdb_data.acdb_state & CAL_DATA_READY)) {
-				if ((acdb_data.device_info->dev_type
-							& RX_DEVICE) == 1) {
-					/*we need to get calibration values
-					only for RX device as resampler
-					moved to start of the pre - proc chain
-					tx calibration value will be based on
-					sampling frequency what audrec is
-					configured, calibration values for tx
-					device are fetch in audpreproc
-					callback*/
-					result = acdb_get_calibration();
-					if (result < 0) {
-						mutex_unlock(
-							&acdb_data.acdb_mutex);
-						MM_ERR("Not able to get "
-							"calibration "
-							"data continue\n");
-						continue;
-					}
+				result = acdb_get_calibration();
+				if (result < 0) {
+					mutex_unlock(&acdb_data.acdb_mutex);
+					MM_ERR("Not able to get calibration "
+						"data continue\n");
+					continue;
 				}
 			}
 			MM_DBG("acdb state = %d\n",
@@ -3130,11 +1951,18 @@ static s32 acdb_calibrate_device(void *data)
 				mutex_unlock(&acdb_data.acdb_mutex);
 				continue;
 			} else {
-				result = handle_audpreproc_cb();
-				if (result < 0) {
+				struct acdb_cache_node *acdb_cached_values;
+				acdb_data.preproc_cb_compl = 0;
+				acdb_cached_values =
+					 get_acdb_values_from_cache_tx(
+						acdb_data.preproc_stream_id);
+				if (acdb_cached_values == NULL) {
+					MM_DBG("ERROR: to get chached"
+						" acdb values\n");
 					mutex_unlock(&acdb_data.acdb_mutex);
 					continue;
 				}
+				update_acdb_data_struct(acdb_cached_values);
 			}
 		}
 apply:
@@ -3162,12 +1990,7 @@ static int __init acdb_init(void)
 		result = -ENODEV;
 		goto err;
 	}
-#ifdef CONFIG_DEBUG_FS
-	/*This is RTC specific INIT used only with debugfs*/
-	if (!rtc_acdb_init())
-		MM_ERR("RTC ACDB=>INIT Failure\n");
 
-#endif
 	init_waitqueue_head(&acdb_data.wait);
 
 	return misc_register(&acdb_misc);
@@ -3215,9 +2038,6 @@ static void __exit acdb_exit(void)
 	pmem_kfree((int32_t)acdb_data.pbe_extbuff);
 	mutex_destroy(&acdb_data.acdb_mutex);
 	memset(&acdb_data, 0, sizeof(acdb_data));
-	#ifdef CONFIG_DEBUG_FS
-	rtc_acdb_deinit();
-	#endif
 }
 
 late_initcall(acdb_init);

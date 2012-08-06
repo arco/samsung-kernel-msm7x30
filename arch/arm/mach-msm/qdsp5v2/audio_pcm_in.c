@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2008 Google, Inc.
  * Copyright (C) 2008 HTC Corporation
- * Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -24,7 +24,6 @@
 #include <linux/wait.h>
 #include <linux/dma-mapping.h>
 #include <linux/msm_audio.h>
-#include <linux/android_pmem.h>
 
 #include <asm/atomic.h>
 #include <asm/ioctls.h>
@@ -38,23 +37,10 @@
 
 /* FRAME_NUM must be a power of two */
 #define FRAME_NUM		(8)
-#define FRAME_HEADER_SIZE       (8) /*4 half words*/
-/* size of a mono frame with 256 samples */
-#define MONO_DATA_SIZE_256	(512) /* in bytes*/
-/*size of a mono frame with 512 samples */
-#define MONO_DATA_SIZE_512	(1024) /* in bytes*/
-/*size of a mono frame with 1024 samples */
-#define MONO_DATA_SIZE_1024	(2048) /* in bytes */
-
-/*size of a stereo frame with 256 samples per channel */
-#define STEREO_DATA_SIZE_256	(1024) /* in bytes*/
-/*size of a stereo frame with 512 samples per channel */
-#define STEREO_DATA_SIZE_512	(2048) /* in bytes*/
-/*size of a stereo frame with 1024 samples per channel */
-#define STEREO_DATA_SIZE_1024	(4096) /* in bytes */
-
-#define MAX_FRAME_SIZE		((STEREO_DATA_SIZE_1024) + FRAME_HEADER_SIZE)
-#define DMASZ			(MAX_FRAME_SIZE * FRAME_NUM)
+#define FRAME_SIZE		(2052 * 2)
+#define MONO_DATA_SIZE		(2048)
+#define STEREO_DATA_SIZE	(MONO_DATA_SIZE * 2)
+#define DMASZ 			(FRAME_SIZE * FRAME_NUM)
 
 struct buffer {
 	void *data;
@@ -101,7 +87,6 @@ struct audio_in {
 	int voice_state;
 	spinlock_t dev_lock;
 
-	struct audrec_session_info session_info; /*audrec session info*/
 	/* data allocated for various buffers */
 	char *data;
 	dma_addr_t phys;
@@ -111,7 +96,6 @@ struct audio_in {
 	int running;
 	int stopped; /* set when stopped, cleared on flush */
 	int abort; /* set when error, like sample rate mismatch */
-	int dual_mic_config;
 };
 
 static struct audio_in the_audio_in;
@@ -312,10 +296,6 @@ static void audrec_dsp_event(void *data, unsigned id, size_t len,
 		audpcm_in_get_dsp_frames(audio);
 		break;
 	}
-	case ADSP_MESSAGE_ID: {
-		MM_DBG("Received ADSP event :module audrectask\n");
-		break;
-	}
 	default:
 		MM_ERR("Unknown Event id %d\n", id);
 	}
@@ -362,7 +342,7 @@ static int audpcm_in_enc_config(struct audio_in *audio, int enable)
 	struct audpreproc_audrec_cmd_enc_cfg cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.cmd_id = AUDPREPROC_AUDREC_CMD_ENC_CFG_2;
+	cmd.cmd_id = AUDPREPROC_AUDREC_CMD_ENC_CFG;
 	cmd.stream_id = audio->enc_id;
 
 	if (enable)
@@ -382,15 +362,8 @@ static int audpcm_in_param_config(struct audio_in *audio)
 	cmd.common.stream_id = audio->enc_id;
 
 	cmd.aud_rec_samplerate_idx = audio->samp_rate;
-	if (audio->dual_mic_config)
-		cmd.aud_rec_stereo_mode = DUAL_MIC_STEREO_RECORDING;
-	else
-		cmd.aud_rec_stereo_mode = audio->channel_mode;
+	cmd.aud_rec_stereo_mode = audio->channel_mode;
 
-	if (audio->channel_mode == AUDREC_CMD_MODE_MONO)
-		cmd.aud_rec_frame_size = audio->buffer_size/2;
-	else
-		cmd.aud_rec_frame_size = audio->buffer_size/4;
 	return audpreproc_send_audreccmdqueue(&cmd, sizeof(cmd));
 }
 
@@ -442,10 +415,9 @@ static int audpcm_in_mem_config(struct audio_in *audio)
 	 * Stereo: 2048 samples + 4 halfword header
 	 */
 	for (n = 0; n < FRAME_NUM; n++) {
-		/* word increment*/
-		audio->in[n].data = data + (FRAME_HEADER_SIZE/2);
-		data += ((FRAME_HEADER_SIZE/2) + (audio->buffer_size/2));
-		MM_DBG("0x%8x\n", (int)(audio->in[n].data - FRAME_HEADER_SIZE));
+		audio->in[n].data = data + 4;
+		data += (4 + (audio->channel_mode ? 2048 : 1024));
+		MM_DBG("0x%8x\n", (int)(audio->in[n].data - 8));
 	}
 
 	return audrec_send_audrecqueue(audio, &cmd, sizeof(cmd));
@@ -558,11 +530,6 @@ static long audpcm_in_ioctl(struct file *file,
 			MM_DBG("msm_snddev_withdraw_freq\n");
 			break;
 		}
-		audio->dual_mic_config = msm_get_dual_mic_config(audio->enc_id);
-		/*update aurec session info in audpreproc layer*/
-		audio->session_info.session_id = audio->enc_id;
-		audio->session_info.sampling_freq = audio->samp_rate;
-		audpreproc_update_audrec_info(&audio->session_info);
 		rc = audpcm_in_enable(audio);
 		if (!rc) {
 			rc =
@@ -579,9 +546,6 @@ static long audpcm_in_ioctl(struct file *file,
 		break;
 	}
 	case AUDIO_STOP: {
-		/*reset the sampling frequency information at audpreproc layer*/
-		audio->session_info.sampling_freq = 0;
-		audpreproc_update_audrec_info(&audio->session_info);
 		rc = audpcm_in_disable(audio);
 		rc = msm_snddev_withdraw_freq(audio->enc_id,
 					SNDDEV_CAP_TX, AUDDEV_CLNT_ENC);
@@ -612,24 +576,10 @@ static long audpcm_in_ioctl(struct file *file,
 		}
 		if (cfg.channel_count == 1) {
 			cfg.channel_count = AUDREC_CMD_MODE_MONO;
-			if ((cfg.buffer_size == MONO_DATA_SIZE_256) ||
-			    (cfg.buffer_size == MONO_DATA_SIZE_512) ||
-			    (cfg.buffer_size == MONO_DATA_SIZE_1024)) {
-				audio->buffer_size = cfg.buffer_size;
-			} else {
-				rc = -EINVAL;
-				break;
-			}
+			audio->buffer_size = MONO_DATA_SIZE;
 		} else if (cfg.channel_count == 2) {
 			cfg.channel_count = AUDREC_CMD_MODE_STEREO;
-			if ((cfg.buffer_size == STEREO_DATA_SIZE_256) ||
-			    (cfg.buffer_size == STEREO_DATA_SIZE_512) ||
-			    (cfg.buffer_size == STEREO_DATA_SIZE_1024)) {
-				audio->buffer_size = cfg.buffer_size;
-			} else {
-				rc = -EINVAL;
-				break;
-			}
+			audio->buffer_size = STEREO_DATA_SIZE;
 		} else {
 			rc = -EINVAL;
 			break;
@@ -755,7 +705,7 @@ static ssize_t audpcm_in_read(struct file *file,
 			count -= size;
 			buf += size;
 		} else {
-			MM_ERR("short read count %d\n", count);
+			MM_ERR("short read\n");
 			break;
 		}
 	}
@@ -785,20 +735,12 @@ static int audpcm_in_release(struct inode *inode, struct file *file)
 	msm_snddev_withdraw_freq(audio->enc_id, SNDDEV_CAP_TX,
 					AUDDEV_CLNT_ENC);
 	auddev_unregister_evt_listner(AUDDEV_CLNT_ENC, audio->enc_id);
-	/*reset the sampling frequency information at audpreproc layer*/
-	audio->session_info.sampling_freq = 0;
-	audpreproc_update_audrec_info(&audio->session_info);
 	audpcm_in_disable(audio);
 	audpcm_in_flush(audio);
 	msm_adsp_put(audio->audrec);
 	audpreproc_aenc_free(audio->enc_id);
 	audio->audrec = NULL;
 	audio->opened = 0;
-	if (audio->data) {
-		iounmap(audio->data);
-		pmem_kfree(audio->phys);
-		audio->data = NULL;
-	}
 	mutex_unlock(&audio->lock);
 	return 0;
 }
@@ -814,23 +756,6 @@ static int audpcm_in_open(struct inode *inode, struct file *file)
 		rc = -EBUSY;
 		goto done;
 	}
-	audio->phys = pmem_kalloc(DMASZ, PMEM_MEMTYPE_EBI1|
-					PMEM_ALIGNMENT_4K);
-	if (!IS_ERR((void *)audio->phys)) {
-		audio->data = ioremap(audio->phys, DMASZ);
-		if (!audio->data) {
-			MM_ERR("could not allocate read buffers\n");
-			rc = -ENOMEM;
-			pmem_kfree(audio->phys);
-			goto done;
-		}
-	} else {
-		MM_ERR("could not allocate read buffers\n");
-		rc = -ENOMEM;
-		goto done;
-	}
-	MM_DBG("Memory addr = 0x%8x  phy addr = 0x%8x\n",\
-		(int) audio->data, (int) audio->phys);
 	if ((file->f_mode & FMODE_WRITE) &&
 			(file->f_mode & FMODE_READ)) {
 		rc = -EACCES;
@@ -848,9 +773,9 @@ static int audpcm_in_open(struct inode *inode, struct file *file)
 	 * but at least we need to have initial config
 	 */
 	audio->channel_mode = AUDREC_CMD_MODE_MONO;
-	audio->buffer_size = MONO_DATA_SIZE_1024;
+	audio->buffer_size = MONO_DATA_SIZE;
 	audio->samp_rate = 8000;
-	audio->enc_type = ENC_TYPE_EXT_WAV | audio->mode;
+	audio->enc_type = ENC_TYPE_WAV | audio->mode;
 
 	encid = audpreproc_aenc_alloc(audio->enc_type, &audio->module_name,
 			&audio->queue_ids);
@@ -915,6 +840,15 @@ struct miscdevice audio_in_misc = {
 
 static int __init audpcm_in_init(void)
 {
+	the_audio_in.data = dma_alloc_coherent(NULL, DMASZ,
+					       &the_audio_in.phys, GFP_KERNEL);
+	MM_DBG("Memory addr = 0x%8x  phy addr = 0x%8x ---- \n", \
+		(int) the_audio_in.data, (int) the_audio_in.phys);
+
+	if (!the_audio_in.data) {
+		MM_ERR("Unable to allocate DMA buffer\n");
+		return -ENOMEM;
+	}
 	mutex_init(&the_audio_in.lock);
 	mutex_init(&the_audio_in.read_lock);
 	spin_lock_init(&the_audio_in.dsp_lock);
