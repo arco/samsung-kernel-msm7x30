@@ -2053,7 +2053,7 @@ static struct snd_set_ampgain init_ampgain[] = {
 	},
 	[1] = { /* [HSS] headset_call, speaker_call */
 		.in1_gain = 2,
-		.in2_gain = 2,
+		.in2_gain = 0,
 		.hp_att = 14,
 		.hp_gainup = 0,
 		.sp_att = 31,
