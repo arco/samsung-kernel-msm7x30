@@ -1205,6 +1205,60 @@ done:
 	return result;
 }
 
+static s32 acdb_get_calibration(void)
+{
+	struct acdb_cmd_get_device_table	acdb_cmd;
+	s32					result = 0;
+	u32 iterations = 0;
+
+	acdb_cmd.command_id = ACDB_GET_DEVICE_TABLE;
+	acdb_cmd.device_id = acdb_data.device_info->acdb_id;
+	acdb_cmd.network_id = 0x0108B153;
+	acdb_cmd.sample_rate_id = acdb_data.device_info->sample_rate;
+	acdb_cmd.total_bytes = ACDB_BUF_SIZE;
+	acdb_cmd.phys_buf = (u32 *)acdb_data.phys_addr;
+	printk("acdb_get_calibration : acdb_cmd.phys_buf %x\n", (u32)acdb_cmd.phys_buf);
+
+	do {
+		result = dalrpc_fcn_8(ACDB_DalACDB_ioctl, acdb_data.handle,
+				(const void *)&acdb_cmd, sizeof(acdb_cmd),
+				&acdb_data.acdb_result,
+				sizeof(acdb_data.acdb_result));
+
+		if (result < 0) {
+			printk("ACDB=> Device table RPC failure"
+				" result = %d\n", result);
+			goto error;
+		}
+		/*following check is introduced to handle boot up race
+		condition between AUDCAL SW peers running on apps
+		and modem (ACDB_RES_BADSTATE indicates modem AUDCAL SW is
+		not in initialized sate) we need to retry to get ACDB
+		values*/
+		printk("ACDB=> Dacdb_data.acdb_result.result = %d\n", acdb_data.acdb_result.result);
+		if (acdb_data.acdb_result.result == ACDB_RES_BADSTATE) {
+			msleep(500);
+			iterations++;
+		} else if (acdb_data.acdb_result.result == ACDB_RES_SUCCESS) {
+			printk("Modem query for acdb values is successful"
+					" (iterations = %d)\n", iterations);
+			acdb_data.acdb_state |= CAL_DATA_READY;
+			return result;
+		} else {
+			printk("ACDB=> modem failed to fill acdb values,"
+					" reuslt = %d, (iterations = %d)\n",
+					acdb_data.acdb_result.result,
+					iterations);
+			goto error;
+		}
+	} while (iterations < MAX_RETRY);
+	printk("ACDB=> AUDCAL SW on modem is not in intiailized state (%d)\n",
+			acdb_data.acdb_result.result);
+error:
+	result = -EINVAL;
+	return result;
+}
+
 static void handle_tx_device_ready_callback(void)
 {
 	u8 i = 0;
@@ -1243,6 +1297,19 @@ static void handle_tx_device_ready_callback(void)
 		MM_DBG("AUDREC1 already enabled apply acdb values\n");
 		acdb_send_calibration();
 	}
+	// Gon's workaround
+	struct header *prs_hdr;
+	u8 result = 0 ;
+	prs_hdr = (struct header *)(acdb_cache_tx[acdb_data.cur_tx_session].virt_addr_acdb_values) ;
+	if ( prs_hdr->dbor_signature != DBOR_SIGNATURE ) {
+		printk("Gon's Workaround is called \n") ;
+		result = acdb_get_calibration();
+		if (result < 0) {
+			MM_ERR("Not able to get calibration"
+				" data continue\n");
+			return;
+		}
+	}
 }
 
 static struct acdb_cache_node *get_acdb_values_from_cache_tx(
@@ -1279,59 +1346,6 @@ static void send_acdb_values_for_active_devices(void)
 				acdb_send_calibration();
 		}
 	}
-}
-
-static s32 acdb_get_calibration(void)
-{
-	struct acdb_cmd_get_device_table	acdb_cmd;
-	s32					result = 0;
-	u32 iterations = 0;
-
-	MM_DBG("acdb state = %d\n", acdb_data.acdb_state);
-	acdb_cmd.command_id = ACDB_GET_DEVICE_TABLE;
-	acdb_cmd.device_id = acdb_data.device_info->acdb_id;
-	acdb_cmd.network_id = 0x0108B153;
-	acdb_cmd.sample_rate_id = acdb_data.device_info->sample_rate;
-	acdb_cmd.total_bytes = ACDB_BUF_SIZE;
-	acdb_cmd.phys_buf = (u32 *)acdb_data.phys_addr;
-
-	do {
-		result = dalrpc_fcn_8(ACDB_DalACDB_ioctl, acdb_data.handle,
-				(const void *)&acdb_cmd, sizeof(acdb_cmd),
-				&acdb_data.acdb_result,
-				sizeof(acdb_data.acdb_result));
-
-		if (result < 0) {
-			MM_ERR("ACDB=> Device table RPC failure"
-				" result = %d\n", result);
-			goto error;
-		}
-		/*following check is introduced to handle boot up race
-		condition between AUDCAL SW peers running on apps
-		and modem (ACDB_RES_BADSTATE indicates modem AUDCAL SW is
-		not in initialized sate) we need to retry to get ACDB
-		values*/
-		if (acdb_data.acdb_result.result == ACDB_RES_BADSTATE) {
-			msleep(500);
-			iterations++;
-		} else if (acdb_data.acdb_result.result == ACDB_RES_SUCCESS) {
-			MM_DBG("Modem query for acdb values is successful"
-					" (iterations = %d)\n", iterations);
-			acdb_data.acdb_state |= CAL_DATA_READY;
-			return result;
-		} else {
-			MM_ERR("ACDB=> modem failed to fill acdb values,"
-					" reuslt = %d, (iterations = %d)\n",
-					acdb_data.acdb_result.result,
-					iterations);
-			goto error;
-		}
-	} while (iterations < MAX_RETRY);
-	MM_ERR("ACDB=> AUDCAL SW on modem is not in intiailized state (%d)\n",
-			acdb_data.acdb_result.result);
-error:
-	result = -EINVAL;
-	return result;
 }
 
 static s32 initialize_rpc(void)
