@@ -91,6 +91,7 @@ enum dhd_bus_wake_state {
 	WAKE_LOCK_SOFTAP_STOP,
 	WAKE_LOCK_SOFTAP_START,
 	WAKE_LOCK_SOFTAP_THREAD,
+	WAKE_LOCK_DHD_SUSPEND,
 	WAKE_LOCK_MAX
 };
 enum dhd_prealloc_index {
@@ -523,11 +524,5 @@ extern char nv_path[MOD_PARAM_PATHLEN];
 
 extern void dhd_wait_for_event(dhd_pub_t *dhd, bool *lockvar);
 extern void dhd_wait_event_wakeup(dhd_pub_t*dhd);
-
-#ifdef ARP_OFFLOAD_SUPPORT
-void dhd_aoe_hostip_clr(dhd_pub_t *dhd);
-void dhd_aoe_arp_clr(dhd_pub_t *dhd);
-void dhd_arp_offload_add_ip(dhd_pub_t *dhd, uint32 ipaddr);
-#endif /* ARP_OFFLOAD_SUPPORT */
 
 #endif /* _dhd_h_ */

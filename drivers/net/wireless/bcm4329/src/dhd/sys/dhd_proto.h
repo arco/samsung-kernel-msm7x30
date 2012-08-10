@@ -34,7 +34,11 @@
 #include <wlioctl.h>
 
 #ifndef IOCTL_RESP_TIMEOUT
+#ifdef CHANGE_TIMEOUT_VALUE
+#define IOCTL_RESP_TIMEOUT  6000 /* In milli second */
+#else
 #define IOCTL_RESP_TIMEOUT  2000 /* In milli second */
+#endif
 #endif
 
 #ifndef IOCTL_CHIP_ACTIVE_TIMEOUT

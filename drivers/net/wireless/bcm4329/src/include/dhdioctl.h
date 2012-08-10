@@ -81,10 +81,6 @@ typedef struct dhd_ioctl {
 #define DHD_BTA_VAL		0x1000
 #define DHD_ISCAN_VAL 	0x2000
 
-#ifdef ARP_OFFLOAD_SUPPORT
-#define DHD_ARPOE_VAL	0x4000
-#endif
-
 #ifdef SDTEST
 /* For pktgen iovar */
 typedef struct dhd_pktgen {

@@ -699,6 +699,11 @@ wl_iw_set_country(
     wl_country_t cspec = {{0},0,{0}};
     int size = 0;
     int i = 0;
+
+    while ((i++ < 6) && (g_first_broadcast_scan < BROADCAST_SCAN_FIRST_RESULT_CONSUMED)) {
+		msleep(100);
+    }
+    i = 0;
     size = ARRAYSIZE(country_rev_map);
     memset(country_code, 0, sizeof(country_code));
 
@@ -1623,9 +1628,7 @@ wl_iw_get_rssi(
 	static wlc_ssid_t ssid = {0};
 	int error = 0;
 	char *p = extra;
-#ifndef DO_NOT_CHANGE_SSID 
 	static char ssidbuf[SSID_FMT_BUF_LEN];
-#endif /* DO_NOT_CHANGE_SSID */
 	scb_val_t scb_val;
 
 	bzero(&scb_val, sizeof(scb_val_t));
@@ -1636,31 +1639,16 @@ wl_iw_get_rssi(
 
 		error = dev_wlc_ioctl(dev, WLC_GET_SSID, &ssid, sizeof(ssid));
 		
-#ifndef DO_NOT_CHANGE_SSID 
 		ssid.SSID_len = dtoh32(ssid.SSID_len);
-		if (rssi == 0) {
-			WL_ERROR(("The connection with %s is already disconnected\n",ssid.SSID));
-			cmd = SIOCGIWAP;
-			bzero(_wrqu.addr.sa_data, ETHER_ADDR_LEN);
-			_wrqu.addr.sa_family = ARPHRD_ETHER;
-			bzero(&tmp, ETHER_ADDR_LEN);
-			wireless_send_event(dev, cmd, &_wrqu, tmp);
-			return -1;
-
 	}
 
 	if (ssid.SSID_len == 0) { 
 		rssi = -1;
 	}
 	WL_ASSOC(("%s ssid_len:%d, rssi:%d\n", __FUNCTION__, ssid.SSID_len, rssi));
-#endif /* DO_NOT_CHANGE_SSID */
-}
-#ifndef DO_NOT_CHANGE_SSID
+
 	wl_format_ssid(ssidbuf, ssid.SSID, dtoh32(ssid.SSID_len));
 	p += snprintf(p, MAX_WX_STRING, "%s rssi %d ", ssidbuf, rssi);
-#else /* DO_NOT_CHANGE_SSID */
-	p += snprintf(p, MAX_WX_STRING, "%s rssi %d ", ssid.SSID, rssi);
-#endif /* DO_NOT_CHANGE_SSID */
 	wrqu->data.length = p - extra + 1;
 
 	return error;
@@ -2010,6 +1998,11 @@ int init_ap_profile_from_string(char *param_str, struct ap_profile *ap_cfg)
 	char *str_ptr = param_str;
 	char sub_cmd[16];
 	int ret = 0;
+	/************************************************************************
+	 * Samsung patch for ssid including ',' [PLM P110518-4075] 2011.05.18
+	 ************************************************************************/	
+	int i=0;
+	/************************************************************************/
 
 	memset(sub_cmd, 0, sizeof(sub_cmd));
 	memset(ap_cfg, 0, sizeof(struct ap_profile));
@@ -2023,10 +2016,19 @@ int init_ap_profile_from_string(char *param_str, struct ap_profile *ap_cfg)
 	   WL_ERROR(("ERROR: sub_cmd:%s != 'AP_CFG'!\n", sub_cmd));
 		return -1;
 	}
-
 	
-	
+	/*  parse the string and write extracted values into the ap_profile structure */
+	/*  NOTE this function may alter the origibal string */
 	ret = get_parmeter_from_string(&str_ptr, "SSID=", PTYPE_STRING, ap_cfg->ssid, SSID_LEN);
+	/************************************************************************
+	 * Samsung patch for ssid including ',' [PLM P110518-4075] 2011.05.18
+	 ************************************************************************/
+	for(i=0;i<strlen(ap_cfg->ssid);i++)
+	{
+		if(ap_cfg->ssid[i]==4)
+			ap_cfg->ssid[i]+=40;
+	}
+	/************************************************************************/
 
 	ret |= get_parmeter_from_string(&str_ptr, "SEC=", PTYPE_STRING,  ap_cfg->sec, SEC_LEN);
 
@@ -2040,9 +2042,9 @@ int init_ap_profile_from_string(char *param_str, struct ap_profile *ap_cfg)
 	
 	get_parmeter_from_string(&str_ptr, "MAX_SCB=", PTYPE_INTDEC,  &ap_cfg->max_scb, 5);
 
-	
-	get_parmeter_from_string(&str_ptr, "HIDDEN=",
-		PTYPE_INTDEC,  &ap_cfg->closednet, 5);
+#ifdef USE_HIDDEN_SSID	
+	ret |= get_parmeter_from_string(&str_ptr, "HIDE=", PTYPE_INTDEC,  &ap_cfg->hidden_ssid, 5);
+#endif
 
 	
 	get_parmeter_from_string(&str_ptr, "COUNTRY=",
@@ -4067,6 +4069,7 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 			wpa_snprintf_hex(buf + 10, 2+1, &(ie->len), 1);
 			wpa_snprintf_hex(buf + 12, 2*ie->len+1, ie->data, ie->len);
 			event = IWE_STREAM_ADD_POINT(info, event, end, &iwe, buf);
+			kfree(buf);
 #endif 
 			break;
 		}
@@ -6829,6 +6832,9 @@ static int set_ap_cfg(struct net_device *dev, struct ap_profile *ap)
 #endif
 	WL_SOFTAP(("	channel = %d\n", ap->channel));
 	WL_SOFTAP(("	max scb = %d\n", ap->max_scb));
+#ifdef USE_HIDDEN_SSID
+	WL_SOFTAP(("	hidden = %d\n", ap->hidden_ssid));
+#endif	
 
 	iw = *(wl_iw_t **)netdev_priv(dev);
 	MUTEX_LOCK_SOFTAP_SET(iw->pub);
@@ -6933,15 +6939,14 @@ static int set_ap_cfg(struct net_device *dev, struct ap_profile *ap)
 			__FUNCTION__));
 	}
 
-	iolen = wl_bssiovar_mkbuf("closednet",
+/*	iolen = wl_bssiovar_mkbuf("closednet",
 		bsscfg_index,  &ap->closednet, sizeof(ap->closednet)+4,
 		buf, sizeof(buf), &mkvar_err);
 	ASSERT(iolen);
 	if ((res = dev_wlc_ioctl(dev, WLC_SET_VAR, buf, iolen)) < 0) {
 		WL_ERROR(("%s failed to set 'closednet'for apsta \n", __FUNCTION__));
 		goto fail;
-	}
-
+	}*/
 	
 	if ((ap->channel == 0) && (get_softap_auto_channel(dev, ap) < 0)) {
 		ap->channel = 1;
@@ -6993,6 +6998,20 @@ static int set_ap_cfg(struct net_device *dev, struct ap_profile *ap)
 		res, __FUNCTION__));
 		goto fail;
 	}
+#ifdef USE_HIDDEN_SSID
+	else {
+		char buf[WLC_IOCTL_SMLEN];
+		int iolen;
+        
+		iolen = wl_bssiovar_mkbuf("closednet", 1, &my_ap.hidden_ssid, sizeof(uint32), buf, sizeof(buf), &res);
+        	WL_SOFTAP(("hidden ap is enabled ? : %d\n",my_ap.hidden_ssid));
+		ASSERT(iolen);
+		if ((res = dev_wlc_ioctl(dev, WLC_SET_VAR, buf, iolen)) != 0) {
+			WL_ERROR(("ERROR:%d in:%s, Hidden SSID setting failure\n", res, __FUNCTION__));
+		}
+		
+	}
+#endif	
 
 	if (ap_cfg_running == FALSE) {
 		 init_completion(&ap_cfg_exited);
@@ -7238,7 +7257,7 @@ int get_parmeter_from_string(
 			param_str_end = *str_ptr-1;  
 			parm_str_len = param_str_end - param_str_begin;
 		}
-
+		
 #ifdef BRCM_SECURITY_LOG
 		WL_TRACE((" 'token:%s', len:%d, ", token, parm_str_len));
 #endif
@@ -9052,8 +9071,10 @@ int wl_iw_attach(struct net_device *dev, void * dhdp)
 
 	
 	iscan->iscan_ex_params_p = (wl_iscan_params_t*)kmalloc(params_size, GFP_KERNEL);
-	if (!iscan->iscan_ex_params_p)
+	if (!iscan->iscan_ex_params_p) {
+		kfree(iscan);
 		return -ENOMEM;
+	}
 	iscan->iscan_ex_param_size = params_size;
 	iscan->sysioc_pid = -1;
 	
