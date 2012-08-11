@@ -173,7 +173,7 @@ EXPORT_SYMBOL(switch_dev);
 #else
 #define MSM_FB_SIZE	roundup((800 * 480 * 4 * 2), 4096) /* 4bpp * 2 Pages */
 #endif
-#define MSM_PMEM_ADSP_SIZE      	0x2D00000
+#define MSM_PMEM_ADSP_SIZE      	0x2000000
 #define MSM_FLUID_PMEM_ADSP_SIZE	0x2800000
 #define PMEM_KERNEL_EBI1_SIZE   	0x600000
 #define MSM_PMEM_AUDIO_SIZE     	0x200000
