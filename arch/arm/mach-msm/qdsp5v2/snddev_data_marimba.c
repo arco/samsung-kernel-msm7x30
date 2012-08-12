@@ -1440,6 +1440,7 @@ static struct adie_codec_action_unit headset_fmradio_only_rx_8KHz_osr256_actions
 	ADIE_HEADSET_FMRADIO_ONLY_RX_8000_256;
 static struct adie_codec_action_unit speaker_fmradio_only_rx_8KHz_osr256_actions[] =
 	ADIE_SPEAKER_FMRADIO_ONLY_RX_8000_256;
+#ifndef CONFIG_MACH_ARIESVE
 /* [jseob.kim] VOIP call path */
 static struct adie_codec_action_unit handset_voip_rx_48KHz_osr256_actions[] =
 	ADIE_HANDSET_VOIP_RX_48000_256;
@@ -1453,6 +1454,7 @@ static struct adie_codec_action_unit headset_voip_rx_48KHz_osr256_actions[] =
 	ADIE_HEADSET_VOIP_RX_48000_256;
 static struct adie_codec_action_unit headset_voip_tx_48KHz_osr256_actions[] =
 	ADIE_HEADSET_VOIP_TX_48000_256;
+#endif
 #ifdef CONFIG_MACH_ANCORA_TMO
 static struct adie_codec_action_unit handset_call_hac_rx_48KHz_osr256_actions[] =
 	ADIE_HANDSET_CALL_HAC_RX_48000_256;
@@ -1931,6 +1933,7 @@ static struct adie_codec_hwsetting_entry headset_voice_search_tx_settings[] = {
 		.action_sz = ARRAY_SIZE(headset_voice_search_tx_48KHz_osr256_actions),
 	}
 };
+#ifndef CONFIG_MACH_ARIESVE
 /* [jseob.kim] VOIP call path */
 static struct adie_codec_hwsetting_entry handset_voip_rx_settings[] = {
 	{
@@ -2022,6 +2025,7 @@ static struct adie_codec_hwsetting_entry headset_voip_tx_settings[] = {
 		.action_sz = ARRAY_SIZE(headset_voip_tx_48KHz_osr256_actions),
 	}
 };
+#endif
 #ifdef CONFIG_MACH_ANCORA_TMO
 static struct adie_codec_hwsetting_entry handset_call_hac_rx_settings[] = {
 	{
@@ -2319,6 +2323,7 @@ static struct adie_codec_dev_profile headset_voice_search_tx_profile = {
 	.settings = headset_voice_search_tx_settings,
 	.setting_sz = ARRAY_SIZE(headset_voice_search_tx_settings),
 };
+#ifndef CONFIG_MACH_ARIESVE
 /* [jseob.kim] VOIP call path */
 static struct adie_codec_dev_profile handset_voip_rx_profile = {
 	.path_type = ADIE_CODEC_RX,
@@ -2350,6 +2355,7 @@ static struct adie_codec_dev_profile headset_voip_tx_profile = {
 	.settings = headset_voip_tx_settings,
 	.setting_sz = ARRAY_SIZE(headset_voip_tx_settings),
 };
+#endif
 #ifdef CONFIG_MACH_ANCORA_TMO
 static struct adie_codec_dev_profile handset_call_hac_rx_profile = {
 	.path_type = ADIE_CODEC_RX,
@@ -3049,6 +3055,7 @@ static struct snddev_icodec_data headset_voice_search_tx_data = {
 	.pamp_off = msm_snddev_tx_route_deconfig,
 #endif	
 };
+#ifndef CONFIG_MACH_ARIESVE
 /* [jseob.kim] VOIP call path */
 static struct snddev_icodec_data handset_voip_rx_data = {
 	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
@@ -3169,6 +3176,7 @@ static struct snddev_ecodec_data bt_sco_voip_tx_data = {
 	.conf_aux_codec_intf = BT_SCO_AUX_CODEC_INTF,
 	.conf_data_format_padding_val = BT_SCO_DATA_FORMAT_PADDING,
 };
+#endif
 #ifdef CONFIG_MACH_ANCORA_TMO
 static struct snddev_icodec_data handset_call_hac_rx_data = {
 	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
@@ -3716,6 +3724,7 @@ static struct platform_device device_headset_voice_search_tx = {
 	.dev = { .platform_data = &headset_voice_search_tx_data },
 };
 
+#ifndef CONFIG_MACH_ARIESVE
 /* [jseob.kim] VOIP call path */
 static struct platform_device device_handset_voip_rx = {
 	.name = "snddev_icodec",
@@ -3757,6 +3766,7 @@ static struct platform_device device_bt_sco_voip_tx = {
 	.id = 128,
 	.dev = { .platform_data = &bt_sco_voip_tx_data },
 };
+#endif
 
 #ifdef CONFIG_MACH_ANCORA_TMO
 static struct platform_device device_handset_gan_rx = {
