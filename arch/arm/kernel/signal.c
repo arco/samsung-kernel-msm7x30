@@ -650,7 +650,7 @@ static void do_signal(struct pt_regs *regs, int syscall)
 		}
 	}
 
-	if (try_to_freeze())
+	if (try_to_freeze_nowarn())
 		goto no_signal;
 
 	/*
