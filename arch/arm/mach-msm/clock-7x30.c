@@ -286,11 +286,18 @@ static struct clk_freq_tbl clk_tbl_mdp_core[] = {
 
 static struct clk_freq_tbl clk_tbl_mdp_lcdc[] = {
 	F_MND16(       0, GND,  1,   0,   0, NONE),
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+	F_MND16(24576000, PLL3, 3,   1,  10, NOMINAL),
+	F_MND16(26482000, PLL3, 1,   2,  29, NOMINAL),
+	F_MND16(30720000, PLL3, 4,   1,   6, NOMINAL),
+	F_MND16(40960000, PLL3, 2,   1,   9, NOMINAL),
+#else
 	F_MND16(24576000, LPXO, 1,   0,   0, NOMINAL),
 	F_MND16(30720000, PLL3, 4,   1,   6, NOMINAL),
 	F_MND16(32768000, PLL3, 3,   2,  15, NOMINAL),
 	F_MND16(40960000, PLL3, 2,   1,   9, NOMINAL),
 	F_MND16(73728000, PLL3, 2,   1,   5, NOMINAL),
+#endif
 	F_END,
 };
 
