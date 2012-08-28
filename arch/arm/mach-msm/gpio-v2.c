@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -348,7 +348,6 @@ static void msm_gpio_irq_mask(struct irq_data *d)
 
 static void __msm_gpio_irq_unmask(unsigned int gpio)
 {
-	__raw_writel(BIT(INTR_STATUS_BIT), GPIO_INTR_STATUS(gpio));
 	set_gpio_bits(INTR_ENABLE, GPIO_INTR_CFG(gpio));
 }
 
@@ -356,11 +355,16 @@ static void msm_gpio_irq_unmask(struct irq_data *d)
 {
 	int gpio = msm_irq_to_gpio(&msm_gpio.gpio_chip, d->irq);
 	unsigned long irq_flags;
+	int en;
 
 	spin_lock_irqsave(&tlmm_lock, irq_flags);
 	__set_bit(gpio, msm_gpio.enabled_irqs);
-	__msm_gpio_irq_unmask(gpio);
-	mb();
+	en = __raw_readl(GPIO_INTR_CFG(gpio)) & INTR_ENABLE;
+	if (!en) {
+		__raw_writel(BIT(INTR_STATUS_BIT), GPIO_INTR_STATUS(gpio));
+		__msm_gpio_irq_unmask(gpio);
+		mb();
+	}
 	spin_unlock_irqrestore(&tlmm_lock, irq_flags);
 
 	if (msm_gpio_irq_extn.irq_mask)
