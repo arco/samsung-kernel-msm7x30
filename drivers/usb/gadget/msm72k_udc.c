@@ -121,6 +121,7 @@ struct msm_endpoint {
 	unsigned actual_prime_fail_count;
 
 	unsigned wedged:1;
+	unsigned ep_enabled:1;
 	/* pointers to DMA transfer list area */
 	/* these are allocated from the usb_info dma space */
 	struct ept_queue_head *head;
@@ -677,6 +678,14 @@ int usb_ept_queue_xfer(struct msm_endpoint *ept, struct usb_request *_req)
 		return -EMSGSIZE;
 
 	spin_lock_irqsave(&ui->lock, flags);
+
+	if (ept->num != 0 && !ept->ep_enabled) {
+		req->req.status = -EINVAL;
+		spin_unlock_irqrestore(&ui->lock, flags);
+		dev_err(&ui->pdev->dev,
+			"%s: called for disabled endpoint\n", __func__);
+		return -EINVAL;
+	}
 
 	if (req->busy) {
 		req->req.status = -EBUSY;
@@ -2011,6 +2020,7 @@ msm72k_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	config_ept(ept);
 	ept->wedged = 0;
 	usb_ept_enable(ept, 1, ep_type);
+	ept->ep_enabled = 1;
 	return 0;
 }
 
@@ -2019,6 +2029,7 @@ static int msm72k_disable(struct usb_ep *_ep)
 	struct msm_endpoint *ept = to_msm_endpoint(_ep);
 
 	usb_ept_enable(ept, 0, 0);
+	ept->ep_enabled = 0;
 	flush_endpoint(ept);
 	return 0;
 }
