@@ -1330,6 +1330,11 @@ static void composite_disconnect(struct usb_gadget *gadget)
 		reset_config(cdev);
 	}
 
+#if 1
+	cdev->connected = 0;
+	schedule_work(&cdev->switch_work);
+	spin_unlock_irqrestore(&cdev->lock, flags);
+#else
 	if (cdev->mute_switch) {
 #ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 /* Problem  : Re-enumeration when select tethering mode
@@ -1353,7 +1358,7 @@ static void composite_disconnect(struct usb_gadget *gadget)
 		printk("composite_disconnect -> switch_work\n");
 	}
 	spin_unlock_irqrestore(&cdev->lock, flags);
-
+#endif
 }
 
 /*-------------------------------------------------------------------------*/
