@@ -1059,10 +1059,6 @@ static int ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
 	struct epitem *epi;
 	struct epoll_event __user *uevent;
 
-	BUG_ON(!ep);
-	BUG_ON(!head);
-	BUG_ON(!priv);	
-
 	/*
 	 * We can loop without lock because we are passed a task private list.
 	 * Items cannot vanish during the loop because ep_scan_ready_list() is

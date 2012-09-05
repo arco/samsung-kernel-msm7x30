@@ -770,12 +770,11 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 				spin_unlock(lock);
 				/*
 				 * Ensure any pending I/O completes so that
-				 * write_dirty_buffer() actually writes the
-				 * current contents - it is a noop if I/O is
-				 * still in flight on potentially older
-				 * contents.
+				 * ll_rw_block() actually writes the current
+				 * contents - it is a noop if I/O is still in
+				 * flight on potentially older contents.
 				 */
-				write_dirty_buffer(bh, WRITE_SYNC_PLUG);
+				ll_rw_block(SWRITE_SYNC_PLUG, 1, &bh);
 
 				/*
 				 * Kick off IO for the previous mapping. Note
@@ -3125,24 +3124,12 @@ void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 }
 EXPORT_SYMBOL(ll_rw_block);
 
-void write_dirty_buffer(struct buffer_head *bh, int rw)
-{
-	lock_buffer(bh);
-	if (!test_clear_buffer_dirty(bh)) {
-		unlock_buffer(bh);
-		return;
-	}
-	bh->b_end_io = end_buffer_write_sync;
-	get_bh(bh);
-	submit_bh(rw, bh);
-}
-EXPORT_SYMBOL(write_dirty_buffer);
 /*
  * For a data-integrity writeout, we need to wait upon any in-progress I/O
  * and then start new I/O and then wait upon it.  The caller must have a ref on
  * the buffer_head.
  */
-int __sync_dirty_buffer(struct buffer_head *bh, int rw)
+int sync_dirty_buffer(struct buffer_head *bh)
 {
 	int ret = 0;
 
@@ -3151,7 +3138,7 @@ int __sync_dirty_buffer(struct buffer_head *bh, int rw)
 	if (test_clear_buffer_dirty(bh)) {
 		get_bh(bh);
 		bh->b_end_io = end_buffer_write_sync;
-		ret = submit_bh(rw, bh);
+		ret = submit_bh(WRITE_SYNC, bh);
 		wait_on_buffer(bh);
 		if (buffer_eopnotsupp(bh)) {
 			clear_buffer_eopnotsupp(bh);
@@ -3163,12 +3150,6 @@ int __sync_dirty_buffer(struct buffer_head *bh, int rw)
 		unlock_buffer(bh);
 	}
 	return ret;
-}
-EXPORT_SYMBOL(__sync_dirty_buffer);
-
-int sync_dirty_buffer(struct buffer_head *bh)
-{
-	return __sync_dirty_buffer(bh, WRITE_SYNC);
 }
 EXPORT_SYMBOL(sync_dirty_buffer);
 

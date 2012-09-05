@@ -155,38 +155,16 @@ const char *__bdevname(dev_t dev, char *buffer)
 
 EXPORT_SYMBOL(__bdevname);
 
-struct parsed_partitions *g_state = NULL;
-
 static struct parsed_partitions *
 check_partition(struct gendisk *hd, struct block_device *bdev)
 {
 	struct parsed_partitions *state;
 	int i, res, err;
-	int retry;
-	
-	int is_inand = strcmp(bdev->bd_disk->disk_name, "mmcblk1");
-	if(is_inand || !g_state)
-	{
-		for(retry = 0 ; retry < 20 ; retry++)
-		{
-			state = kzalloc(sizeof(struct parsed_partitions), GFP_KERNEL);
-			if(state)
-				break;
-			schedule();
-			printk("%s : kzalloc fail(%d/100)\n",__func__, retry);
-		}
-	
-		if(!state)
-			return NULL;
-		if(!is_inand)
-			g_state = state;
-	}
-	else
-	{
-		memset(g_state, 0, sizeof(struct parsed_partitions));
-		state = g_state;
-	}
-	
+
+	state = kzalloc(sizeof(struct parsed_partitions), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
 	state->bdev = bdev;
 	disk_name(hd, 0, state->name);
 	printk(KERN_INFO " %s:", state->name);
@@ -218,10 +196,7 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 		printk(" unknown partition table\n");
 	else if (warn_no_part)
 		printk(" unable to read partition table\n");
-
-	if(is_inand)
-		kfree(state);
-
+	kfree(state);
 	return ERR_PTR(res);
 }
 
@@ -616,8 +591,6 @@ rescan:
 	if (state && !IS_ERR(state)) {
 		kfree(state);
 		state = NULL;
-		if (!strcmp(bdev->bd_disk->disk_name,"mmcblk1"))
-			g_state = NULL;
 	}
 
 	if (bdev->bd_part_count)
@@ -726,8 +699,7 @@ rescan:
 			md_autodetect_dev(part_to_dev(part)->devt);
 #endif
 	}
-	if (strcmp(bdev->bd_disk->disk_name,"mmcblk1"))
-		kfree(state);
+	kfree(state);
 	return 0;
 }
 

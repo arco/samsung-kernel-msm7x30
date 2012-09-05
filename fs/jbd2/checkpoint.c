@@ -118,13 +118,13 @@ static int __try_to_free_cp_buf(struct journal_head *jh)
 void __jbd2_log_wait_for_space(journal_t *journal)
 {
 	int nblocks, space_left;
-	/* assert_spin_locked(&journal->j_state_lock); */
+	assert_spin_locked(&journal->j_state_lock);
 
 	nblocks = jbd_space_needed(journal);
 	while (__jbd2_log_space_left(journal) < nblocks) {
 		if (journal->j_flags & JBD2_ABORT)
 			return;
-		write_unlock(&journal->j_state_lock);
+		spin_unlock(&journal->j_state_lock);
 		mutex_lock(&journal->j_checkpoint_mutex);
 
 		/*
@@ -138,7 +138,7 @@ void __jbd2_log_wait_for_space(journal_t *journal)
 		 * filesystem, so abort the journal and leave a stack
 		 * trace for forensic evidence.
 		 */
-		write_lock(&journal->j_state_lock);
+		spin_lock(&journal->j_state_lock);
 		spin_lock(&journal->j_list_lock);
 		nblocks = jbd_space_needed(journal);
 		space_left = __jbd2_log_space_left(journal);
@@ -149,7 +149,7 @@ void __jbd2_log_wait_for_space(journal_t *journal)
 			if (journal->j_committing_transaction)
 				tid = journal->j_committing_transaction->t_tid;
 			spin_unlock(&journal->j_list_lock);
-			write_unlock(&journal->j_state_lock);
+			spin_unlock(&journal->j_state_lock);
 			if (chkpt) {
 				jbd2_log_do_checkpoint(journal);
 			} else if (jbd2_cleanup_journal_tail(journal) == 0) {
@@ -167,7 +167,7 @@ void __jbd2_log_wait_for_space(journal_t *journal)
 				WARN_ON(1);
 				jbd2_journal_abort(journal, 0);
 			}
-			write_lock(&journal->j_state_lock);
+			spin_lock(&journal->j_state_lock);
 		} else {
 			spin_unlock(&journal->j_list_lock);
 		}
@@ -255,9 +255,7 @@ __flush_batch(journal_t *journal, int *batch_count)
 {
 	int i;
 
-	for (i = 0; i < *batch_count; i++)
-		write_dirty_buffer(journal->j_chkpt_bhs[i], WRITE);
-
+	ll_rw_block(SWRITE, *batch_count, journal->j_chkpt_bhs);
 	for (i = 0; i < *batch_count; i++) {
 		struct buffer_head *bh = journal->j_chkpt_bhs[i];
 		clear_buffer_jwrite(bh);
@@ -476,7 +474,7 @@ int jbd2_cleanup_journal_tail(journal_t *journal)
 	 * next transaction ID we will write, and where it will
 	 * start. */
 
-	write_lock(&journal->j_state_lock);
+	spin_lock(&journal->j_state_lock);
 	spin_lock(&journal->j_list_lock);
 	transaction = journal->j_checkpoint_transactions;
 	if (transaction) {
@@ -498,7 +496,7 @@ int jbd2_cleanup_journal_tail(journal_t *journal)
 	/* If the oldest pinned transaction is at the tail of the log
            already then there's not much we can do right now. */
 	if (journal->j_tail_sequence == first_tid) {
-		write_unlock(&journal->j_state_lock);
+		spin_unlock(&journal->j_state_lock);
 		return 1;
 	}
 
@@ -518,7 +516,7 @@ int jbd2_cleanup_journal_tail(journal_t *journal)
 	journal->j_free += freed;
 	journal->j_tail_sequence = first_tid;
 	journal->j_tail = blocknr;
-	write_unlock(&journal->j_state_lock);
+	spin_unlock(&journal->j_state_lock);
 
 	/*
 	 * If there is an external journal, we need to make sure that
@@ -615,9 +613,6 @@ int __jbd2_journal_clean_checkpoint_list(journal_t *journal)
 	do {
 		transaction = next_transaction;
 		next_transaction = transaction->t_cpnext;
-
-		if(NULL==transaction->t_checkpoint_list) goto out;//temporarily block
-
 		ret += journal_clean_one_cp_list(transaction->
 				t_checkpoint_list, &released);
 		/*
@@ -778,9 +773,9 @@ void __jbd2_journal_drop_transaction(journal_t *journal, transaction_t *transact
 	J_ASSERT(transaction->t_iobuf_list == NULL);
 	J_ASSERT(transaction->t_shadow_list == NULL);
 	J_ASSERT(transaction->t_log_list == NULL);
-//	J_ASSERT(transaction->t_checkpoint_list == NULL); //temporarily block
+	J_ASSERT(transaction->t_checkpoint_list == NULL);
 	J_ASSERT(transaction->t_checkpoint_io_list == NULL);
-	J_ASSERT(atomic_read(&transaction->t_updates) == 0);
+	J_ASSERT(transaction->t_updates == 0);
 	J_ASSERT(journal->j_committing_transaction != transaction);
 	J_ASSERT(journal->j_running_transaction != transaction);
 

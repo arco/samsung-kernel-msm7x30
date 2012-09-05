@@ -799,11 +799,7 @@ int bdi_writeback_task(struct bdi_writeback *wb)
 				break;
 		}
 
-#if 0	// insert Qualcomm Patch
 		if (dirty_writeback_interval) {
-#else
-		if (dirty_writeback_interval && !kthread_should_stop()) { 
-#endif
 			wait_jiffies = msecs_to_jiffies(dirty_writeback_interval * 10);
 			schedule_timeout_interruptible(wait_jiffies);
 		} else {

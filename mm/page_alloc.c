@@ -617,10 +617,6 @@ static void free_pcppages_bulk(struct zone *zone, int count,
 				migratetype = 0;
 			list = &pcp->lists[migratetype];
 		} while (list_empty(list));
-		
-		/* This is an only non-empty list. Free them all. */ 
-		if (batch_free == MIGRATE_PCPTYPES)
-			batch_free = to_free;
 
 		do {
 			page = list_entry(list->prev, struct page, lru);
