@@ -302,11 +302,7 @@ extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint
 extern int	 wl_control_wl_start(struct net_device *dev);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 struct semaphore dhd_registration_sem;
-#if 1 /* by tjkang */
 #define DHD_REGISTRATION_TIMEOUT  25000  /* msec : allowed time to finished dhd registration */
-#else
-#define DHD_REGISTRATION_TIMEOUT  12000  /* msec : allowed time to finished dhd registration */
-#endif
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) */
 /* load firmware and/or nvram values from the filesystem */
 module_param_string(firmware_path, firmware_path, MOD_PARAM_PATHLEN, 0);
@@ -400,7 +396,7 @@ int dhd_idletime = DHD_IDLETIME_TICKS;
 module_param(dhd_idletime, int, 0);
 
 /* Use polling */
-uint dhd_poll = TRUE;
+uint dhd_poll = FALSE;
 module_param(dhd_poll, uint, 0);
 
 
@@ -503,7 +499,7 @@ static void dhd_set_packet_filter(int value, dhd_pub_t *dhd)
 	DHD_TRACE(("%s: %d\n", __FUNCTION__, value));
 	/* 1 - Enable packet filter, only allow unicast packet to send up */
 	/* 0 - Disable packet filter */
-	if (dhd_pkt_filter_enable) {
+	if (dhd_pkt_filter_enable && !dhd->dhcp_in_progress) {
 		int i;
 
 		for (i = 0; i < dhd->pktfilter_count; i++) {
@@ -525,7 +521,7 @@ int dhd_set_suspend(int value, dhd_pub_t *dhd)
 #endif
 	/* wl_pkt_filter_enable_t	enable_parm; */
 	char iovbuf[32];
-	int bcn_li_dtim = 3;
+	int bcn_li_dtim = 1;
 #ifdef CUSTOMER_HW2
 	uint roamvar = 1;
 #endif /* CUSTOMER_HW2 */
@@ -598,18 +594,10 @@ static void dhd_suspend_resume_helper(struct dhd_info *dhd, int val)
 	dhd_pub_t *dhdp = &dhd->pub;
 
 	dhd_os_proto_block(dhdp);
-
-	WAKE_LOCK_INIT(&dhd->pub, WAKE_LOCK_DHD_SUSPEND, "dhd_suspend_resume_helper");
-	WAKE_LOCK(&dhd->pub, WAKE_LOCK_DHD_SUSPEND);
-	
 	/* Set flag when early suspend was called */
 	dhdp->in_suspend = val;
 	if (!dhdp->suspend_disable_flag)
 		dhd_set_suspend(val, dhdp);
-
-	WAKE_UNLOCK(&dhd->pub, WAKE_LOCK_DHD_SUSPEND);
-	WAKE_LOCK_DESTROY(&dhd->pub, WAKE_LOCK_DHD_SUSPEND); 
-	
 	dhd_os_proto_unblock(dhdp);
 }
 
@@ -996,6 +984,28 @@ dhd_op_if(dhd_if_t *ifp)
 	}
 }
 
+static volatile int deepsleep_lock = 0;
+
+void 
+dhd_os_deepsleep_block(void)
+{
+	deepsleep_lock = 1;
+}
+
+void 
+dhd_os_deepsleep_unblock(void)
+{
+	deepsleep_lock = 0;
+}
+
+void 
+dhd_os_deepsleep_wait(void)
+{
+	while(deepsleep_lock) {
+		msleep(100);
+	}
+}
+
 static int
 _dhd_sysioc_thread(void *data)
 {
@@ -1009,9 +1019,8 @@ _dhd_sysioc_thread(void *data)
 	DAEMONIZE("dhd_sysioc");
 
 	while (down_interruptible(&dhd->sysioc_sem) == 0) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
-		dhd_os_start_lock(&dhd->pub);
-#endif 
+		dhd_os_deepsleep_wait();
+		dhd_os_deepsleep_block();
 		for (i = 0; i < DHD_MAX_IFS; i++) {
 			if (dhd->iflist[i]) {
 				DHD_TRACE(("%s: interface %d\n", __FUNCTION__, i));
@@ -1053,9 +1062,7 @@ _dhd_sysioc_thread(void *data)
 				}
 			}
 		}
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
-		dhd_os_start_unlock(&dhd->pub);
-#endif 
+		dhd_os_deepsleep_unblock();
 	}
 	DHD_TRACE(("%s: stopped\n", __FUNCTION__));
 	complete_and_exit(&dhd->sysioc_exited, 0);
@@ -1739,44 +1746,29 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 	uint driver = 0;
 	int ifidx;
 	bool is_set_key_cmd;
-	int ret;
-	
-	WAKE_LOCK_INIT(&dhd->pub, WAKE_LOCK_IOCTL, "dhd_ioctl_entry");
-	WAKE_LOCK(&dhd->pub, WAKE_LOCK_IOCTL);
 
 	ifidx = dhd_net2idx(dhd, net);
 	DHD_TRACE(("%s: ifidx %d, cmd 0x%04x\n", __FUNCTION__, ifidx, cmd));
 
-	if (ifidx == DHD_BAD_IF) {
-		WAKE_UNLOCK(&dhd->pub, WAKE_LOCK_IOCTL);
-		WAKE_LOCK_DESTROY(&dhd->pub, WAKE_LOCK_IOCTL);
+	if (ifidx == DHD_BAD_IF)
 		return -1;
-	}
+
 #if defined(CONFIG_WIRELESS_EXT)
 	/* linux wireless extensions */
 	if ((cmd >= SIOCIWFIRST) && (cmd <= SIOCIWLAST)) {
 		/* may recurse, do NOT lock */
-		ret = wl_iw_ioctl(net, ifr, cmd);
-		WAKE_UNLOCK(&dhd->pub, WAKE_LOCK_IOCTL);
-		WAKE_LOCK_DESTROY(&dhd->pub, WAKE_LOCK_IOCTL);
-		return ret;
+		return wl_iw_ioctl(net, ifr, cmd);
 	}
 #endif /* defined(CONFIG_WIRELESS_EXT) */
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 4, 2)
-	if (cmd == SIOCETHTOOL) {
-		ret = dhd_ethtool(dhd, (void*)ifr->ifr_data);
-		WAKE_UNLOCK(&dhd->pub, WAKE_LOCK_IOCTL);
-		WAKE_LOCK_DESTROY(&dhd->pub, WAKE_LOCK_IOCTL);
-		return ret;
-		}
+	if (cmd == SIOCETHTOOL)
+		return (dhd_ethtool(dhd, (void*)ifr->ifr_data));
 #endif /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 4, 2) */
 
-	if (cmd != SIOCDEVPRIVATE) {
-		WAKE_UNLOCK(&dhd->pub, WAKE_LOCK_IOCTL);
-		WAKE_LOCK_DESTROY(&dhd->pub, WAKE_LOCK_IOCTL);
+	if (cmd != SIOCDEVPRIVATE)
 		return -EOPNOTSUPP;
-	}
+
 	memset(&ioc, 0, sizeof(ioc));
 
 	/* Copy the ioc control structure part of ioctl request */
@@ -1850,9 +1842,13 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 	if (is_set_key_cmd) {
 		dhd_wait_pend8021x(net);
 	}
+	WAKE_LOCK_INIT(&dhd->pub, WAKE_LOCK_IOCTL, "dhd_ioctl_entry");
+	WAKE_LOCK(&dhd->pub, WAKE_LOCK_IOCTL);
 
 	bcmerror = dhd_prot_ioctl(&dhd->pub, ifidx, (wl_ioctl_t *)&ioc, buf, buflen);
 
+	WAKE_UNLOCK(&dhd->pub, WAKE_LOCK_IOCTL);
+	WAKE_LOCK_DESTROY(&dhd->pub, WAKE_LOCK_IOCTL);
 	if ((bcmerror == -ETIMEDOUT) || ((dhd->pub.busstate == DHD_BUS_DOWN) && \
 			(!dhd->pub.dongle_reset))) {
 		DHD_ERROR(("%s: Event HANG send up\n", __FUNCTION__));
@@ -1867,9 +1863,6 @@ done:
 	if (buf)
 		MFREE(dhd->pub.osh, buf, buflen);
 
-	WAKE_UNLOCK(&dhd->pub, WAKE_LOCK_IOCTL);
-	WAKE_LOCK_DESTROY(&dhd->pub, WAKE_LOCK_IOCTL);
-		
 	return OSL_ERROR(bcmerror);
 }
 
@@ -2176,215 +2169,12 @@ fail:
 }
 
 #ifdef WRITE_MACADDR
-static int
-dhd_write_macaddr(char *addr)
-{
-    struct file *fp   = NULL;
-    char filepath[40] = {0};
-    char macbuffer[18]= {0};
-    int ret           = 0;
-    mm_segment_t oldfs= {0};
-
-    strcpy(filepath, "/data/.mac.info");
-
-    //fp = filp_open(filepath, O_RDONLY, 0);
-    fp = filp_open(filepath, O_RDWR, 0);
-    if(IS_ERR(fp))
-    {
-	/* File Doesn't Exist. Create and write mac addr.*/
-	fp = filp_open(filepath, O_RDWR | O_CREAT, 0666);
-    	if(IS_ERR(fp))
-	{
-		fp = NULL;
-			DHD_ERROR(("[WIFI] %s: File open error \n", filepath));
-		return -1;
-	}
-
-	oldfs = get_fs();
-	set_fs(get_ds());
-
-	sprintf(macbuffer,"%02X:%02X:%02X:%02X:%02X:%02X\n",
-		addr[0],addr[1],addr[2],addr[3],addr[4],addr[5]);
-
-	if(fp->f_mode & FMODE_WRITE)
-	{
-	   ret = fp->f_op->write(fp, (const char *)macbuffer, sizeof(macbuffer), &fp->f_pos);
-		   DHD_INFO(("[WIFI] Mac address [%s] written into File:%s \n", macbuffer, filepath));
-	}
-
-	set_fs(oldfs);
-    }
-else {
-	char buf[18]         = {0};
-    int nread = kernel_read(fp, 0,  buf, 256);
-    if(nread < 10) {
-	oldfs = get_fs();
-	set_fs(get_ds());
-
-	sprintf(macbuffer,"%02X:%02X:%02X:%02X:%02X:%02X\n",
-		addr[0],addr[1],addr[2],addr[3],addr[4],addr[5]);
-
-	if(fp->f_mode & FMODE_WRITE)
-	{
-	   ret = fp->f_op->write(fp, (const char *)macbuffer, sizeof(macbuffer), &fp->f_pos);
-		   DHD_INFO(("[WIFI] Mac address [%s] written into File:%s \n", macbuffer, filepath));
-	}
-
-	set_fs(oldfs);
-
-
-    }
-    
-
-}
-
-/*
-else if (stat(MACINFO, &sb) == 0 && sb.st_size < 10) {
-
-	fp = filp_open(filepath, O_RDWR | O_CREAT, 0666);
-    	if(IS_ERR(fp))
-	{
-		fp = NULL;
-			DHD_ERROR(("[WIFI] %s: File open error \n", filepath));
-		return -1;
-	}
-
-	oldfs = get_fs();
-	set_fs(get_ds());
-
-	sprintf(macbuffer,"%02X:%02X:%02X:%02X:%02X:%02X\n",
-		addr[0],addr[1],addr[2],addr[3],addr[4],addr[5]);
-
-	if(fp->f_mode & FMODE_WRITE)
-	{
-	   ret = fp->f_op->write(fp, (const char *)macbuffer, sizeof(macbuffer), &fp->f_pos);
-		   DHD_INFO(("[WIFI] Mac address [%s] written into File:%s \n", macbuffer, filepath));
-	}
-
-	set_fs(oldfs);
-}
-*/
-
-
-    if(fp)
-	filp_close(fp, NULL);
-    
-    return 0;
-}
-#endif /* WRITE_MACADDR */
+int dhd_write_macaddr(char *addr);
+#endif
 
 #ifdef READ_MACADDR
-static int
-dhd_read_macaddr(dhd_info_t *dhd)
-{
-    struct file *fp      = NULL;
-    struct file *fpnv      = NULL;
-    char macbuffer[18]   = {0};
-    mm_segment_t oldfs   = {0};
-	char randommac[3]    = {0};
-	char buf[18]         = {0};
-	char* filepath       = "/data/.mac.info";
-	//char* nvfilepath       = "/efs/imei/.nvmac.info";
-	char* nvfilepath       = "/data/.nvmac.info";	
-	int ret=0;
-
-	//MAC address copied from nv
-	fpnv = filp_open(nvfilepath, O_RDONLY, 0);
-	if ((fpnv == NULL) || IS_ERR(fpnv)) {
-start_readmac:
-		fpnv = NULL;
-		fp = filp_open(filepath, O_RDONLY, 0);
-		if ((fp==NULL) || IS_ERR(fp)) {
-			/* File Doesn't Exist. Create and write mac addr.*/
-			fp = filp_open(filepath, O_RDWR | O_CREAT, 0666);
-			if(IS_ERR(fp)) {
-				if(fp)
-					filp_close(fp,NULL);
-				if(fpnv)
-					filp_close(fpnv,NULL);
-				DHD_ERROR(("[WIFI] %s: File open error\n", filepath));
-				return -1;
-			}
-
-			oldfs = get_fs();
-			set_fs(get_ds());
-
-		/* Generating the Random Bytes for 3 last octects of the MAC address */
-		get_random_bytes(randommac, 3);
-		
-		sprintf(macbuffer,"%02X:%02X:%02X:%02X:%02X:%02X\n",
-			0x60,0xd0,0xa9,randommac[0],randommac[1],randommac[2]);
-			DHD_INFO(("[WIFI] The Random Generated MAC ID : %s\n", macbuffer));
-			printk("[WIFI] The Random Generated MAC ID : %s\n", macbuffer);
-
-			if(fp->f_mode & FMODE_WRITE) {			
-				ret = fp->f_op->write(fp, (const char *)macbuffer, sizeof(macbuffer), &fp->f_pos);
-				if(ret < 0)
-					DHD_ERROR(("[WIFI] Mac address [%s] Failed to write into File: %s\n", macbuffer, filepath));
-				else
-					DHD_INFO(("[WIFI] Mac address [%s] written into File: %s\n", macbuffer, filepath));
-			}
-			set_fs(oldfs);
-		}
-		/* Reading the MAC Address from .mac.info file( the existed file or just created file)*/
-		//rtn_value=kernel_read(fp, fp->f_pos, buf, 18);	
-		ret = kernel_read(fp, 0, buf, 18);	
-	}
-	else {
-		/* Reading the MAC Address from .nvmac.info file( the existed file or just created file)*/
-		ret = kernel_read(fpnv, 0, buf, 18);
-		buf[17] ='\0';   // to prevent abnormal string display when mac address is displayed on the screen. 
-		printk("Read MAC : [%s] [%d] \r\n" , buf, strncmp(buf , "00:00:00:00:00:00" , 17));
-		if(strncmp(buf , "00:00:00:00:00:00" , 17) == 0) {
-			filp_close(fpnv, NULL);
-			goto start_readmac;
-		}
-
-		fp = filp_open(filepath, O_RDWR | O_CREAT, 0666); // File is always created.
-			if(IS_ERR(fp)) {
-				DHD_ERROR(("[WIFI] %s: File open error\n", filepath));
-			if (fpnv)
-				filp_close(fpnv, NULL);
-				return -1;
-			}
-		else {
-			oldfs = get_fs();
-			set_fs(get_ds());
-			
-			if(fp->f_mode & FMODE_WRITE) {
-				ret = fp->f_op->write(fp, (const char *)buf, sizeof(buf), &fp->f_pos);
-				if(ret < 0)
-					DHD_ERROR(("[WIFI] Mac address [%s] Failed to write into File: %s\n", buf, filepath));
-				else
-					DHD_INFO(("[WIFI] Mac address [%s] written into File: %s\n", buf, filepath));
-			}       
-			set_fs(oldfs);
-
-		ret = kernel_read(fp, 0, buf, 18);	
-		} 	
-	}
-
-	if(ret)
-		sscanf(buf,"%02X:%02X:%02X:%02X:%02X:%02X",
-			   &dhd->pub.mac.octet[0], &dhd->pub.mac.octet[1], &dhd->pub.mac.octet[2], 
-			   &dhd->pub.mac.octet[3], &dhd->pub.mac.octet[4], &dhd->pub.mac.octet[5]);
-	else
-		DHD_ERROR(("dhd_bus_start: Reading from the '%s' returns 0 bytes\n", filepath));
-
-	if (fp)
-		filp_close(fp, NULL);
-	if (fpnv)
-		filp_close(fpnv, NULL);    	
-
-	/* Writing Newly generated MAC ID to the Dongle */
-	if (0 == _dhd_set_mac_address(dhd, 0, &dhd->pub.mac))
-		DHD_INFO(("dhd_bus_start: MACID is overwritten\n"));
-	else
-		DHD_ERROR(("dhd_bus_start: _dhd_set_mac_address() failed\n"));
-
-    return 0;
-}
-#endif /* READ_MACADDR */
+int dhd_read_macaddr(dhd_info_t *dhd);
+#endif
 
 
 int
@@ -2448,13 +2238,11 @@ dhd_bus_start(dhd_pub_t *dhdp)
 	}
 
 #ifdef READ_MACADDR
-	if (dhd_read_macaddr(dhd) < 0)
-		return -ENODEV;
+	dhd_read_macaddr(dhd);
 #endif
 #ifdef EMBEDDED_PLATFORM
 	bcm_mkiovar("event_msgs", dhdp->eventmask, WL_EVENTING_MASK_LEN, iovbuf, sizeof(iovbuf));
-	if (dhdcdc_query_ioctl(dhdp, 0, WLC_GET_VAR, iovbuf, sizeof(iovbuf)) < 0)
-		return -ENODEV;
+	dhdcdc_query_ioctl(dhdp, 0, WLC_GET_VAR, iovbuf, sizeof(iovbuf));
 	bcopy(iovbuf, dhdp->eventmask, WL_EVENTING_MASK_LEN);
 
 	setbit(dhdp->eventmask, WLC_E_SET_SSID);
@@ -2498,10 +2286,7 @@ dhd_bus_start(dhd_pub_t *dhdp)
 
 	/* Bus is ready, do any protocol initialization */
 	if ((ret = dhd_prot_init(&dhd->pub)) < 0)
-	{
-		DHD_ERROR(("%s failed initializing protocol\n", __FUNCTION__));
 		return ret;
-	}
 #ifdef WRITE_MACADDR
 	/* Samsung requirement: Write MAC addr to an external file so that it could be used even when WIFI is not Enabled [ON] */
 	dhd_write_macaddr(dhd->pub.mac.octet);
@@ -2789,7 +2574,6 @@ static int __init
 dhd_module_init(void)
 {
 	int error;
-	int init_retry = 0;
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
@@ -2806,8 +2590,6 @@ dhd_module_init(void)
 		DHD_ERROR(("Invalid module parameters.\n"));
 		return -EINVAL;
 	} while (0);
-
-retry_init:
 	/* Call customer gpio to turn on power with WL_REG_ON signal */
 	dhd_customer_gpio_wlan_ctrl(WLAN_POWER_ON);
 
@@ -2817,7 +2599,7 @@ retry_init:
 	error = wifi_add_dev();
 	if (error) {
 		DHD_ERROR(("%s: platform_driver_register failed\n", __FUNCTION__));
-		goto faild;
+		goto failed;
 	}
 
 	/* Waiting callback after platform_driver_register is done or exit with error */
@@ -2825,7 +2607,7 @@ retry_init:
 		DHD_ERROR(("%s: platform_driver_register timeout\n", __FUNCTION__));
 		/* renove device */
 		wifi_del_dev();
-		goto faild;
+		goto failed;
 	}
 #endif /* #if defined(CUSTOMER_HW_SAMSUNG) && defined(CONFIG_WIFI_CONTROL_FUNC) */
 
@@ -2839,11 +2621,7 @@ retry_init:
 		printf("\n%s\n", dhd_version);
 	else {
 		DHD_ERROR(("%s: sdio_register_driver failed\n", __FUNCTION__));
-#if defined(CUSTOMER_HW_SAMSUNG) && defined(CONFIG_WIFI_CONTROL_FUNC)
-		/* renove device */
-		wifi_del_dev();
-#endif /* #if defined(CUSTOMER_HW_SAMSUNG) && defined(CONFIG_WIFI_CONTROL_FUNC) */
-		goto faild;
+		goto failed;
 	}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 	/*
@@ -2852,25 +2630,14 @@ retry_init:
 	 * Kernel MMC sdio device callback registration
 	 */
 	if (down_timeout(&dhd_registration_sem,  msecs_to_jiffies(DHD_REGISTRATION_TIMEOUT)) != 0) {
-		error = -EINVAL;
 		DHD_ERROR(("%s: sdio_register_driver timeout\n", __FUNCTION__));
-		dhd_customer_gpio_wlan_ctrl(WLAN_POWER_OFF);
 		dhd_bus_unregister();
-#if defined(CUSTOMER_HW_SAMSUNG) && defined(CONFIG_WIFI_CONTROL_FUNC)
-		/* renove device */
-		wifi_del_dev();
-#endif /* #if defined(CUSTOMER_HW_SAMSUNG) && defined(CONFIG_WIFI_CONTROL_FUNC) */
-		if (init_retry++ <= 2)
-		{
-			error=0;
-			DHD_TRACE(("%s: Retrying initialization on timeout\n", __FUNCTION__));
-			goto retry_init;
-		}
+		goto failed;
 	}
 #endif
 	return error;
 
-faild:
+failed:
 	/* turn off power and exit */
 	dhd_customer_gpio_wlan_ctrl(WLAN_POWER_OFF);
 	return -EINVAL;
@@ -3122,7 +2889,7 @@ void * dhd_os_prealloc(int section, unsigned long size)
 		alloc_ptr = wifi_control_data->mem_prealloc(section, size);
 		if (alloc_ptr)
 		{
-			DHD_ERROR(("STATIC BUFFER : success alloc section %d\n", section));
+			DHD_INFO(("success alloc section %d\n", section));
 			bzero(alloc_ptr, size);
 			return alloc_ptr;
 		}
@@ -3338,10 +3105,6 @@ void
 dhd_dev_init_ioctl(struct net_device *dev)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
-	 /*Writing STA's MAC ID to the Dongle for SOFTAP*/ 
-        if( _dhd_set_mac_address(dhd,0,&dhd->pub.mac) == 0)
-           DHD_INFO(("dhd_bus_start: MAC ID is overwritten\n"));
-
 
 	dhd_preinit_ioctls(&dhd->pub);
 }
@@ -3483,6 +3246,129 @@ dhd_pub_t *dhd_get_pub(struct net_device *dev)
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 	return &dhd->pub;
 }
+
+#ifdef READ_MACADDR
+
+int
+dhd_read_macaddr(dhd_info_t *dhd)
+{
+    struct file *fp      = NULL;
+    struct file *fpnv      = NULL;
+    char macbuffer[18]   = {0};
+    mm_segment_t oldfs   = {0};
+	char randommac[3]    = {0};
+	char buf[18]         = {0};
+	char* filepath       = "/data/.mac.info";
+    char* nvfilepath       = "/data/.nvmac.info";
+	int ret;
+
+	//MAC address copied from nv
+	fpnv = filp_open(nvfilepath, O_RDONLY, 0);
+	if (IS_ERR(fpnv)) {
+start_readmac:
+		fpnv = NULL;
+		fp = filp_open(filepath, O_RDONLY, 0);
+		if (IS_ERR(fp)) {
+			/* File Doesn't Exist. Create and write mac addr.*/
+			fp = filp_open(filepath, O_RDWR | O_CREAT, 0666);
+			if(IS_ERR(fp)) {
+				if (fp)
+    					filp_close(fp, NULL);
+				if (fpnv)
+		    			filp_close(fpnv, NULL);
+				DHD_ERROR(("[WIFI] %s: File open error\n", filepath));
+				return -1;
+			}
+
+			oldfs = get_fs();
+			set_fs(get_ds());
+
+		/* Generating the Random Bytes for 3 last octects of the MAC address */
+		get_random_bytes(randommac, 3);
+		
+		sprintf(macbuffer,"%02X:%02X:%02X:%02X:%02X:%02X\n",
+			0x00,0x1b,0x98,0x10,randommac[1],randommac[2]);
+			DHD_INFO(("[WIFI] The Random Generated MAC ID : %s\n", macbuffer));
+			printk("[WIFI] The Random Generated MAC ID : %s\n", macbuffer);
+
+			if(fp->f_mode & FMODE_WRITE) {			
+				ret = fp->f_op->write(fp, (const char *)macbuffer, sizeof(macbuffer), &fp->f_pos);
+				if(ret < 0)
+					DHD_ERROR(("[WIFI] Mac address [%s] Failed to write into File: %s\n", macbuffer, filepath));
+				else
+					DHD_INFO(("[WIFI] Mac address [%s] written into File: %s\n", macbuffer, filepath));
+			}
+			set_fs(oldfs);
+		}
+		/* Reading the MAC Address from .mac.info file( the existed file or just created file)*/
+		//rtn_value=kernel_read(fp, fp->f_pos, buf, 18);	
+		ret = kernel_read(fp, 0, buf, 18);	
+	}
+	else {
+		/* Reading the MAC Address from .nvmac.info file( the existed file or just created file)*/
+		ret = kernel_read(fpnv, 0, buf, 18);
+		buf[17] ='\0';   // to prevent abnormal string display when mac address is displayed on the screen. 
+		printk("Read MAC : [%s] [%d] \r\n" , buf, strncmp(buf , "00:00:00:00:00:00" , 17));
+		if(strncmp(buf , "00:00:00:00:00:00" , 17) == 0) {
+			filp_close(fpnv, NULL);
+			goto start_readmac;
+		}
+
+		if((strncmp(&buf[12], "5",1)==0)&&(strncmp(buf, "0000F0973011",12)!=0))  { // this MAC is ok.
+			sprintf(buf,"%c%c:%c%c:%c%c:%c%c:%c%c:%c%c\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7],buf[8],buf[9],buf[10],buf[11]);
+		} else {
+			/* Generating the Random Bytes for 3 last octects of the MAC address */
+			get_random_bytes(randommac, 3);
+			
+			sprintf(buf,"%02X:%02X:%02X:%02X:%02X:%02X\n",0x00,0x1b,0x98,0x10,randommac[1],randommac[2]);
+		}
+
+		fp = filp_open(filepath, O_RDWR | O_CREAT, 0666);
+		if(IS_ERR(fp)) {
+			if (fp)
+    				filp_close(fp, NULL);
+			if (fpnv)
+		    		filp_close(fpnv, NULL);
+				
+			DHD_ERROR(("[WIFI] %s: File open error\n", filepath));
+			return -1;
+		}
+
+		oldfs = get_fs();
+		set_fs(get_ds());
+			
+		if(fp->f_mode & FMODE_WRITE) {
+			ret = fp->f_op->write(fp, (const char *)buf, sizeof(buf), &fp->f_pos);
+			if(ret < 0)
+				DHD_ERROR(("[WIFI] Mac address [%s] Failed to write into File: %s\n", buf, filepath));
+			else
+				DHD_INFO(("[WIFI] Mac address [%s] written into File: %s\n", buf, filepath));
+		}       
+		set_fs(oldfs);
+	} 
+
+	if(ret)
+		sscanf(buf,"%02X:%02X:%02X:%02X:%02X:%02X",
+			  (unsigned int *) &dhd->pub.mac.octet[0], (unsigned int *) &dhd->pub.mac.octet[1], (unsigned int *) &dhd->pub.mac.octet[2], 
+			  (unsigned int *) &dhd->pub.mac.octet[3], (unsigned int *) &dhd->pub.mac.octet[4], (unsigned int *) &dhd->pub.mac.octet[5]);
+	else
+		DHD_ERROR(("dhd_bus_start: Reading from the '%s' returns 0 bytes\n", filepath));
+
+	if (fp)
+		filp_close(fp, NULL);
+	if (fpnv)
+		filp_close(fpnv, NULL);    	
+
+	/* Writing Newly generated MAC ID to the Dongle */
+	if (0 == _dhd_set_mac_address(dhd, 0, &dhd->pub.mac))
+		DHD_INFO(("dhd_bus_start: MACID is overwritten\n"));
+	else
+		DHD_ERROR(("dhd_bus_start: _dhd_set_mac_address() failed\n"));
+
+    return 0;
+}
+#endif /* READ_MACADDR */
+
 
 #ifdef DHD_DEBUG
 int

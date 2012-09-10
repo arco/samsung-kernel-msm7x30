@@ -12,10 +12,3 @@ config BROADCOM_WIFI_RESERVED_MEM
     default n
     ---help---
       This is a configuration for broadcom WLAN driver.
-
-if BROADCOM_WIFI_RESERVED_MEM
-config WLAN_SAMSUNG_MEMSIZE_BCM
-    int "Memory size in kbytes for WLAN driver"
-    default "256"
-endif
-

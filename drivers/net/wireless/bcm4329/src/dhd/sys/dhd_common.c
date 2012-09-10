@@ -1389,7 +1389,8 @@ dhd_enable_keepalive(dhd_pub_t *dhd, uint32 period)
 #endif /* USE_KEEP_ALIVE */
 
 /* dhd_custom_sec.c */
-extern int sec_dhd_config_pm(dhd_pub_t *dhd, uint power_mode);
+extern void sec_dhd_config_pm(dhd_pub_t *dhd, uint power_mode);
+
 int
 dhd_preinit_ioctls(dhd_pub_t *dhd)
 {
@@ -1400,7 +1401,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	uint32 dongle_align = DHD_SDALIGN;
 	uint32 glom = 0;
 	uint bcn_timeout = 4;
-#ifndef BCMCCX
+#if 0
 	int scan_assoc_time = 40;
 	int scan_unassoc_time = 40;
 #endif
@@ -1435,26 +1436,19 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	/* Set Listen Interval */
 	bcm_mkiovar("assoc_listen", (char *)&listen_interval, 4, iovbuf, sizeof(iovbuf));
 	if ((ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf))) < 0)
-	{
 		DHD_ERROR(("%s assoc_listen failed %d\n", __FUNCTION__, ret));
-		return ret;
-	}
 
 	/* query for 'ver' to get version info from firmware */
 	memset(buf, 0, sizeof(buf));
 	ptr = buf;
 	bcm_mkiovar("ver", 0, 0, buf, sizeof(buf));
-	ret = dhdcdc_query_ioctl(dhd, 0, WLC_GET_VAR, buf, sizeof(buf));
-	if (ret < 0)
-		return ret;
+	dhdcdc_query_ioctl(dhd, 0, WLC_GET_VAR, buf, sizeof(buf));
 	bcmstrtok(&ptr, "\n", 0);
 	/* Print fw version info */
 	DHD_ERROR(("Firmware version = %s\n", buf));
 
 	/* Set PowerSave mode */
-	ret = sec_dhd_config_pm(dhd, power_mode);
-	if (ret < 0)
-		return ret;
+	sec_dhd_config_pm(dhd, power_mode);
 
 #ifdef SOFTAP
 	if(!ap_fw_loaded) {
@@ -1470,42 +1464,32 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 
 	/* Match Host and Dongle rx alignment */
 	bcm_mkiovar("bus:txglomalign", (char *)&dongle_align, 4, iovbuf, sizeof(iovbuf));
-	ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
-	if (ret < 0)
-			return ret;
+	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 
 	/* disable glom option per default */
 	bcm_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
-	ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
-	if (ret < 0)
-			return ret;
+	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 
 	/* Setup timeout if Beacons are lost and roam is off to report link down */
 	bcm_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf, sizeof(iovbuf));
-	ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
-	if (ret < 0)
-			return ret;
+	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 
 	/* Enable/Disable build-in roaming to allowed ext supplicant to take of romaing */
 	bcm_mkiovar("roam_off", (char *)&dhd_roam, 4, iovbuf, sizeof(iovbuf));
-	ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
-	if (ret < 0)
-			return ret;
+	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 
 #if defined(SOFTAP)
 	if (ap_fw_loaded == TRUE) {
-		ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_DTIMPRD, (char *)&dtim, sizeof(dtim));
-		if (ret < 0)
-			return ret;
+		dhdcdc_set_ioctl(dhd, 0, WLC_SET_DTIMPRD, (char *)&dtim, sizeof(dtim));
 	}
 #endif 
 
 	if (dhd_roam == 0)
 	{
 		/* set internal roaming roaming parameters */
-		int roam_scan_period = 2; /* in sec */
+		int roam_scan_period = 10; /* in sec */
 		int roam_fullscan_period = 120; /* in sec */
-		int roam_trigger = -85;
+		int roam_trigger = -75;
 		int roam_delta = 10; /* roaming delta = 10 dBm */
 		int band;
 		int band_temp_set = WLC_BAND_2G;
@@ -1553,7 +1537,8 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	/* Setup event_msgs */
 	bcm_mkiovar("event_msgs", dhd->eventmask, WL_EVENTING_MASK_LEN, iovbuf, sizeof(iovbuf));
 	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
-#ifndef BCMCCX
+
+#if 0
 	dhdcdc_set_ioctl(dhd, 0, WLC_SET_SCAN_CHANNEL_TIME, (char *)&scan_assoc_time,
 		sizeof(scan_assoc_time));
 	dhdcdc_set_ioctl(dhd, 0, WLC_SET_SCAN_UNASSOC_TIME, (char *)&scan_unassoc_time,

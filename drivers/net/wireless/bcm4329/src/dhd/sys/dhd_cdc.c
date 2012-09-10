@@ -41,6 +41,10 @@
 #include <dhd_bus.h>
 #include <dhd_dbg.h>
 
+#ifdef CONFIG_CONTROL_PM
+bool g_PMcontrol = FALSE;
+#endif
+
 extern int dhd_preinit_ioctls(dhd_pub_t *dhd);
 
 
@@ -215,6 +219,13 @@ dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 			DHD_TRACE(("%s: cmd %d len %d\n", __FUNCTION__, cmd, len));
 		}
 	}
+
+#ifdef CONFIG_CONTROL_PM
+	if((g_PMcontrol == TRUE) && (cmd == WLC_SET_PM)) {
+		printk("SET PM ignore! !!!!!!!!!!!!!!!!!!!!!!! \r\n");
+		goto done;
+	}
+#endif
 	
 	memset(msg, 0, sizeof(cdc_ioctl_t));
 
@@ -533,6 +544,10 @@ dhd_prot_stop(dhd_pub_t *dhd)
 }
 
 dhd_pub_t *dhd_get_pub(struct net_device *dev); /* dhd_linux.c */
+extern void dhd_os_deepsleep_block(void);       /* dhd_linux.c */
+extern void dhd_os_deepsleep_unblock(void);     /* dhd_linux.c */
+extern void dhd_os_deepsleep_wait(void); /* dhd_linux.c */
+
 
 int dhd_deepsleep(struct net_device *dev, int flag) 
 {
@@ -543,6 +558,7 @@ int dhd_deepsleep(struct net_device *dev, int flag)
 	int ret = 0;
 	switch (flag) {
 		case 1 :  /* Deepsleep on */
+			dhd_os_deepsleep_wait();
 			DHD_ERROR(("[WiFi] Deepsleep On\n"));
 			
 			/* Disable MPC */
@@ -557,6 +573,7 @@ int dhd_deepsleep(struct net_device *dev, int flag)
 			break;
 
 		case 0: /* Deepsleep Off */
+			dhd_os_deepsleep_block();
 			DHD_ERROR(("[WiFi] Deepsleep Off\n"));
 
 			/* Disable Deepsleep */
@@ -582,6 +599,7 @@ int dhd_deepsleep(struct net_device *dev, int flag)
 			memset(iovbuf,0,sizeof(iovbuf));
 			bcm_mkiovar("mpc", (char *)&powervar, 4, iovbuf, sizeof(iovbuf));
 			dhdcdc_set_ioctl(dhdp, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+			dhd_os_deepsleep_unblock();
 			break;
 	}
 

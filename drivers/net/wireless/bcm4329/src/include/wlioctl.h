@@ -381,16 +381,6 @@ typedef struct _pmkid_cand_list {
 	pmkid_cand_t	pmkid_cand[1];
 } pmkid_cand_list_t;
 
-#ifdef BCMCCX
-typedef struct wl_assoc_info {
-	uint32	req_len;
-	uint32	resp_len;
-	uint32	flags;
-	struct	dot11_assoc_req req;
-	struct	ether_addr reassoc_bssid;
-	struct	dot11_assoc_resp resp;
-} wl_assoc_info_t;
-#endif /* BCMCCX */
 
 typedef struct {
 	uint32	val;
@@ -1644,6 +1634,16 @@ typedef struct wl_country {
    char ccode[WLC_CNTRY_BUF_SZ];
 
 } wl_country_t;
+
+typedef struct wl_assoc_info {
+	uint32		req_len;
+	uint32		resp_len;
+	uint32		flags;
+	struct dot11_assoc_req req;
+	struct ether_addr reassoc_bssid; /* used in reassoc's */
+	struct dot11_assoc_resp resp;
+} wl_assoc_info_t;
+
 
 #define WLFEATURE_DISABLE_11N		0x00000001
 #define WLFEATURE_DISABLE_11N_STBC_TX	0x00000002
