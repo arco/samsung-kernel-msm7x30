@@ -61,7 +61,6 @@ volatile smem_proc_comm_data_type *proc_comm;
 static void msm_pm_power_off(void)
 {
 #if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
-	msm_rpcrouter_close();
 	proc_comm = (volatile smem_proc_comm_data_type *)MSM_SHARED_RAM_BASE;
 	proc_comm[4].command = curr_usb_status || curr_ta_status;
 	/* debug level value set to 0 to avoid entering silent reset mode when restarting */
@@ -89,7 +88,6 @@ static void msm_pm_power_off(void)
 	for (;;)
 		;
 #else
-	msm_rpcrouter_close();
 	msm_proc_comm(PCOM_POWER_DOWN, 0, 0);
 	for (;;)
 		;
@@ -99,8 +97,6 @@ static void msm_pm_power_off(void)
 static void msm_pm_restart(char str, const char *cmd)
 {
 #if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
-	msm_rpcrouter_close();
-
 	/* debug level value set to 0 to avoid entering silent reset mode when restarting */
 	smem_flag->info = 0x0;
 
@@ -125,7 +121,6 @@ static void msm_pm_restart(char str, const char *cmd)
 	for (;;)
 	;
 #else
-	msm_rpcrouter_close();
 	pr_debug("The reset reason is %x\n", restart_reason);
 
 	/* Disable interrupts */
