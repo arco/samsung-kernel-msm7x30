@@ -1627,14 +1627,9 @@ static int kgsl_check_interrupt_timestamp(struct kgsl_device *device,
 			cmds[0] = cp_type3_packet(CP_NOP, 1);
 			cmds[1] = 0;
 
-			if (adreno_dev->drawctxt_active)
-				adreno_ringbuffer_issuecmds(device,
+			adreno_ringbuffer_issuecmds(device,
 					adreno_dev->drawctxt_active,
 					KGSL_CMD_FLAGS_NONE, &cmds[0], 2);
-			else
-				/* We would never call this function if there
-				 * was no active contexts running */
-				BUG();
 		}
 	}
 unlock:
