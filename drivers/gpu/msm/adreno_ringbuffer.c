@@ -526,7 +526,7 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 	ringcmds = adreno_ringbuffer_allocspace(rb, total_sizedwords);
 	/* GPU may hang during space allocation, if thats the case the current
 	 * context may have hung the GPU */
-	if (context->flags & CTXT_FLAGS_GPU_HANG) {
+	if (context && context->flags & CTXT_FLAGS_GPU_HANG) {
 		KGSL_CTXT_WARN(rb->device,
 		"Context %p caused a gpu hang. Will not accept commands for context %d\n",
 		context, context->id);
