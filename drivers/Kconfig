@@ -130,4 +130,10 @@ source "drivers/hwspinlock/Kconfig"
 
 source "drivers/clocksource/Kconfig"
 
+source "drivers/dpram/Kconfig"
+
+if MACH_ANCORA
+source "drivers/sensors_ancora/Kconfig"
+endif
+
 endmenu
