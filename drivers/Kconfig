@@ -150,4 +150,10 @@ source "drivers/gud/Kconfig"
 
 source "drivers/coresight/Kconfig"
 
+source "drivers/dpram/Kconfig"
+
+if MACH_ANCORA
+source "drivers/sensors_ancora/Kconfig"
+endif
+
 endmenu
