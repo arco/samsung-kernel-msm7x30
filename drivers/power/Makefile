@@ -59,3 +59,5 @@ obj-$(CONFIG_PM8921_CHARGER)	+= pm8921-charger.o
 obj-$(CONFIG_LTC4088_CHARGER)	+= ltc4088-charger.o
 obj-$(CONFIG_CHARGER_SMB347)	+= smb347-charger.o
 obj-$(CONFIG_BATTERY_BCL)	+= battery_current_limit.o
+obj-$(CONFIG_BATTERY_ANCORA)	+= ancora_battery.o
+obj-$(CONFIG_CHARGER_SMB328A)	+= smb328a_charger.o

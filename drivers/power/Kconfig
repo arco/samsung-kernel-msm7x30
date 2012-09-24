@@ -443,4 +443,24 @@ config AB8500_BATTERY_THERM_ON_BATCTRL
 	  Say Y to enable battery temperature measurements using
 	  thermistor connected on BATCTRL ADC.
 
+config BATTERY_ANCORA
+	tristate "Ancora battery"
+	depends on MACH_ANCORA
+	default n
+	help
+	  Say Y to enable support for the battery in Samsung Ancora.
+
+config CHARGER_SMB328A
+	bool "Enable SMB328A charger driver"
+	default n
+	help
+	  Say Y here to enable support for charger with SMB328A chip
+
+config MAX17043_FUEL_GAUGE
+	tristate "Maxim MAX17040 Fuel Gauge"
+	depends on I2C
+	help
+	  MAX17040 is fuel-gauge systems for lithium-ion (Li+) batteries
+	  in handheld and portable equipment. The MAX17040 is configured
+	  to operate with a single lithium cell
 endif # POWER_SUPPLY
