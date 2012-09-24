@@ -1,0 +1,19 @@
+if INPUT_TOUCHSCREEN
+
+config TOUCHSCREEN_MELFAS_MCS8000
+	bool "Melfas mcs8000 Touchscreen interface support"
+	depends on I2C
+        default n
+        help
+	  Say Y here to enable support for the Melfas
+	  touchscreen controller.
+
+config TOUCHSCREEN_MELFAS_FIRMWARE_UPDATE
+	bool "melfas touchscreen firmware update"
+	depends on TOUCHSCREEN_MELFAS_MCS8000 || TOUCHSCREEN_MELFAS
+	default n
+	help
+	  Say Y here to enable the touchscreen firmware update.
+	  Say N here to disable the touchscreen firmware update.
+
+endif
