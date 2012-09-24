@@ -817,4 +817,6 @@ config TOUCHSCREEN_CYTTSP_I2C
 
          To compile this driver as a module, choose M here: the
          module will be called cyttsp-i2c.
+
+source "drivers/input/touchscreen/ancora/Kconfig"
 endif
