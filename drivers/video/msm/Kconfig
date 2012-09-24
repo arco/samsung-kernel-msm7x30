@@ -311,6 +311,11 @@ config FB_MSM_LCDC_WXGA
 	select FB_MSM_LCDC_PANEL
 	default n
 
+config FB_MSM_LCDC_SAMSUNG_ANCORA
+	bool
+	select FB_MSM_LCDC_PANEL
+	default n
+
 config FB_MSM_MIPI_LGIT_VIDEO_WXGA_PT
 	bool
 	select FB_MSM_MIPI_DSI_LGIT
@@ -525,6 +530,13 @@ config FB_MSM_LCDC_SAMSUNG_OLED_PT_PANEL
 	select FB_MSM_LCDC_SAMSUNG_OLED_PT
 	---help---
 	  Support for LCDC Samsung OLED PT (480x800) panel
+
+config FB_MSM_LCDC_SAMSUNG_ANCORA_PANEL
+	depends on FB_MSM_LCDC_HW
+	bool "LCDC SAMSUNG_ANCORA Panel"
+	select FB_MSM_LCDC_SAMSUNG_ANCORA
+	---help---
+	  Support for LCDC SAMSUNG ANCORA panel
 
 config FB_MSM_LVDS_CHIMEI_WXGA_PANEL
         bool "LVDS Chimei WXGA Panel"
