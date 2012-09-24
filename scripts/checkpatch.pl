@@ -3631,8 +3631,12 @@ sub process {
 			     "Using yield() is generally wrong. See yield() kernel-doc (sched/core.c)\n"  . $herecurr);
 		}
 
-# check for semaphores initialized locked
-		if ($line =~ /^.\s*sema_init.+,\W?0\W?\)/) {
+# check for semaphores used as mutexes
+		if ($line =~ /^.\s*(DECLARE_MUTEX|init_MUTEX)\s*\(/) {
+			WARN("mutexes are preferred for single holder semaphores\n" . $herecurr);
+		}
+# check for semaphores used as mutexes
+		if ($line =~ /^.\s*init_MUTEX_LOCKED\s*\(/) {
 			WARN("CONSIDER_COMPLETION",
 			     "consider using a completion\n" . $herecurr);
 		}
