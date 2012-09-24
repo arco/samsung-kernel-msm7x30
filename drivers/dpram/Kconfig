@@ -1,0 +1,26 @@
+
+
+# Dpram configuration
+#
+
+menu "Dpram support"
+
+config DPRAM
+       tristate "Using smem as dpram"
+       default y
+       ---help---
+		Include this for using smem as dpram for communication between modem and appl.
+
+config ENABLE_TTY_CIQ
+       bool "Enabling dpram TTY CIQ Driver"
+       default n
+       ---help---
+		Include this for using whitelist.
+
+config DPRAM_WHITELIST
+       bool "Using dpram to send whitelist port infos"
+       default y
+       ---help---
+		Include this for using whitelist.
+
+endmenu
