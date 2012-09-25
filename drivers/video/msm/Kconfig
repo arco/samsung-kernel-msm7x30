@@ -27,6 +27,12 @@ config FB_MSM_LOGO
 	---help---
 	  Show /initlogo.rle during boot.
 
+config FB_MSM_SEC_BOOTLOGO
+	default y
+	bool "MSM FB samsung booting logo"
+	---help---
+	  Show /ARIESVE.rle and kernel progress bar image during boot.
+
 config FB_MSM_LCDC_HW
 	bool
 	default n
