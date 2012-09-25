@@ -36,6 +36,9 @@
 #include <asm/uaccess.h>
 #include <linux/miscdevice.h>
 #endif
+
+#include <linux/wakelock.h>
+
 #define SCANCODE_MASK		0x07
 #define UPDOWN_EVENT_MASK	0x08
 #define ESD_STATE_MASK		0x10
@@ -76,6 +79,7 @@ struct cypress_touchkey_devdata {
 
 static struct cypress_touchkey_devdata *devdata_global;
 static struct hrtimer cypress_wdog_timer;
+static struct wake_lock bln_wake_lock;
 
 static int touchkey_status[_3_TOUCH_MAXKEYS] ={0,};
 
@@ -660,6 +664,11 @@ static void notify_led_on(void) {
 	i2c_touchkey_write_byte(devdata_global, devdata_global->backlight_on);
 	bl_on = 1;
 
+   if( wake_lock_active(&bln_wake_lock) ){
+        printk(KERN_DEBUG "[TouchKey] touchkey clear wake_lock\n");
+        wake_unlock(&bln_wake_lock);
+    }
+
         up(&enable_sem);
 
 	bl_set_timeout();
@@ -683,6 +692,13 @@ static void notify_led_off(void) {
 		devdata_global->pdata->touchkey_onoff(TOUCHKEY_OFF);
 
 	bl_on = 0;
+
+	/* we were using a wakelock, unlock it */
+    if( !wake_lock_active(&bln_wake_lock) ){
+        printk(KERN_DEBUG "[TouchKey] touchkey get wake_lock\n");
+        wake_lock(&bln_wake_lock);
+    }
+
 
 	up(&enable_sem);
 
@@ -860,6 +876,9 @@ static int cypress_touchkey_probe(struct i2c_client *client,
 
 	dev_set_drvdata(touchkey_update_device.this_device, devdata);
 
+	/* wake lock for LED Notify */
+    wake_lock_init(&bln_wake_lock, WAKE_LOCK_SUSPEND, "bln_wake_lock");
+
 	if (device_create_file
 	    (touchkey_update_device.this_device, &dev_attr_touch_version) < 0) {
 		printk("%s device_create_file fail dev_attr_touch_version\n",
@@ -950,6 +969,7 @@ static int __devexit i2c_touchkey_remove(struct i2c_client *client)
 	struct cypress_touchkey_devdata *devdata = i2c_get_clientdata(client);
 
 	misc_deregister(&bl_led_device);
+	wake_lock_destroy(&bln_wake_lock);
 
 	unregister_early_suspend(&devdata->early_suspend);
 	/* If the device is dead IRQs are disabled, we need to rebalance them */
