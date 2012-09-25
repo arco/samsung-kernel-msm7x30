@@ -57,6 +57,13 @@
 #define MSM_FB_NUM	3
 #endif
 
+#ifdef CONFIG_FB_MSM_SEC_BOOTLOGO
+extern int charging_boot;
+#define INIT_IMAGE_FILE "/ARIESVE.rle"
+#define CHARGING_IMAGE_FILE "/charging.rle"
+extern int load_565rle_image_onfb( char *filename, int start_x, int start_y);
+#endif
+
 static unsigned char *fbram;
 static unsigned char *fbram_phys;
 static int fbram_size;
@@ -1631,6 +1638,17 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	if (!load_565rle_image(INIT_IMAGE_FILE, bf_supported))
 		;
 #endif
+
+#ifdef CONFIG_FB_MSM_SEC_BOOTLOGO
+	if ( charging_boot ) {
+		if (!load_565rle_image_onfb(CHARGING_IMAGE_FILE, 5, 0)) ;
+	}
+	else {
+		if (!load_565rle_image_onfb(INIT_IMAGE_FILE, 0, 0)) ;	/* Flip buffer */
+	}
+#endif
+	ret = 0;
+
 	ret = 0;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND

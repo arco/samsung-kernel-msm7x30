@@ -39,6 +39,10 @@
 #define LCDC_BASE	0xE0000
 #endif
 
+#if defined(CONFIG_MACH_ANCORA)
+extern unsigned int board_lcd_hw_revision;
+#endif
+
 int first_pixel_start_x;
 int first_pixel_start_y;
 
@@ -690,7 +694,11 @@ int mdp4_lcdc_on(struct platform_device *pdev)
 	hsync_polarity = 0;
 	vsync_polarity = 0;
 #endif
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_APACHE)
+	data_en_polarity = 1;
+#else
 	data_en_polarity = 0;
+#endif
 
 	ctrl_polarity =
 	    (data_en_polarity << 2) | (vsync_polarity << 1) | (hsync_polarity);

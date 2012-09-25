@@ -44,6 +44,10 @@
 
 #define DMA_P_BASE      0x90000
 
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+extern unsigned int board_lcd_hw_revision;
+#endif
+
 extern spinlock_t mdp_spin_lock;
 #ifndef CONFIG_FB_MSM_MDP40
 extern uint32 mdp_intr_mask;
@@ -263,8 +267,20 @@ int mdp_lcdc_on(struct platform_device *pdev)
 
 	lcdc_underflow_clr |= 0x80000000;	/* enable recovery */
 #else
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+	if( board_lcd_hw_revision==3) { //for HYDIS.. -0 - active low
+		hsync_polarity = 0;
+		vsync_polarity = 0;
+	}
+	else { // 1 - active high
+		hsync_polarity = 1;
+		vsync_polarity = 1;
+
+	}
+#else
 	hsync_polarity = 0;
 	vsync_polarity = 0;
+#endif
 #endif
 	data_en_polarity = 0;
 

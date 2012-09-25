@@ -44,6 +44,10 @@
 
 #define VERSION_KEY_MASK	0xFFFFFF00
 
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+extern unsigned int board_lcd_hw_revision;
+#endif
+
 struct mdp4_overlay_ctrl {
 	struct mdp4_overlay_pipe plist[OVERLAY_PIPE_MAX];
 	struct mdp4_overlay_pipe *stage[MDP4_MIXER_MAX][MDP4_MIXER_STAGE_MAX];
@@ -830,6 +834,11 @@ void mdp4_overlay_rgb_setup(struct mdp4_overlay_pipe *pipe)
 
 	format = mdp4_overlay_format(pipe);
 	pattern = mdp4_overlay_unpack_pattern(pipe);
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+	if (board_lcd_hw_revision == 3) {
+		pipe->op_mode |= MDP4_OP_FLIP_LR | MDP4_OP_FLIP_UD;
+	}
+#endif
 
 #ifdef MDP4_IGC_LUT_ENABLE
 	pipe->op_mode |= MDP4_OP_IGC_LUT_EN;
