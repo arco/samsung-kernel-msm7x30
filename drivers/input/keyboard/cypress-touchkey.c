@@ -664,9 +664,9 @@ static void notify_led_on(void) {
 	i2c_touchkey_write_byte(devdata_global, devdata_global->backlight_on);
 	bl_on = 1;
 
-   if( wake_lock_active(&bln_wake_lock) ){
-        printk(KERN_DEBUG "[TouchKey] touchkey clear wake_lock\n");
-        wake_unlock(&bln_wake_lock);
+   if( !wake_lock_active(&bln_wake_lock) ){
+        printk(KERN_DEBUG "[TouchKey] touchkey get wake_lock\n");
+        wake_lock(&bln_wake_lock);
     }
 
         up(&enable_sem);
@@ -694,9 +694,9 @@ static void notify_led_off(void) {
 	bl_on = 0;
 
 	/* we were using a wakelock, unlock it */
-    if( !wake_lock_active(&bln_wake_lock) ){
-        printk(KERN_DEBUG "[TouchKey] touchkey get wake_lock\n");
-        wake_lock(&bln_wake_lock);
+    if( wake_lock_active(&bln_wake_lock) ){
+        printk(KERN_DEBUG "[TouchKey] touchkey clear wake_lock\n");
+        wake_unlock(&bln_wake_lock);
     }
 
 
