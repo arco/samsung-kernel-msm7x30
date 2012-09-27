@@ -901,6 +901,15 @@ static int input_attach_handler(struct input_dev *dev, struct input_handler *han
 	if (!id)
 		return -ENODEV;
 
+	if (dev->name != NULL) {
+		if ((strcmp(dev->name, "accelerometer") == 0)
+#ifndef CONFIG_MACH_ARIESVE
+		    || (strcmp(dev->name, "compass_sensor") == 0)
+#endif
+		    && (strcmp(handler->name, "cpufreq_ond") == 0))
+			return -ENODEV;
+	}
+
 	error = handler->connect(handler, dev, id);
 	if (error && error != -ENODEV)
 		pr_err("failed to attach handler %s to device %s, error: %d\n",

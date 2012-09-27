@@ -44,6 +44,7 @@ struct pm8xxx_keypad_platform_data {
 	unsigned int debounce_ms;
 	unsigned int scan_delay_ms;
 	unsigned int row_hold_ns;
+	unsigned int debounce_ms_gpiokey;
 
 	bool wakeup;
 	bool rep;
