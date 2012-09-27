@@ -19,6 +19,7 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/gpio.h>
 
 #include <linux/mfd/pm8xxx/core.h>
 #include <linux/mfd/pm8xxx/gpio.h>
@@ -83,6 +84,11 @@
 
 #define KEYP_CLOCK_FREQ			32768
 
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_GODART) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+#define GPIO_HOMEKEY			51
+#define MSM_GPIO_KEY_IRQ		MSM_GPIO_TO_INT(GPIO_HOMEKEY)
+#endif
+
 /**
  * struct pmic8xxx_kp - internal keypad data structure
  * @pdata - keypad platform data pointer
@@ -106,6 +112,7 @@ struct pmic8xxx_kp {
 	struct device *dev;
 	u16 keystate[PM8XXX_MAX_ROWS];
 	u16 stuckstate[PM8XXX_MAX_ROWS];
+	struct timer_list timer;
 
 	u8 ctrl_reg;
 };
@@ -192,6 +199,25 @@ static int pmic8xxx_chk_sync_read(struct pmic8xxx_kp *kp)
 
 	return rc;
 }
+
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_GODART) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+int key_pressed;
+extern struct class *sec_class;
+/* sys fs */
+struct class *key_class;
+EXPORT_SYMBOL(key_class);
+struct device *key_dev;
+EXPORT_SYMBOL(key_dev);
+
+static ssize_t key_show(struct device *dev, struct device_attribute *attr, char *buf);
+static DEVICE_ATTR(key , S_IRUGO | S_IXOTH, key_show, NULL);
+/* sys fs */
+
+static ssize_t key_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", key_pressed );
+}
+#endif
 
 static int pmic8xxx_kp_read_data(struct pmic8xxx_kp *kp, u16 *state,
 					u16 data_reg, int read_rows)
@@ -287,6 +313,12 @@ static void __pmic8xxx_kp_scan_matrix(struct pmic8xxx_kp *kp, u16 *new_state,
 					!(new_state[row] & (1 << col)));
 
 			input_sync(kp->input);
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_GODART) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+			key_pressed=!(new_state[row] & (1 << col));
+#ifdef KEY_LOG_TEST
+			printk("[key] code %d, %d \n", kp->keycodes[code], key_pressed);
+#endif
+#endif
 		}
 	}
 }
@@ -386,6 +418,32 @@ static irqreturn_t pmic8xxx_kp_stuck_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_GODART) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+static int gpio_key_scan(struct pmic8xxx_kp *kp)
+{
+	int state;
+
+	state=gpio_get_value(GPIO_HOMEKEY);
+	state=!state;
+
+	input_report_key(kp->input, KEY_HOME, state);
+
+	key_pressed=state;
+#ifdef KEY_LOG_TEST
+	printk("[key] code %d, %d \n", KEY_HOME, key_pressed);
+#endif
+
+	return 0;
+}
+#endif
+
+static void gpio_key_timer(unsigned long _data)
+{
+	struct pmic8xxx_kp *kp = (struct pmic8xxx_kp *)_data;
+
+	gpio_key_scan(kp);
+}
+
 static irqreturn_t pmic8xxx_kp_irq(int irq, void *data)
 {
 	struct pmic8xxx_kp *kp = data;
@@ -406,6 +464,20 @@ static irqreturn_t pmic8xxx_kp_irq(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
+
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_GODART) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+static irqreturn_t pmic8xxx_gpiokey_irq(int irq, void *data)
+{
+	struct pmic8xxx_kp *kp = data;
+
+	if (kp->pdata->debounce_ms_gpiokey)
+		mod_timer(&kp->timer, jiffies + msecs_to_jiffies(kp->pdata->debounce_ms_gpiokey));
+	else
+		gpio_key_scan(kp);
+
+	return IRQ_HANDLED;
+}
+#endif
 
 static int __devinit pmic8xxx_kpd_init(struct pmic8xxx_kp *kp)
 {
@@ -612,6 +684,8 @@ static int __devinit pmic8xxx_kp_probe(struct platform_device *pdev)
 		goto err_alloc_device;
 	}
 
+	setup_timer(&kp->timer, gpio_key_timer, (unsigned long)kp);
+
 	kp->key_sense_irq = platform_get_irq(pdev, 0);
 	if (kp->key_sense_irq < 0) {
 		dev_err(&pdev->dev, "unable to get keypad sense irq\n");
@@ -652,6 +726,8 @@ static int __devinit pmic8xxx_kp_probe(struct platform_device *pdev)
 
 	input_set_capability(kp->input, EV_MSC, MSC_SCAN);
 	input_set_drvdata(kp->input, kp);
+	input_set_capability(kp->input, EV_KEY, KEY_END); // for Galaxy S+
+	input_set_capability(kp->input, EV_KEY, KEY_HOME); // for ancora
 
 	/* initialize keypad state */
 	memset(kp->keystate, 0xff, sizeof(kp->keystate));
@@ -691,6 +767,19 @@ static int __devinit pmic8xxx_kp_probe(struct platform_device *pdev)
 		goto err_req_stuck_irq;
 	}
 
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_GODART) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+	rc = request_threaded_irq( MSM_GPIO_KEY_IRQ ,
+			NULL, pmic8xxx_gpiokey_irq, IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING  , "keypad_gpio", kp);
+
+	if (rc < 0) {
+		dev_err(&pdev->dev, "failed to request gpio key irq\n");
+		goto err_req_sense_irq;
+	}
+
+	rc = set_irq_wake(MSM_GPIO_KEY_IRQ, 1);
+	if (rc)
+		printk("[HOMEKEY] register wakeup source failed\n");
+
 	rc = pmic8xxx_kp_read_u8(kp, &ctrl_val, KEYP_CTRL);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "failed to read KEYP_CTRL register\n");
@@ -705,7 +794,23 @@ static int __devinit pmic8xxx_kp_probe(struct platform_device *pdev)
 		goto err_pmic_reg_read;
 	}
 
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_GODART) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+	/* sys fs */
+	key_class = class_create(THIS_MODULE, "key");
+	if (IS_ERR(key_class))
+		pr_err("Failed to create class(key)!\n");
+
+	key_dev = device_create(key_class, NULL, 0, NULL, "key");
+	if (IS_ERR(key_dev))
+		pr_err("Failed to create device(key)!\n");
+
+	if (device_create_file(key_dev, &dev_attr_key) < 0)
+		pr_err("Failed to create device file(%s)!\n", dev_attr_key.attr.name);
+	/* sys fs */
+#endif
+
 	device_init_wakeup(&pdev->dev, pdata->wakeup);
+#endif
 
 	return 0;
 
@@ -744,7 +849,7 @@ static int pmic8xxx_kp_suspend(struct device *dev)
 	struct input_dev *input_dev = kp->input;
 
 	if (device_may_wakeup(dev)) {
-		enable_irq_wake(kp->key_sense_irq);
+			enable_irq_wake(kp->key_sense_irq);
 	} else {
 		mutex_lock(&input_dev->mutex);
 
@@ -764,7 +869,7 @@ static int pmic8xxx_kp_resume(struct device *dev)
 	struct input_dev *input_dev = kp->input;
 
 	if (device_may_wakeup(dev)) {
-		disable_irq_wake(kp->key_sense_irq);
+			disable_irq_wake(kp->key_sense_irq);
 	} else {
 		mutex_lock(&input_dev->mutex);
 
