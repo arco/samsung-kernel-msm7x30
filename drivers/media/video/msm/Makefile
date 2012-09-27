@@ -13,7 +13,7 @@ else
   obj-$(CONFIG_MSM_CAMERA) += msm_camera.o
 endif
 obj-$(CONFIG_MSM_CAMERA) += msm_axi_qos.o gemini/
-obj-$(CONFIG_MSM_CAMERA_FLASH) += flash.o
+obj-$(CONFIG_MSM_CAMERA_FLASH) += flash.o ledflash.o
 obj-$(CONFIG_ARCH_MSM_ARM11) += msm_vfe7x.o msm_io7x.o
 ifeq ($(CONFIG_MSM_CAMERA_V4L2),y)
   obj-$(CONFIG_ARCH_MSM7X27A) += msm_vfe7x27a_v4l2.o msm_io_7x27a_v4l2.o
@@ -54,3 +54,11 @@ obj-$(CONFIG_MT9D112) += mt9d112.o mt9d112_reg.o
 
 obj-$(CONFIG_MT9D113) += mt9d113.o mt9d113_reg.o
 obj-$(CONFIG_FB_MSM_WRITEBACK_MSM_PANEL) += wfd/
+
+obj-$(CONFIG_SENSOR_MC7) += lsi_mc7.o
+obj-$(CONFIG_SENSOR_CE147) += ce147.o
+obj-$(CONFIG_SENSOR_S5KA3DFX) += s5ka3dfx.o
+obj-$(CONFIG_SENSOR_S5K4ECGX) += s5k4ecgx.o
+obj-$(CONFIG_SENSOR_S5K5CCAF) += s5k5ccaf.o
+obj-$(CONFIG_SENSOR_SR030PC30) += sr030pc30.o
+obj-$(CONFIG_SENSOR_SR130PC10) += sr130pc10.o

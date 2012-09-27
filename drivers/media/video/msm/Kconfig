@@ -10,6 +10,30 @@ config MSM_CAMERA_V4L2
           and /dev/control0.
 
 comment "Camera Sensor Selection"
+config OEM_CAMERA
+	bool "use oem camera feature"
+	default y
+
+config USE_QUP_I2C
+	bool "use qup i2c feature"
+	default y
+
+config SENSOR_MC7
+	bool "Fujitsu MC7 ISP (BAYER 5M)"
+	default n
+
+config SENSOR_CE147
+	bool "NEC ISP (BAYER 5M)"
+	default n
+
+config SENSOR_S5K4ECGX
+	bool "LSI (BAYER 5M)"
+	default n
+
+config SENSOR_S5KA3DFX
+	bool "LSI CIS (VGA)"
+	default n
+
 config MT9T013
 	bool "Sensor mt9t013 (BAYER 3M)"
 	depends on MSM_CAMERA && !ARCH_MSM8X60 && !ARCH_MSM8960 && !MSM_CAMERA_V4L2
@@ -36,6 +60,11 @@ config IMX074
 	depends on MSM_CAMERA
 	---help---
 	SONY 13.5 MP Bayer Sensor
+config SENSOR_S5K5CCAF
+	bool "Sensor s5k5cc 1/5 (3M/AF)"
+	default n
+	---help---
+	  SAMSUNG 3M CMOS Sensor
 config OV5640
 	bool "Sensor OV5640 (YUV 5M)"
 	depends on MSM_CAMERA && !MSM_CAMERA_V4L2
@@ -231,3 +260,15 @@ config S5K3L1YX
 		4 mipi lanes, preview config = 1984 * 1508 at 30 fps,
 		snapshot config = 4000 * 3000 at 20 fps,
 		hfr video at 60, 90 and 120 fps.
+
+config SENSOR_SR030PC30
+	bool "use VGS camera feature"
+	default n
+
+config SENSOR_SR030PC30_T679
+	bool "use T679 VGS camera feature"
+	default n
+
+config SENSOR_SR130PC10
+	bool "use SGH-I847[Apache ATT] VGA camera feature"
+	default n
