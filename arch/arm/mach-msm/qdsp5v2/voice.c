@@ -59,6 +59,7 @@ struct voice_data {
 };
 
 static struct voice_data voice;
+extern int on_call_flag;
 
 static int voice_cmd_device_info(struct voice_data *);
 static int voice_cmd_acquire_done(struct voice_data *);
@@ -366,6 +367,7 @@ static void voice_auddev_cb_function(u32 evt_id,
 	default:
 		MM_ERR("UNKNOWN EVENT\n");
 	}
+	on_call_flag = v->v_call_status;
 	return;
 }
 EXPORT_SYMBOL(voice_auddev_cb_function);
@@ -493,6 +495,18 @@ static int voice_cmd_device_info(struct voice_data *v)
 	cmd.tx_mute = v->dev_tx.mute;
 	cmd.rx_sample = v->dev_rx.sample/1000;
 	cmd.tx_sample = v->dev_tx.sample/1000;
+
+	if (v->network == NETWORK_WCDMA_WB)
+	{
+		cmd.rx_volume_min = v->min_rx_vol[VOC_WB_INDEX];
+		cmd.rx_volume_max = v->max_rx_vol[VOC_WB_INDEX];
+	}
+	else
+	{
+		cmd.rx_volume_min = v->min_rx_vol[VOC_NB_INDEX];
+		cmd.rx_volume_max = v->max_rx_vol[VOC_NB_INDEX];
+	}
+	cmd.rx_volume_percentage = v->dev_rx.volume;
 
 	MM_DBG("rx_vol=%d, rx_sample=%d\n", cmd.rx_volume, v->dev_rx.sample);
 
