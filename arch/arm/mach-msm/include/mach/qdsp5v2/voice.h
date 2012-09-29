@@ -97,6 +97,9 @@ struct voice_device {
 	uint32_t tx_mute;
 	uint32_t rx_sample;
 	uint32_t tx_sample;
+	uint32_t rx_volume_min;
+	uint32_t rx_volume_max;
+	uint32_t rx_volume_percentage;
 };
 
 /*Voice command structure*/
