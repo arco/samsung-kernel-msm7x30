@@ -14,7 +14,11 @@
 #define __MACH_QDSP5_V2_SNDDEV_H
 #include <mach/qdsp5v2/audio_def.h>
 
+#ifdef CONFIG_MACH_ANCORA_TMO
+#define AUDIO_DEV_CTL_MAX_DEV 80
+#else
 #define AUDIO_DEV_CTL_MAX_DEV 64
+#endif
 #define DIR_TX	2
 #define DIR_RX	1
 
