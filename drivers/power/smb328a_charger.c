@@ -23,7 +23,7 @@
 #include <linux/power_supply.h>
 #include <linux/regulator/machine.h>
 #include <linux/smb328a_charger.h>
-#include <linux/i2c/fsa9480.h>
+#include <linux/fsa9480.h>
 
 /* Register define */
 #define SMB328A_INPUT_AND_CHARGE_CURRENTS	0x00
@@ -1057,8 +1057,7 @@ static ssize_t sec_smb328a_show_property(struct device *dev,
 #define SEC_SMB328A_ATTR(_name)			\
 {						\
 	.attr = { .name = #_name,		\
-		  .mode = S_IRUGO | S_IWUSR |S_IWGRP,			\
-		  .owner = THIS_MODULE },	\
+		  .mode = S_IRUGO | S_IWUSR |S_IWGRP },			\
 	.show = sec_smb328a_show_property,		\
 	.store = NULL,			\
 }
