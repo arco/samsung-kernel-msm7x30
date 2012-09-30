@@ -1592,8 +1592,7 @@ static int amp_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int amp_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	   unsigned long arg)
+static long amp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 #ifdef CONFIG_ANCORA_AMP_HPATT
 	int volume_ioctl = 0;
@@ -1641,7 +1640,7 @@ static struct file_operations amp_fops = {
 	.owner = THIS_MODULE,
 	.open = amp_open,
 	.release = amp_release,
-	.ioctl = amp_ioctl,
+	.unlocked_ioctl = amp_ioctl,
 };
 
 static struct miscdevice amp_device = {
