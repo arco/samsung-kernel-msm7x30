@@ -181,7 +181,7 @@ static int bma_acc_close(struct inode *inode, struct file *file)
 	return err;
 }
 
-static int bma_acc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long bma_acc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int err= 0 ;
 	struct bma_acc_private_data* data = gbma_acc;
@@ -249,7 +249,7 @@ static const struct file_operations bma_fops = {
 	.owner = THIS_MODULE,
 	.open = bma_acc_open,
 	.release = bma_acc_close,
-	.ioctl = bma_acc_ioctl,
+	.unlocked_ioctl = bma_acc_ioctl,
 };
 
 static struct bma_acc_private_data *bma_acc_private_data = NULL;

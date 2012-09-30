@@ -486,11 +486,10 @@ static inline struct file *dpram_open(void)
 
 	oldfs = get_fs(); set_fs(get_ds());
 
-	ret = filp->f_op->unlocked_ioctl(filp, 
-				TCGETA, (unsigned long)&termios);
+	ret = filp->f_op->unlocked_ioctl(filp, TCGETA, (unsigned long)&termios);
 	set_fs(oldfs);
 	if (ret < 0) {
-		DPRINTK(1, "f_op->ioctl() failed: %d\n", ret);
+		pr_err("[MULTIPDP] f_op->ioctl() failed: %d\n", ret);
 		filp_close(filp, current->files);
 		return NULL;
 	}
@@ -503,11 +502,10 @@ static inline struct file *dpram_open(void)
 	termios.c_cc[VTIME] = 1;
 
 	oldfs = get_fs(); set_fs(get_ds());
-	ret = filp->f_op->unlocked_ioctl(filp, 
-				TCSETA, (unsigned long)&termios);
+	ret = filp->f_op->unlocked_ioctl(filp, TCSETA, (unsigned long)&termios);
 	set_fs(oldfs);
 	if (ret < 0) {
-		DPRINTK(1, "f_op->ioctl() failed: %d\n", ret);
+		pr_err("[MULTIPDP] f_op->ioctl() failed: %d\n", ret);
 		filp_close(filp, current->files);
 		return NULL;
 	}
@@ -1383,8 +1381,8 @@ static int vs_read(struct pdp_info *dev, size_t len)
 
 	return 0;
 }
-static int vs_ioctl(struct tty_struct *tty, struct file *file, 
-		    unsigned int cmd, unsigned long arg)
+static int vs_ioctl(struct tty_struct *tty, unsigned int cmd,
+			unsigned long arg)
 {
 	return -ENOIOCTLCMD;
 }
@@ -1906,8 +1904,9 @@ static int pdp_adjust(const int adjust)
  * App. Interfece Device functions
  */
 
-static int multipdp_ioctl(struct inode *inode, struct file *file, 
-			      unsigned int cmd, unsigned long arg)
+/* have to use kernel 2.6.38 or later */
+static long multipdp_ioctl(struct file *file, unsigned int cmd,
+			  unsigned long arg)
 {
 	int ret, adjust;
 	pdp_arg_t pdp_arg;
@@ -1954,9 +1953,9 @@ static int multipdp_ioctl(struct inode *inode, struct file *file,
 }
 
 static struct file_operations multipdp_fops = {
-	.owner =	THIS_MODULE,
-	.ioctl =	multipdp_ioctl,
-	.llseek =	no_llseek,
+	.owner = THIS_MODULE,
+	.unlocked_ioctl = multipdp_ioctl,
+	.llseek = no_llseek,
 };
 
 static struct miscdevice multipdp_dev = {
