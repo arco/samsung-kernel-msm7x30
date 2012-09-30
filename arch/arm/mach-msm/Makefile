@@ -224,8 +224,9 @@ obj-$(CONFIG_MACH_MSM7X27A_FFA) += board-msm7x27a.o board-msm7627a-storage.o boa
 obj-$(CONFIG_MACH_MSM7627A_QRD1) += board-qrd7627a.o board-msm7627a-storage.o board-msm7627a-bt.o board-msm7627a-camera.o
 ifdef CONFIG_MACH_ANCORA
 obj-$(CONFIG_ARCH_MSM7X30) += board-ancora.o devices-msm7x30.o memory_topology.o samsung_vibrator.o
-else
-obj-$(CONFIG_ARCH_MSM7X30) += board-msm7x30.o devices-msm7x30.o memory_topology.o
+endif
+ifdef CONFIG_MACH_ARIESVE
+obj-$(CONFIG_ARCH_MSM7X30) += board-ariesve.o devices-msm7x30.o memory_topology.o
 endif
 obj-$(CONFIG_ARCH_MSM7X30) += clock-local.o clock-7x30.o acpuclock-7x30.o
 obj-$(CONFIG_MACH_MSM7X25_SURF) += board-msm7x27.o devices-msm7x25.o
@@ -319,8 +320,9 @@ obj-$(CONFIG_MACH_MSM7X27_SURF) += board-msm7627-regulator.o
 obj-$(CONFIG_MACH_MSM7X27_FFA) += board-msm7627-regulator.o
 ifdef CONFIG_MACH_ANCORA
 obj-$(CONFIG_ARCH_MSM7X30) += board-ancora-regulator.o
-else
-obj-$(CONFIG_ARCH_MSM7X30) += board-msm7x30-regulator.o
+endif
+ifdef CONFIG_MACH_ARIESVE
+obj-$(CONFIG_ARCH_MSM7X30) += board-ariesve-regulator.o
 endif
 obj-$(CONFIG_ARCH_MSM7X27A) += board-msm7x27a-regulator.o
 endif
