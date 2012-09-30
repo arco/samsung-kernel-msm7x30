@@ -53,6 +53,7 @@ static DECLARE_MUTEX(enable_sem);
 static DECLARE_MUTEX(i2c_sem);
 
 static int bl_timeout = 1600; // This gets overridden by userspace AriesParts
+static int bl_wakelock = 0;
 static struct timer_list bl_timer;
 static void bl_off(struct work_struct *bl_off_work);
 static DECLARE_WORK(bl_off_work, bl_off);
@@ -664,7 +665,7 @@ static void notify_led_on(void) {
 	i2c_touchkey_write_byte(devdata_global, devdata_global->backlight_on);
 	bl_on = 1;
 
-   if( !wake_lock_active(&bln_wake_lock) ){
+   if( !wake_lock_active(&bln_wake_lock) && bl_wakelock ){
         printk(KERN_DEBUG "[TouchKey] touchkey get wake_lock\n");
         wake_lock(&bln_wake_lock);
     }
@@ -742,12 +743,24 @@ static ssize_t bl_timeout_write(struct device *dev, struct device_attribute *att
 	return size;
 }
 
+static ssize_t bl_wakelock_read(struct device *dev, struct device_attribute *attr, char *buf) {
+	return sprintf(buf,"%d\n", bl_wakelock);
+}
+
+static ssize_t bl_wakelock_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+	sscanf(buf, "%d\n", &bl_wakelock);
+	return size;
+}
+
 static DEVICE_ATTR(led, S_IRUGO | S_IWUGO , led_status_read, led_status_write);
 static DEVICE_ATTR(bl_timeout, S_IRUGO | S_IWUGO, bl_timeout_read, bl_timeout_write);
+static DEVICE_ATTR(wakelock, S_IRUGO | S_IWUGO, bl_wakelock_read, bl_wakelock_write);
 
 static struct attribute *bl_led_attributes[] = {
 		&dev_attr_led.attr,
 		&dev_attr_bl_timeout.attr, // Not the best place, but creating a new device is more trouble that it's worth
+		&dev_attr_wakelock.attr,
 		NULL
 };
 
