@@ -1018,16 +1018,9 @@ static int dpram_tty_open(struct tty_struct *tty, struct file *file)
 
 		oldfs = get_fs(); set_fs(get_ds());
 
-		if (file->f_op->ioctl)
-		{
-			file->f_op->ioctl(file->f_dentry->d_inode, file,
-					TCGETA, (unsigned long)&termios);
-		}
-
-		else if (file->f_op->unlocked_ioctl)
-		{
-			file->f_op->unlocked_ioctl(file, TCGETA, (unsigned long)&termios);
-		}
+                /* use kernel up to 2.6.38, if you use this line */
+                if (file->f_op->unlocked_ioctl)
+                        file->f_op->unlocked_ioctl(file, TCGETA, (unsigned long)&termios);
 
 		set_fs(oldfs);
 
@@ -1040,16 +1033,9 @@ static int dpram_tty_open(struct tty_struct *tty, struct file *file)
 
 		oldfs = get_fs(); set_fs(get_ds());
 
-		if (file->f_op->ioctl)
-		{
-			file->f_op->ioctl(file->f_dentry->d_inode, file,
-					TCSETA, (unsigned long)&termios);
-		}
-
-		else if (file->f_op->unlocked_ioctl)
-		{
-			file->f_op->unlocked_ioctl(file, TCSETA, (unsigned long)&termios);
-		}
+                /* use kernel up to 2.6.38, if you use this line */
+                if (file->f_op->unlocked_ioctl)
+                        file->f_op->unlocked_ioctl(file, TCSETA, (unsigned long)&termios);
 
 		set_fs(oldfs);
 	}
@@ -1105,8 +1091,8 @@ static int dpram_tty_write_room(struct tty_struct *tty)
 	return 0;
 }
 
-static int dpram_tty_ioctl(struct tty_struct *tty, struct file *file,
-		unsigned int cmd, unsigned long arg)
+static int dpram_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
+				unsigned long arg)
 {
 	unsigned int val;
 

@@ -477,10 +477,7 @@ static int proximity_input_init(struct gp2a_data *data)
 
 	set_bit(EV_ABS, dev->evbit);
 	input_set_capability(dev, EV_ABS, ABS_DISTANCE);
-
-	input_set_capability(dev, EV_ABS, ABS_STATUS); /* status */
-	input_set_capability(dev, EV_ABS, ABS_WAKE); /* wake */
-	input_set_capability(dev, EV_ABS, ABS_CONTROL_REPORT); /* enabled/delay */
+	input_set_abs_params(dev, ABS_DISTANCE, 0, 1, 0, 0);
 
 	dev->name = "proximity_sensor";
 	input_set_drvdata(dev, data);
@@ -610,10 +607,10 @@ static int gp2a_opt_suspend( struct platform_device* pdev, pm_message_t state )
 
 	if(gp2a->enabled) // calling
 	{
-		err = set_irq_wake(IRQ_GP2A_INT, 1);	  // enable : 1, disable : 0
-		printk("[TAEKS] set_irq_wake = %d\n",err);
+		err = irq_set_irq_wake(IRQ_GP2A_INT, 1);	  // enable : 1, disable : 0
+		printk("[TAEKS] irq_set_irq_wake = %d\n",err);
 		if (err) 
-			printk("[TAEKS] set_irq_wake failed\n");
+			printk("[TAEKS] irq_set_irq_wake failed\n");
 
 		if (device_may_wakeup(&pdev->dev))
 	      	{
@@ -637,10 +634,10 @@ static int gp2a_opt_resume( struct platform_device* pdev )
 
 	if(gp2a->enabled) //calling
 	{
-		err = set_irq_wake(IRQ_GP2A_INT, 0);	  // enable : 1, disable : 0
-		printk("[TAEKS] set_irq_wake = %d\n",err);
+		err = irq_set_irq_wake(IRQ_GP2A_INT, 0);	  // enable : 1, disable : 0
+		printk("[TAEKS] irq_set_irq_wake = %d\n",err);
 		if (err) 
-			printk("[TAEKS] set_irq_wake failed\n");
+			printk("[TAEKS] irq_set_irq_wake failed\n");
 	       if (device_may_wakeup(&pdev->dev))
 	   	{
 			printk("[TAEKS] device_may_wakeup\n");	      		   	
