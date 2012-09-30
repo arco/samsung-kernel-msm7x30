@@ -51,7 +51,7 @@ typedef const struct si_pub  si_t;
 #include <dngl_stats.h>
 #include <dhd.h>
 #define WL_ERROR(x) printf x
-#define WL_TRACE(x)
+#define WL_TRACE(x) printf x
 #define WL_ASSOC(x) 
 #define WL_INFORM(x) 
 #define WL_WSEC(x)
@@ -204,17 +204,6 @@ static volatile uint g_first_counter_scans;
 #define MAX_ALLOWED_BLOCK_SCAN_FROM_FIRST_SCAN 3
 #endif 
 
-#ifdef USE_PER_INFO
-static uint rx_good_cnt_base = 0;
-static uint rx_bad_cnt_base  = 0;
-typedef enum {
-	LINK_STATUS_DISCONNECTED = 0,
-	LINK_STATUS_CONNECTING,
-	LINK_STATUS_CONNECTED
-} LINK_STATUS;
-
-static LINK_STATUS link_status = LINK_STATUS_DISCONNECTED;
-#endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
 #define DAEMONIZE(a) daemonize(a); \
@@ -386,10 +375,6 @@ static void swap_key_to_BE(
 	key->rxiv.lo = dtoh16(key->rxiv.lo);
 	key->iv_initialized = dtoh32(key->iv_initialized);
 }
-
-/* Fix for scan update begins */
-static int assoc_in_progress = 0;
-/* Fix for scan update ends */
 
 static int
 dev_wlc_ioctl(
@@ -714,6 +699,11 @@ wl_iw_set_country(
     wl_country_t cspec = {{0},0,{0}};
     int size = 0;
     int i = 0;
+
+    while ((i++ < 6) && (g_first_broadcast_scan < BROADCAST_SCAN_FIRST_RESULT_CONSUMED)) {
+		msleep(100);
+    }
+    i = 0;
     size = ARRAYSIZE(country_rev_map);
     memset(country_code, 0, sizeof(country_code));
 
@@ -1167,7 +1157,7 @@ int wl_iw_get_associnfo(struct net_device *dev,
 	char *extra)
 {
 	char buf[976]; 
-//	char eabuf[ETHER_ADDR_STR_LEN];
+	char eabuf[ETHER_ADDR_STR_LEN];
 	uchar *passoc_ie;
 	uint req_ies_len = 0;
 	wl_assoc_info_t assoc_info;
@@ -1259,170 +1249,6 @@ int wl_iw_okc_enable(struct net_device *dev,
 
 #endif /* USE_OKC */
 
-#ifdef USE_PER_INFO
-static int 
-get_per_info(struct net_device *dev, get_pktcnt_t *pktcnt)
-{
-	return dev_wlc_ioctl(dev, WLC_GET_PKTCNTS, pktcnt, sizeof(get_pktcnt_t));
-}
-
-static int
-wl_iw_get_per_info(
-	struct net_device *dev,
-	struct iw_request_info *info,
-	union iwreq_data *wrqu,
-	char *extra
-)
-{
-	int error;
-	get_pktcnt_t pktcnt;
-	char *p = extra;
-
-	if (link_status == LINK_STATUS_DISCONNECTED) {
-		strcpy(p, "PER 0 0");
-		return 0;
-	}
-
-	error = get_per_info(dev, &pktcnt);
-	p += snprintf(p, MAX_WX_STRING, "PER %d %d", 
-		pktcnt.rx_good_pkt-rx_good_cnt_base, 
-		pktcnt.rx_bad_pkt-rx_bad_cnt_base);
-	wrqu->data.length = p - extra + 1;
-
-	return error;
-}
-#endif
-
-#ifdef SUPPORT_ROAM_API
-static int
-wl_iw_set_roam_trigger(
-	struct net_device *dev,
-	struct iw_request_info *info,
-	union iwreq_data *wrqu,
-	char *extra
-)
-{
-	int error=0;
-	int roam_trigger = 0;
-	char *p = extra;
-
-	sscanf(extra, "%*s %d", &roam_trigger);
-
-	if ((error = dev_wlc_ioctl(dev, WLC_SET_ROAM_TRIGGER, &roam_trigger, sizeof(roam_trigger))))
-		return error;
-
-	p += snprintf(p, MAX_WX_STRING, "OK");
-	wrqu->data.length = p - extra + 1;
-
-	return 0;
-}
-
-static int
-wl_iw_get_roam_trigger(
-	struct net_device *dev,
-	struct iw_request_info *info,
-	union iwreq_data *wrqu,
-	char *extra
-)
-{
-	int error = 0;
-	int roam_trigger = 0;
-	char *p = extra;
-
-	error = dev_wlc_ioctl(dev, WLC_GET_ROAM_TRIGGER, &roam_trigger, sizeof(roam_trigger));
-	p += snprintf(p, MAX_WX_STRING, "GETROAMTRIGGER %d", roam_trigger);
-	wrqu->data.length = p - extra + 1;
-
-	return error;
-}
-
-static int
-wl_iw_set_roam_delta(
-	struct net_device *dev,
-	struct iw_request_info *info,
-	union iwreq_data *wrqu,
-	char *extra
-)
-{
-	int error=0;
-	int roam_delta = 0;
-	char *p = extra;
-
-	sscanf(extra, "%*s %d", &roam_delta);
-
-	if ((error = dev_wlc_ioctl(dev, WLC_SET_ROAM_DELTA, &roam_delta, sizeof(roam_delta))))
-		return error;
-
-	p += snprintf(p, MAX_WX_STRING, "OK");
-	wrqu->data.length = p - extra + 1;
-
-	return 0;
-}
-
-static int
-wl_iw_get_roam_delta(
-	struct net_device *dev,
-	struct iw_request_info *info,
-	union iwreq_data *wrqu,
-	char *extra
-)
-{
-	int error = 0;
-	int roam_delta = 0;
-	char *p = extra;
-
-	error = dev_wlc_ioctl(dev, WLC_GET_ROAM_DELTA, &roam_delta, sizeof(roam_delta));
-	p += snprintf(p, MAX_WX_STRING, "GETROAMDELTA %d", roam_delta);
-	wrqu->data.length = p - extra + 1;
-
-	return error;
-}
-
-static int
-wl_iw_set_roam_scan_period(
-	struct net_device *dev,
-	struct iw_request_info *info,
-	union iwreq_data *wrqu,
-	char *extra
-)
-{
-	int error=0;
-	int roam_scan_period = 0;
-	char *p = extra;
-
-	sscanf(extra, "%*s %d", &roam_scan_period);
-
-	if ((error = dev_wlc_ioctl(dev, WLC_SET_ROAM_SCAN_PERIOD, &roam_scan_period, sizeof(roam_scan_period))))
-		return error;
-
-	p += snprintf(p, MAX_WX_STRING, "OK");
-	wrqu->data.length = p - extra + 1;
-
-	return 0;
-}
-
-static int
-wl_iw_get_roam_scan_period(
-	struct net_device *dev,
-	struct iw_request_info *info,
-	union iwreq_data *wrqu,
-	char *extra
-)
-{
-	int error = 0;
-	char *p = extra;
-	int roam_scan_period = 0;
-
-	error = dev_wlc_ioctl(dev, WLC_GET_ROAM_SCAN_PERIOD, &roam_scan_period, sizeof(roam_scan_period));
-	p += snprintf(p, MAX_WX_STRING, "GETROAMDELTA %d", roam_scan_period);
-	wrqu->data.length = p - extra + 1;
-
-	return error;
-}
-
-#endif
-
-
 int
 wl_format_ssid(char* ssid_buf, uint8* ssid, int ssid_len)
 {
@@ -1459,7 +1285,7 @@ wl_iw_get_link_speed(
 	char *p = extra;
 	static int link_speed;
 
-	
+
 	if (g_onoff == G_WLAN_SET_ON) {
 		error = dev_wlc_ioctl(dev, WLC_GET_RATE, &link_speed, sizeof(link_speed));
 		link_speed *= 500000;
@@ -1812,7 +1638,7 @@ wl_iw_get_rssi(
 		rssi = dtoh32(scb_val.val);
 
 		error = dev_wlc_ioctl(dev, WLC_GET_SSID, &ssid, sizeof(ssid));
-
+		
 		ssid.SSID_len = dtoh32(ssid.SSID_len);
 	}
 
@@ -2172,6 +1998,11 @@ int init_ap_profile_from_string(char *param_str, struct ap_profile *ap_cfg)
 	char *str_ptr = param_str;
 	char sub_cmd[16];
 	int ret = 0;
+	/************************************************************************
+	 * Samsung patch for ssid including ',' [PLM P110518-4075] 2011.05.18
+	 ************************************************************************/	
+	int i=0;
+	/************************************************************************/
 
 	memset(sub_cmd, 0, sizeof(sub_cmd));
 	memset(ap_cfg, 0, sizeof(struct ap_profile));
@@ -2185,10 +2016,19 @@ int init_ap_profile_from_string(char *param_str, struct ap_profile *ap_cfg)
 	   WL_ERROR(("ERROR: sub_cmd:%s != 'AP_CFG'!\n", sub_cmd));
 		return -1;
 	}
-
 	
-	
+	/*  parse the string and write extracted values into the ap_profile structure */
+	/*  NOTE this function may alter the origibal string */
 	ret = get_parmeter_from_string(&str_ptr, "SSID=", PTYPE_STRING, ap_cfg->ssid, SSID_LEN);
+	/************************************************************************
+	 * Samsung patch for ssid including ',' [PLM P110518-4075] 2011.05.18
+	 ************************************************************************/
+	for(i=0;i<strlen(ap_cfg->ssid);i++)
+	{
+		if(ap_cfg->ssid[i]==4)
+			ap_cfg->ssid[i]+=40;
+	}
+	/************************************************************************/
 
 	ret |= get_parmeter_from_string(&str_ptr, "SEC=", PTYPE_STRING,  ap_cfg->sec, SEC_LEN);
 
@@ -2202,9 +2042,9 @@ int init_ap_profile_from_string(char *param_str, struct ap_profile *ap_cfg)
 	
 	get_parmeter_from_string(&str_ptr, "MAX_SCB=", PTYPE_INTDEC,  &ap_cfg->max_scb, 5);
 
-	
-	get_parmeter_from_string(&str_ptr, "HIDE=",
-		PTYPE_INTDEC,  &ap_cfg->closednet, 5);
+#ifdef USE_HIDDEN_SSID	
+	ret |= get_parmeter_from_string(&str_ptr, "HIDE=", PTYPE_INTDEC,  &ap_cfg->hidden_ssid, 5);
+#endif
 
 	
 	get_parmeter_from_string(&str_ptr, "COUNTRY=",
@@ -2245,8 +2085,9 @@ static int iwpriv_set_ap_config(struct net_device *dev,
 		}
 
 		extra[wrqu->data.length] = 0;
+#ifdef BRCM_SECURITY_LOG
 		WL_TRACE(("%s Got str param in iw_point:\n %s\n", __FUNCTION__, extra));
-
+#endif
 		memset(ap_cfg, 0, sizeof(struct ap_profile));
 
 		
@@ -3987,9 +3828,6 @@ wl_iw_iscan_set_scan(
 {
 	wlc_ssid_t ssid;
 	iscan_info_t *iscan = g_iscan;
-	/* Fix for scan update begins */
-	int assoc_waiting_cnt = 0;
-	/* Fix for scan update ends */
 
 	WL_TRACE_SCAN(("%s: SIOCSIWSCAN : ISCAN\n", dev->name));
 
@@ -4010,23 +3848,6 @@ wl_iw_iscan_set_scan(
 		WL_TRACE_SCAN(("%s: driver is not up yet after START\n", __FUNCTION__));
 		return 0;
 	}
-
-	/* Fix for scan update begins */
-	/* Waiting up to 1 seconds */
-	while ((assoc_in_progress == 1) && (assoc_waiting_cnt < 10)) {
-		msleep(100);
-		assoc_waiting_cnt++;
-		WL_TRACE(("%s: Assoc in progress, Waiting...\n", __FUNCTION__));
-	}
-    
-	if( !(assoc_waiting_cnt < 10) ) {
-		assoc_in_progress = 0;
-		WL_TRACE(("%s: Assoc in progress, return...\n", __FUNCTION__));
-		return EBUSY;
-	}
-    
-    assoc_in_progress = 0;
-	/* Fix for scan update ends */
 
 #ifdef PNO_SUPPORT
 	
@@ -4248,6 +4069,7 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 			wpa_snprintf_hex(buf + 10, 2+1, &(ie->len), 1);
 			wpa_snprintf_hex(buf + 12, 2*ie->len+1, ie->data, ie->len);
 			event = IWE_STREAM_ADD_POINT(info, event, end, &iwe, buf);
+			kfree(buf);
 #endif 
 			break;
 		}
@@ -4886,9 +4708,6 @@ normal:
 	}
 	WL_TRACE(("%s: join SSID=%s\n", __FUNCTION__,  g_ssid.SSID));
 
-	/* Fix for scan update begins */
-	assoc_in_progress = 1; /* Ãß°¡ */
-	/* Fix for scan update ends */
 	return 0;
 }
 #else
@@ -4946,15 +4765,6 @@ wl_iw_set_essid(
 		WL_TRACE(("%s: join SSID=%s ch=%d\n", __FUNCTION__, \
 			g_ssid.SSID,  g_wl_iw_params.target_channel));
 	}
-#ifdef USE_PER_INFO
-	{
-		get_pktcnt_t pktcnt;
-		if (0 == get_per_info(dev, &pktcnt)) {
-			rx_good_cnt_base = pktcnt.rx_good_pkt;
-			rx_bad_cnt_base = pktcnt.rx_bad_pkt;
-		}
-	}
-#endif
 	return 0;
 }
 #endif /* AUTH_TIME_PATCH */
@@ -7016,11 +6826,15 @@ static int set_ap_cfg(struct net_device *dev, struct ap_profile *ap)
 	WL_SOFTAP(("wl_iw: set ap profile:\n"));
 	WL_SOFTAP(("	ssid = '%s'\n", ap->ssid));
 	WL_SOFTAP(("	security = '%s'\n", ap->sec));
+#ifdef BRCM_SECURITY_LOG
 	if (ap->key[0] != '\0')
-		WL_SOFTAP(("	key = '%s'\n", ap->key));
+		WL_SOFTAP(("	key = *\n"));
+#endif
 	WL_SOFTAP(("	channel = %d\n", ap->channel));
 	WL_SOFTAP(("	max scb = %d\n", ap->max_scb));
-	WL_SOFTAP(("	hidden ssid = %d\n", ap->closednet));
+#ifdef USE_HIDDEN_SSID
+	WL_SOFTAP(("	hidden = %d\n", ap->hidden_ssid));
+#endif	
 
 	iw = *(wl_iw_t **)netdev_priv(dev);
 	MUTEX_LOCK_SOFTAP_SET(iw->pub);
@@ -7125,15 +6939,14 @@ static int set_ap_cfg(struct net_device *dev, struct ap_profile *ap)
 			__FUNCTION__));
 	}
 
-	iolen = wl_bssiovar_mkbuf("closednet",
+/*	iolen = wl_bssiovar_mkbuf("closednet",
 		bsscfg_index,  &ap->closednet, sizeof(ap->closednet)+4,
 		buf, sizeof(buf), &mkvar_err);
 	ASSERT(iolen);
 	if ((res = dev_wlc_ioctl(dev, WLC_SET_VAR, buf, iolen)) < 0) {
 		WL_ERROR(("%s failed to set 'closednet'for apsta \n", __FUNCTION__));
 		goto fail;
-	}
-
+	}*/
 	
 	if ((ap->channel == 0) && (get_softap_auto_channel(dev, ap) < 0)) {
 		ap->channel = 1;
@@ -7185,6 +6998,20 @@ static int set_ap_cfg(struct net_device *dev, struct ap_profile *ap)
 		res, __FUNCTION__));
 		goto fail;
 	}
+#ifdef USE_HIDDEN_SSID
+	else {
+		char buf[WLC_IOCTL_SMLEN];
+		int iolen;
+        
+		iolen = wl_bssiovar_mkbuf("closednet", 1, &my_ap.hidden_ssid, sizeof(uint32), buf, sizeof(buf), &res);
+        	WL_SOFTAP(("hidden ap is enabled ? : %d\n",my_ap.hidden_ssid));
+		ASSERT(iolen);
+		if ((res = dev_wlc_ioctl(dev, WLC_SET_VAR, buf, iolen)) != 0) {
+			WL_ERROR(("ERROR:%d in:%s, Hidden SSID setting failure\n", res, __FUNCTION__));
+		}
+		
+	}
+#endif	
 
 	if (ap_cfg_running == FALSE) {
 		 init_completion(&ap_cfg_exited);
@@ -7243,12 +7070,13 @@ static int wl_iw_set_ap_security(struct net_device *dev, struct ap_profile *ap)
 	WL_SOFTAP(("wl_iw: set ap profile:\n"));
 	WL_SOFTAP(("	ssid = '%s'\n", ap->ssid));
 	WL_SOFTAP(("	security = '%s'\n", ap->sec));
+#ifdef BRCM_SECURITY_LOG
 	if (ap->key[0] != '\0') {
 		WL_SOFTAP(("	key = '%s'\n", ap->key));
 	}
+#endif
 	WL_SOFTAP(("	channel = %d\n", ap->channel));
 	WL_SOFTAP(("	max scb = %d\n", ap->max_scb));
-	WL_SOFTAP(("	hidden ssid = %d\n", ap->closednet));
 
 
 	if (strnicmp(ap->sec, "open", strlen("open")) == 0) {
@@ -7429,9 +7257,10 @@ int get_parmeter_from_string(
 			param_str_end = *str_ptr-1;  
 			parm_str_len = param_str_end - param_str_begin;
 		}
-
+		
+#ifdef BRCM_SECURITY_LOG
 		WL_TRACE((" 'token:%s', len:%d, ", token, parm_str_len));
-
+#endif
 		if (parm_str_len > param_max_len) {
 			WL_ERROR((" WARNING: extracted param len:%d is > MAX:%d\n",
 				parm_str_len, param_max_len));
@@ -8088,32 +7917,6 @@ static int wl_iw_set_priv(
 	    else if (strnicmp(extra, "POWERMODE", strlen("POWERMODE")) == 0)
 			ret = wl_iw_set_btcoex_dhcp(dev, info, (union iwreq_data *)dwrq, extra);
 #endif
-#ifdef USE_PER_INFO
-	    else if (strnicmp(extra, "PER", strlen("PER")) == 0) {
-			ret = wl_iw_get_per_info(dev, info, (union iwreq_data *)dwrq, extra);
-	    }
-#endif
-#ifdef SUPPORT_ROAM_API
-	    else if (strnicmp(extra, "SETROAMTRIGGER", strlen("SETROAMTRIGGER")) == 0) {
-			ret = wl_iw_set_roam_trigger(dev, info, (union iwreq_data *)dwrq, extra);
-	    }
-	    else if (strnicmp(extra, "GETROAMTRIGGER", strlen("GETROAMTRIGGER")) == 0) {
-			ret = wl_iw_get_roam_trigger(dev, info, (union iwreq_data *)dwrq, extra);
-	    }
-	    else if (strnicmp(extra, "SETROAMDELTA", strlen("SETROAMDELTA")) == 0) {
-			ret = wl_iw_set_roam_delta(dev, info, (union iwreq_data *)dwrq, extra);
-	    }
-	    else if (strnicmp(extra, "GETROAMDELTA", strlen("GETROAMDELTA")) == 0) {
-			ret = wl_iw_get_roam_delta(dev, info, (union iwreq_data *)dwrq, extra);
-	    }		
-	    else if (strnicmp(extra, "SETROAMSCANPERIOD", strlen("SETROAMSCANPERIOD")) == 0) {
-			ret = wl_iw_set_roam_scan_period(dev, info, (union iwreq_data *)dwrq, extra);
-	    }
-	    else if (strnicmp(extra, "GETROAMSCANPERIOD", strlen("GETROAMSCANPERIOD")) == 0) {
-			ret = wl_iw_get_roam_scan_period(dev, info, (union iwreq_data *)dwrq, extra);
-	    }
-#endif
-
 #ifdef SOFTAP
 #ifdef SOFTAP_TLV_CFG
 		else if (strnicmp(extra, SOFTAP_SET_CMD, strlen(SOFTAP_SET_CMD)) == 0) {
@@ -8827,10 +8630,6 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 			bzero(wrqu.addr.sa_data, ETHER_ADDR_LEN);
 			bzero(&extra, ETHER_ADDR_LEN);
 			WAKE_LOCK_TIMEOUT(iw->pub, WAKE_LOCK_LINK_DOWN_TMOUT, 20 * HZ);
-#ifdef USE_PER_INFO
-			link_status = LINK_STATUS_DISCONNECTED;
-#endif
-
 		}
 		else {
 			
@@ -8856,9 +8655,7 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 #else
 #endif 
 			WL_TRACE(("Link UP\n"));
-#ifdef USE_PER_INFO
-			link_status = LINK_STATUS_CONNECTED;
-#endif
+
 		}
 		wrqu.addr.sa_family = ARPHRD_ETHER;
 		break;
@@ -8950,17 +8747,6 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 #endif 
 	break;
 
-	case WLC_E_SET_SSID:
-		WL_TRACE(("Event WLC_E_SET_SSID: status=%d\n", status));
-		/* Fix for scan update begins */
-		assoc_in_progress = 0;
-		if (status == WLC_E_STATUS_FAIL) {
-			WL_ERROR(("Event WLC_E_SET_SSID failed\n"));
-		} else if (status == WLC_E_STATUS_NO_NETWORKS) {
-			WL_ERROR(("Event WLC_E_SET_SSID: WLC_E_STATUS_NO_NETWORKS\n"));
-		}
-		/* Fix for scan update ends */
-		break;
 	
 	case WLC_E_PFN_NET_FOUND:
 	{
@@ -9285,8 +9071,10 @@ int wl_iw_attach(struct net_device *dev, void * dhdp)
 
 	
 	iscan->iscan_ex_params_p = (wl_iscan_params_t*)kmalloc(params_size, GFP_KERNEL);
-	if (!iscan->iscan_ex_params_p)
+	if (!iscan->iscan_ex_params_p) {
+		kfree(iscan);
 		return -ENOMEM;
+	}
 	iscan->iscan_ex_param_size = params_size;
 	iscan->sysioc_pid = -1;
 	

@@ -9,14 +9,16 @@ EXTRA_CFLAGS += -Dlinux -DLINUX -DBDC -DBCMDRIVER -DBCMDONGLEHOST -DDHDTHREAD -D
 EXTRA_CFLAGS += -DCUSTOMER_HW_SAMSUNG
 
 # For MACID management
-ifeq ($(CONFIG_MACH_ARIESVE),y)
-EXTRA_CFLAGS += -DWRITE_MACADDR
-else
+ifeq ($(CONFIG_MACH_ANCORA),y)
 EXTRA_CFLAGS += -DREAD_MACADDR
+else ifeq ($(CONFIG_MACH_ANCORA_TMO),y)
+EXTRA_CFLAGS += -DREAD_MACADDR
+else
+EXTRA_CFLAGS += -DWRITE_MACADDR
 endif
 
 # For AUTH time patch
-EXTRA_CFLAGS += -DAUTH_TIME_PATCH
+# EXTRA_CFLAGS += -DAUTH_TIME_PATCH
 
 # Check if this is required. SDIO_ISR_THREAD is mutually exclusive with OOB_INTR_ONLY
 #EXTRA_CFLAGS += -DSDIO_ISR_THREAD
@@ -25,7 +27,7 @@ EXTRA_CFLAGS += -DAUTH_TIME_PATCH
 EXTRA_CFLAGS += -DOOB_INTR_ONLY
 
 # For HW_OOB
-#EXTRA_CFLAGS += -DHW_OOB
+EXTRA_CFLAGS += -DHW_OOB
 
 # FOR SOFTAP
 EXTRA_CFLAGS += -DSOFTAP
@@ -49,7 +51,6 @@ EXTRA_CFLAGS += -DPKT_FILTER_SUPPORT
 
 #Disable PowerSave mode for OTA or certification test
 #EXTRA_CFLAGS += -DBCMDISABLE_PM
-EXTRA_CFLAGS += -DCONFIG_CONTROL_PM
 
 # Trigger first broadscan in driver
 EXTRA_CFLAGS += -DCONFIG_FIRST_SCAN
@@ -58,7 +59,7 @@ EXTRA_CFLAGS += -DCONFIG_FIRST_SCAN
 EXTRA_CFLAGS += -DCSCAN
 
 # For CCKM support
-# EXTRA_CFLAGS += -DBCMCCX
+EXTRA_CFLAGS += -DBCMCCX
 
 # For Debug
 #EXTRA_CFLAGS += -DBCMDBG_EVENT
@@ -71,12 +72,6 @@ EXTRA_CFLAGS += -DUSE_OKC
 
 # Keep Alive
 EXTRA_CFLAGS += -DUSE_KEEP_ALIVE
-
-# PER
-EXTRA_CFLAGS += -DUSE_PER_INFO
-
-# Support roam api
-EXTRA_CFLAGS += -DSUPPORT_ROAM_API
 
 ###############################################################################################
 
@@ -119,7 +114,7 @@ all:
 
 clean: 
 	rm -rf *.o *.o.cmd *.ko *.mod.c *~ .*.cmd Module.symvers modules.order .tmp_versions	\
-	 src/dhd/sys/dhd_linux.o \
+ 	 src/dhd/sys/dhd_linux.o \
          src/dhd/sys/dhd_common.o \
          src/dhd/sys/dhd_cdc.o \
          src/dhd/sys/dhd_linux_sched.o\
@@ -138,7 +133,7 @@ clean:
          src/bcmsdio/sys/bcmsdh_linux.o \
          src/bcmsdio/sys/bcmsdh_sdmmc_linux.o \
          src/wl/sys/wl_iw.o \
-         src/dhd/sys/.dhd_linux.o.cmd \
+ 	 src/dhd/sys/.dhd_linux.o.cmd \
          src/dhd/sys/.dhd_common.o.cmd \
          src/dhd/sys/.dhd_cdc.o.cmd \
          src/dhd/sys/.dhd_linux_sched.o.cmd\

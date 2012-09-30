@@ -91,6 +91,7 @@ enum dhd_bus_wake_state {
 	WAKE_LOCK_SOFTAP_STOP,
 	WAKE_LOCK_SOFTAP_START,
 	WAKE_LOCK_SOFTAP_THREAD,
+	WAKE_LOCK_DHD_SUSPEND,
 	WAKE_LOCK_MAX
 };
 enum dhd_prealloc_index {

@@ -27,7 +27,7 @@
 #ifndef _dhd_dbg_
 #define _dhd_dbg_
 
-#ifdef DHD_DEBUG
+#if 0 //FIXME def DHD_DEBUG
 
 #define DHD_ERROR(args)	    do {if (dhd_msg_level & DHD_ERROR_VAL) printf args;} while (0)
 #define DHD_TRACE(args)		do {if (dhd_msg_level & DHD_TRACE_VAL) printf args;} while (0)
@@ -60,7 +60,7 @@
 #else /* (defined BCMDBG) || (defined DHD_DEBUG) */
 
 #define DHD_ERROR(args)    	printf args
-#define DHD_TRACE(args)
+#define DHD_TRACE(args)         
 #define DHD_INFO(args)
 #define DHD_DATA(args)
 #define DHD_CTL(args)

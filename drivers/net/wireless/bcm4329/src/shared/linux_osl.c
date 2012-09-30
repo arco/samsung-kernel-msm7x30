@@ -203,6 +203,7 @@ osl_attach(void *pdev, uint bustype, bool pkttag)
 
 #ifdef DHD_USE_STATIC_BUF
 
+	OSL_MSG_ERROR(("osl_attch: allocate static buffer\n"));
 
 	if (!bcm_static_buf) {
 		if (!(bcm_static_buf = (bcm_static_buf_t *)dhd_os_prealloc(3, STATIC_BUF_SIZE+
