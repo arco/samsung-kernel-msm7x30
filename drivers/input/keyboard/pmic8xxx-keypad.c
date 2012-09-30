@@ -427,6 +427,7 @@ static int gpio_key_scan(struct pmic8xxx_kp *kp)
 	state=!state;
 
 	input_report_key(kp->input, KEY_HOME, state);
+	input_sync(kp->input);
 
 	key_pressed=state;
 #ifdef KEY_LOG_TEST
@@ -773,10 +774,10 @@ static int __devinit pmic8xxx_kp_probe(struct platform_device *pdev)
 
 	if (rc < 0) {
 		dev_err(&pdev->dev, "failed to request gpio key irq\n");
-		goto err_req_sense_irq;
+		goto err_gpio_config;
 	}
 
-	rc = set_irq_wake(MSM_GPIO_KEY_IRQ, 1);
+	rc = irq_set_irq_wake(MSM_GPIO_KEY_IRQ, 1);
 	if (rc)
 		printk("[HOMEKEY] register wakeup source failed\n");
 
