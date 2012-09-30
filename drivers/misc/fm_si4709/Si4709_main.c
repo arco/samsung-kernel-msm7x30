@@ -39,15 +39,14 @@
 
 static int Si4709_open(struct inode *, struct file *);
 static int Si4709_release(struct inode *, struct file *);
-static int Si4709_ioctl(struct inode *, struct file *, unsigned int,
-	unsigned long);
+static long Si4709_ioctl(struct file *, unsigned int, unsigned long);
 
 static irqreturn_t Si4709_isr(int irq, void *unused);
 
 static struct file_operations Si4709_fops = {
 	.owner = THIS_MODULE,
 	.open = Si4709_open,
-	.ioctl = Si4709_ioctl,
+	.unlocked_ioctl = Si4709_ioctl,
 	.release = Si4709_release,
 };
 
@@ -78,8 +77,8 @@ static int Si4709_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int Si4709_ioctl(struct inode *inode, struct file *filp,
-	unsigned int ioctl_cmd,  unsigned long arg)
+static long Si4709_ioctl(struct file *filp, unsigned int ioctl_cmd,
+				unsigned long arg)
 {
 	int ret = 0;
 	void __user *argp = (void __user *)arg;
@@ -535,7 +534,7 @@ static int Si4709_ioctl(struct inode *inode, struct file *filp,
 		n = copy_from_user((void *) &sys_conf2, argp,
 			sizeof(sys_config2));
 		if (n) {
-			pr_err("%s: Failed to read [%d] byes!\n", __func__, n);
+			pr_err("%s: Failed to read [%ld] byes!\n", __func__, n);
 			ret = -EFAULT;
 		} else {
 			ret = Si4709_dev_sys_config2_set(&sys_conf2);
@@ -554,7 +553,7 @@ static int Si4709_ioctl(struct inode *inode, struct file *filp,
 		n = copy_from_user((void *) &sys_conf3, argp,
 			sizeof(sys_config3));
 		if (n < 0) {
-			pr_err("%s: Failed to read [%d] byes!\n", __func__, n);
+			pr_err("%s: Failed to read [%ld] byes!\n", __func__, n);
 			ret = -EFAULT;
 		} else {
 			ret = Si4709_dev_sys_config3_set(&sys_conf3);
@@ -719,7 +718,7 @@ if (gpio_tlmm_config(GPIO_CFG(GPIO_FM_INT, 0, GPIO_CFG_INPUT,
 		pr_err("%s: gpio_tlmm_config (gpio=%d) failed\n",
 		       __func__, GPIO_FM_INT);
 
-	set_irq_type(FM_IRQ_INT, IRQ_TYPE_EDGE_FALLING);
+	irq_set_irq_type(FM_IRQ_INT, IRQ_TYPE_EDGE_FALLING);
 
 	ret = request_irq(FM_IRQ_INT, Si4709_isr, IRQF_DISABLED, "Si4709",
 		NULL);
