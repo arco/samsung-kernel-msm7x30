@@ -99,6 +99,8 @@
 
 #include "board-msm7x30-regulator.h"
 
+#include <../../../drivers/bluetooth/bluesleep.c>
+
 #ifdef CONFIG_SENSORS_YDA165
 #include <linux/i2c/yda165.h>
 #endif
@@ -106,16 +108,12 @@
 #include <linux/fsa9480.h>
 #endif
 
-#include <../../../drivers/bluetooth/bluesleep.c>
-
 #ifdef CONFIG_SAMSUNG_JACK
 #include <linux/sec_jack.h>
 #include <mach/msm_rpcrouter.h>
 #include <asm/atomic.h>
 #include <linux/err.h>
 #endif
-
-#define GPIO_WLAN_RESET		127
 
 #define GPIO_BT_WAKE		147
 #define GPIO_BT_HOST_WAKE	145
@@ -4026,46 +4024,41 @@ static struct msm_gpio lcdc_gpio_config_data[] = {
 
 /* sleep */
 static struct msm_gpio lcdc_gpio_sleep_config_data[] = {
-        { GPIO_CFG(45, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "spi_clk" },
-        { GPIO_CFG(46, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "spi_cs0" },
-        { GPIO_CFG(47, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "spi_mosi" },
-        { GPIO_CFG(129, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcd_reset" },
+	{GPIO_CFG(45, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "spi_clk"},
+	{GPIO_CFG(46, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "spi_cs0"},
+	{GPIO_CFG(47, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "spi_mosi"},
+	{GPIO_CFG(129, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcd_reset"},
 };
 
-static void lcdc_s6d04m0_config_gpios(int enable)
+static void lcdc_config_gpios(int enable)
 {
-        struct msm_gpio *lcdc_gpio_cfg_data;
-        struct msm_gpio *lcdc_gpio_sleep_cfg_data;
-        int array_size;
-        int sleep_cfg_arry_size;
+	struct msm_gpio *lcdc_gpio_cfg_data;
+	struct msm_gpio *lcdc_gpio_sleep_cfg_data;
+	int array_size;
+	int sleep_cfg_arry_size;
 
-        lcdc_gpio_cfg_data = lcdc_gpio_config_data;
-        lcdc_gpio_sleep_cfg_data = lcdc_gpio_sleep_config_data;
-        array_size = ARRAY_SIZE(lcdc_gpio_config_data);
-        sleep_cfg_arry_size = ARRAY_SIZE(lcdc_gpio_sleep_config_data);
+	lcdc_gpio_cfg_data = lcdc_gpio_config_data;
+	lcdc_gpio_sleep_cfg_data = lcdc_gpio_sleep_config_data;
+	array_size = ARRAY_SIZE(lcdc_gpio_config_data);
+	sleep_cfg_arry_size = ARRAY_SIZE(lcdc_gpio_sleep_config_data);
 
-        if (enable) {
-                msm_gpios_request_enable(lcdc_gpio_cfg_data, array_size);
-        } else {
-                /* vital2.sleep let's control it ourself.
-                 * if we are to use msm_gpios_disable
-                 * we need to set sleep configuration values in
-                 * SLEEP_CFG of TLMMBsp.c in modem
-                 */
-                if (lcdc_gpio_sleep_cfg_data) {
-                        msm_gpios_enable(lcdc_gpio_sleep_cfg_data, array_size);
-                        msm_gpios_free(lcdc_gpio_sleep_cfg_data, array_size);
-                } else {
-                        msm_gpios_disable_free(lcdc_gpio_config_data,
-                                               array_size);
-                }
-        }
+ 	if (enable) {
+		msm_gpios_request_enable(lcdc_gpio_cfg_data, array_size);
+	} else {
+		if (lcdc_gpio_sleep_cfg_data) {
+			msm_gpios_enable(lcdc_gpio_sleep_cfg_data, array_size);
+			msm_gpios_free(lcdc_gpio_sleep_cfg_data, array_size);
+		} else {
+			msm_gpios_disable_free(lcdc_gpio_config_data,
+					       array_size);
+		}
+	}
 }
 #endif
 
 static struct msm_panel_common_pdata lcdc_panel_data = {
 #ifndef CONFIG_SPI_QSD
-	.panel_config_gpio = lcdc_s6d04m0_config_gpios,
+	.panel_config_gpio = lcdc_config_gpios,
 	.gpio_num          = lcdc_gpio_array_num,
 #endif
 };
@@ -4079,8 +4072,6 @@ static struct platform_device lcdc_s6e63m0_panel_device = {
 	}
 };
 #endif
-
-
 
 static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
        .inject_rx_on_wakeup = 1,
@@ -5084,7 +5075,6 @@ extern int bluesleep_start(void);
 extern void bluesleep_stop(void);
 static struct platform_device msm_bt_power_device = {
 .name = "bt_power",
-//sc47.yun .id     = -1
 };
 
 static unsigned bt_config_power_on[] = {
@@ -5125,23 +5115,23 @@ static int bluetooth_power(int on)
     if (on) {
         config_gpio_table(bt_config_power_on, ARRAY_SIZE(bt_config_power_on));
         pr_info("bluetooth_power BT_WAKE:%d, HOST_WAKE:%d, REG_ON:%d\n", gpio_get_value(GPIO_BT_WAKE), gpio_get_value(GPIO_BT_HOST_WAKE), gpio_get_value(GPIO_BT_WLAN_REG_ON));
-        
+
         gpio_direction_output(GPIO_BT_WAKE, GPIO_WLAN_LEVEL_HIGH);
         gpio_direction_output(GPIO_BT_WLAN_REG_ON, GPIO_WLAN_LEVEL_HIGH);
 //        mdelay(150);
-        usleep(150000);//sc47.yun
+        usleep(150000);
         gpio_direction_output(GPIO_BT_RESET, GPIO_WLAN_LEVEL_HIGH);
 
         pr_info("bluetooth_power BT_WAKE:%d, HOST_WAKE:%d, REG_ON:%d\n", gpio_get_value(GPIO_BT_WAKE), gpio_get_value(GPIO_BT_HOST_WAKE), gpio_get_value(GPIO_BT_WLAN_REG_ON));   
-//sc47.yun        mdelay(100);   
-     
+//        mdelay(100);
+
         bluesleep_start();
-    } 
-    else {    
+    }
+    else {
         bluesleep_stop();
         gpio_direction_output(GPIO_BT_RESET, GPIO_WLAN_LEVEL_LOW);/* BT_VREG_CTL */
 
-        if( gpio_get_value(GPIO_WLAN_RESET) == GPIO_WLAN_LEVEL_LOW ) //SEC_BLUETOOTH : pjh_2010.06.30
+        if( gpio_get_value(WLAN_RESET) == GPIO_WLAN_LEVEL_LOW ) //SEC_BLUETOOTH : pjh_2010.06.30
         {
             gpio_direction_output(GPIO_BT_WLAN_REG_ON, GPIO_WLAN_LEVEL_LOW);/* BT_RESET */
             mdelay(150);
@@ -5159,7 +5149,7 @@ static void __init bt_power_init(void)
 
     msm_bt_power_device.dev.platform_data = &bluetooth_power;
 }
-//sc47.yun
+
 static int bluetooth_gpio_init(void)
 {
     pr_info("bluetooth_gpio_init on system_rev:%d\n", system_rev);
@@ -5167,7 +5157,6 @@ static int bluetooth_gpio_init(void)
     config_gpio_table(bt_config_power_on, ARRAY_SIZE(bt_config_power_on));
     return 0;
 }
-//sc47.yun
 #endif
 
 static struct msm_psy_batt_pdata msm_psy_batt_data = {
@@ -5361,6 +5350,10 @@ static struct platform_device *devices[] __initdata = {
 	&fuelgauge_i2c_gpio_device,
 #endif
 /* 2011-06-20 hyeokseon.yu */
+#if defined(CONFIG_MARIMBA_CORE) && \
+	(defined(CONFIG_MSM_BT_POWER) || defined(CONFIG_MSM_BT_POWER_MODULE))
+//	&msm_bt_power_device,
+#endif
 	&msm_bt_power_device,
 	&msm_bluesleep_device,
 	&msm_kgsl_3d0,
@@ -5669,7 +5662,7 @@ static uint32_t msm_sdcc_setup_gpio(int dev_id, unsigned int enable)
 	int rc = 0;
 	struct sdcc_gpio *curr;
 
-	if((dev_id == 1)&& (gpio_get_value(GPIO_WLAN_RESET)))
+	if((dev_id == 1)&& (gpio_get_value(WLAN_RESET)))
 	{
 		return 0;
 	}
@@ -7384,6 +7377,7 @@ static void __init msm7x30_init(void)
 	boot_reason = *(unsigned int *)
 		(smem_get_entry(SMEM_POWER_ON_STATUS_INFO, &smem_size));
 	printk(KERN_NOTICE "Boot Reason = 0x%02x\n", boot_reason);
+
 #ifdef WLAN_STATIC_BUF
 	init_wifi_mem();
 #endif
