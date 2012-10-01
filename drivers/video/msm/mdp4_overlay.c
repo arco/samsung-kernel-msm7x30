@@ -2346,17 +2346,21 @@ int mdp4_overlay_set(struct fb_info *info, struct mdp_overlay *req)
 
 	perf_level = mdp4_overlay_get_perf_level(req, mfd);
 
-	if (mixer == MDP4_MIXER0) {
-		u32 use_blt = mdp4_overlay_blt_enable(req, mfd,	perf_level);
-		mfd->use_ov0_blt &= ~(1 << (pipe->pipe_ndx-1));
-		mfd->use_ov0_blt |= (use_blt << (pipe->pipe_ndx-1));
-	}
-
 	/* return id back to user */
 	req->id = pipe->pipe_ndx;	/* pipe_ndx start from 1 */
 	pipe->req_data = *req;		/* keep original req */
 
 	pipe->flags = req->flags;
+
+	if (mixer == MDP4_MIXER0) {
+		u32 use_blt = mdp4_overlay_blt_enable(req, mfd,	perf_level);
+		if ((pipe->flags & MDP_BACKEND_COMPOSITION) && use_blt) {
+			mutex_unlock(&mfd->dma->ov_mutex);
+			return -EPERM;
+		}
+		mfd->use_ov0_blt &= ~(1 << (pipe->pipe_ndx-1));
+		mfd->use_ov0_blt |= (use_blt << (pipe->pipe_ndx-1));
+	}
 
 	if (!IS_ERR_OR_NULL(mfd->iclient)) {
 		pr_debug("pipe->flags 0x%x\n", pipe->flags);
