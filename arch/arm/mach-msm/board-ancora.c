@@ -4517,31 +4517,21 @@ static struct platform_device qcedev_device = {
 static unsigned char quickvx_mddi_client = 1;
 
 static struct regulator *mddi_ldo20;
-static struct regulator *mddi_ldo12;
-static struct regulator *mddi_ldo6;
 static struct regulator *mddi_lcd;
 
 static int display_common_init(void)
 {
-	struct regulator_bulk_data regs[5] = {
+	struct regulator_bulk_data regs[2] = {
 		{ .supply = "ldo20", /* voltage set in display_common_power */},
-		{ .supply = "ldo12", .min_uV = 1800000, .max_uV = 1800000 },
-		{ .supply = "ldo6",  .min_uV = 3075000, .max_uV = 3400000 },
 		{ .supply = NULL,    /* mddi_lcd, initialized below */ },
 	};
 
 	int rc = 0;
 
-	if (machine_is_msm7x30_fluid()) {
-		/* lcd: LDO8 @1.8V */
-		regs[4].supply = "ldo8";
-		regs[4].min_uV = 1800000;
-		regs[4].max_uV = 1800000;
-	} else {
-		/* lcd: LDO15 @3.1V */
-		regs[4].supply = "ldo15";
-		regs[4].min_uV = 3100000;
-		regs[4].max_uV = 3100000;
+	/* lcd: LDO15 @3.0V */
+	regs[1].supply = "ldo15";
+	regs[1].min_uV = 3000000;
+	regs[1].max_uV = 3000000;
 	}
 
 	rc = regulator_bulk_get(NULL, ARRAY_SIZE(regs), regs);
@@ -4559,9 +4549,7 @@ static int display_common_init(void)
 	}
 
 	mddi_ldo20 = regs[0].consumer;
-	mddi_ldo12 = regs[1].consumer;
-	mddi_ldo6  = regs[2].consumer;
-	mddi_lcd   = regs[3].consumer;
+	mddi_lcd   = regs[1].consumer;
 
 	return rc;
 
@@ -4609,13 +4597,6 @@ static int display_common_power(int on)
 			return rc;
 		}
 
-		rc = regulator_enable(mddi_ldo12);
-		if (rc) {
-			pr_err("%s: LDO12 regulator enable failed (%d)\n",
-			       __func__, rc);
-			return rc;
-		}
-
 		rc = regulator_enable(mddi_lcd);
 		if (rc) {
 			pr_err("%s: LCD regulator enable failed (%d)\n",
@@ -4624,13 +4605,6 @@ static int display_common_power(int on)
 		}
 
 		mdelay(5);		/* ensure power is stable */
-
-		rc = pmapp_display_clock_config(1);
-		if (rc) {
-			pr_err("%s pmapp_display_clock_config rc=%d\n",
-					__func__, rc);
-			return rc;
-		}
 
 	} else {
 		rc = regulator_disable(mddi_ldo20);
@@ -4644,22 +4618,6 @@ static int display_common_power(int on)
 		if (rc) {
 			pr_err("%s: LCD regulator disable failed (%d)\n",
 				__func__, rc);
-			return rc;
-		}
-
-		mdelay(5);	/* ensure power is stable */
-
-		rc = regulator_disable(mddi_ldo12);
-		if (rc) {
-			pr_err("%s: LDO12 regulator disable failed (%d)\n",
-			       __func__, rc);
-			return rc;
-		}
-
-		rc = pmapp_display_clock_config(0);
-		if (rc) {
-			pr_err("%s pmapp_display_clock_config rc=%d\n",
-					__func__, rc);
 			return rc;
 		}
 	}
@@ -4679,7 +4637,6 @@ static int msm_fb_mddi_client_power(u32 client_id)
 	/* Check if it is Quicklogic client */
 	if (client_id == 0xc5835800) {
 		printk(KERN_NOTICE "\n Quicklogic MDDI client");
-	int rc;
 	} else {
 		printk(KERN_NOTICE "\n Non-Quicklogic MDDI client");
 		quickvx_mddi_client = 0;
