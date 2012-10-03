@@ -406,6 +406,7 @@ static void samsung_spi_write_byte(boolean dc, u8 data)
 
 }
 
+#if 0
 static void samsung_spi_read_bytes(u8 cmd, u8 *data, int num)
 {
 	int bnum;
@@ -449,6 +450,7 @@ static void samsung_spi_read_bytes(u8 cmd, u8 *data, int num)
 	udelay(2);
 	gpio_set_value(spi_cs, 1);
 }
+#endif
 
 static int samsung_serigo(struct samsung_spi_data data)
 {
@@ -688,6 +690,7 @@ static void samsung_disp_powerdown(void)
 	samsung_state.disp_powered_up = FALSE;
 }
 
+#ifdef USE_DELAYED_WORK_DISP_ON
 static struct work_struct disp_on_delayed_work;
 static void samsung_disp_on_delayed_work(struct work_struct *work_ptr)
 {
@@ -707,6 +710,7 @@ static void samsung_disp_on_delayed_work(struct work_struct *work_ptr)
 		lcdc_samsung_set_brightness_in_blu(DEFAULT_LCD_ON_BACKLIGHT_LEVEL);
 	}
 }
+#endif
 
 static void samsung_disp_on(void)
 {
@@ -1177,7 +1181,7 @@ static int lcdc_samsung_panel_on_esd(struct platform_device *pdev)
 	return 0;
 }
 
-void s6d16a0x_esd ( void )
+static void s6d16a0x_esd(struct work_struct *work)
 {
 	if ( panel_initialized )
 	{
@@ -1194,7 +1198,7 @@ void s6d16a0x_esd ( void )
 	}
 }
 
-static DECLARE_WORK ( lcd_esd_work, s6d16a0x_esd );
+static DECLARE_WORK(lcd_esd_work, s6d16a0x_esd);
 
 static irqreturn_t s6d16a0x_esd_irq_handler(int irq, void *handle)
 {
