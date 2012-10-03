@@ -185,8 +185,9 @@ static struct samsung_spi_data panel_on_sequence_smd[] = {
 	{ .addr = 0x29, .len = 0, .data = {0x00 }, .delay = 0 },
 };
 
+#if 0
 static struct samsung_spi_data colmod_sequence[] = {
 	{ .addr = 0x3A, .len = 1, .data = { 0x77 } },
 	/* It needs 130ms delay */
 };
-
+#endif
