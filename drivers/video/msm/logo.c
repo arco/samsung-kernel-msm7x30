@@ -58,7 +58,7 @@ static void memset16_rgb8888(void *_ptr, unsigned short val, unsigned count)
 
 /* 565RLE image format: [count(2 bytes), rle(2 bytes)] */
 #ifdef CONFIG_FB_MSM_SEC_BOOTLOGO
-int load_565rle_image_onfb( char *filename, int start_x, int start_y)
+int load_565rle_image_onfb( char *filename, int start_x, int start_y, bool bf_supported)
 {
 	int fd, err = 0;
 	unsigned count, max;
@@ -111,8 +111,13 @@ int load_565rle_image_onfb( char *filename, int start_x, int start_y)
 	}
 
 	max = fb_width(info) * fb_height(info);
-
 	ptr = data;
+        if (bf_supported && (info->node == 1 || info->node == 2)) {
+                err = -EPERM;
+                pr_err("%s:%d no info->creen_base on fb%d!\n",
+                       __func__, __LINE__, info->node);
+                goto err_logo_free_data;
+        }
 	bits = (unsigned short *)(info->screen_base+(info->fix.line_length*start_y) );
 
 	p_line = bits;
