@@ -6810,7 +6810,7 @@ out2:
 out3:
 #endif
 #ifdef CONFIG_MMC_MSM_SDC4_SUPPORT
-	if (mmc_regulator_init(4, "mmc", 2850000))
+	if (mmc_regulator_init(4, "gp10", 2850000))
 		return;
 	msm7x30_sdc4_data.swfi_latency = msm7x30_power_collapse_latency(
 		MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT);
