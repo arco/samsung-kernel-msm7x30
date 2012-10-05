@@ -1158,6 +1158,13 @@ geomagnetic_probe(struct i2c_client *client, const struct i2c_device_id *id)
                input_data->name));
         goto err;
     }
+
+	input_set_abs_params(input_data, ABS_X, -(1<<31), (1<<31), 0, 0);
+	input_set_abs_params(input_data, ABS_Y, -(1<<31), (1<<31), 0, 0);
+	input_set_abs_params(input_data, ABS_Z, -(1<<31), (1<<31), 0, 0);
+	input_set_abs_params(input_data, ABS_STATUS, 0, (1<<16), 0, 0);
+	input_set_abs_params(input_data, ABS_WAKE, 0, (1<<31), 0, 0);
+
     data_registered = 1;
 
     rt = sysfs_create_group(&input_data->dev.kobj,
@@ -1194,6 +1201,14 @@ geomagnetic_probe(struct i2c_client *client, const struct i2c_device_id *id)
                input_raw->name));
         goto err;
     }
+
+	input_set_abs_params(input_raw, ABS_X, -(1<<31), (1<<31), 0, 0);
+	input_set_abs_params(input_raw, ABS_Y, -(1<<31), (1<<31), 0, 0);
+	input_set_abs_params(input_raw, ABS_Z, -(1<<31), (1<<31), 0, 0);
+	input_set_abs_params(input_raw, ABS_RAW_DISTORTION, 0, 2, 0, 0);
+	input_set_abs_params(input_raw, ABS_RAW_THRESHOLD, 0, 2, 0, 0);
+	input_set_abs_params(input_raw, ABS_RAW_SHAPE, 0, 1, 0, 0);
+	input_set_abs_params(input_raw, ABS_RAW_REPORT, 0, (1<<31), 0, 0);
     raw_registered = 1;
 
     rt = sysfs_create_group(&input_raw->dev.kobj,

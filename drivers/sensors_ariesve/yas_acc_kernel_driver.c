@@ -166,7 +166,7 @@ static int yas_acc_close(struct inode *inode, struct file *file)
 	return err;
 }
 
-static long yas_acc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long yas_acc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int err= 0 ;
 	struct yas_acc_private_data* data = gyas_acc;
@@ -545,6 +545,7 @@ static int yas_acc_input_init(struct yas_acc_private_data *data)
     dev->id.bustype = BUS_I2C;
 
     input_set_capability(dev, EV_ABS, ABS_MISC);
+	input_set_abs_params(dev, ABS_MISC, 0, (1<<31), 0, 0);
     input_set_abs_params(dev, ABS_X, ABSMIN_2G, ABSMAX_2G, 0, 0);
     input_set_abs_params(dev, ABS_Y, ABSMIN_2G, ABSMAX_2G, 0, 0);
     input_set_abs_params(dev, ABS_Z, ABSMIN_2G, ABSMAX_2G, 0, 0);

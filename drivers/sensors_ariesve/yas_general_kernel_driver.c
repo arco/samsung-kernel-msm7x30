@@ -283,10 +283,10 @@ sensor_data_show(struct device *dev,
 #endif
 
     spin_lock_irqsave(&input_data->event_lock, flags);
-    x = input_data->absinfo[ABS_X].value;
+    x = input_abs_get_val(input_data,ABS_X);
 #if SENSOR_TYPE <= 4
-    y = input_data->absinfo[ABS_Y].value;
-    z = input_data->absinfo[ABS_Z].value;
+    y = input_abs_get_val(input_data,ABS_Y);
+    z = input_abs_get_val(input_data,ABS_Z);
 #endif
 
     spin_unlock_irqrestore(&input_data->event_lock, flags);
@@ -309,7 +309,7 @@ sensor_status_show(struct device *dev,
 
     spin_lock_irqsave(&input_data->event_lock, flags);
 
-	status = input_data->absinfo[ABS_STATUS].value;
+	status = input_abs_get_val(input_data,ABS_STATUS);
 
     spin_unlock_irqrestore(&input_data->event_lock, flags);
 
@@ -414,6 +414,7 @@ sensor_probe(struct platform_device *pdev)
     input_set_capability(input_data, EV_ABS, ABS_STATUS); /* status */
     input_set_capability(input_data, EV_ABS, ABS_WAKE); /* wake */
     input_set_capability(input_data, EV_ABS, ABS_CONTROL_REPORT); /* enabled/delay */
+
     input_data->name = SENSOR_NAME;
 
     rt = input_register_device(input_data);
@@ -423,6 +424,16 @@ sensor_probe(struct platform_device *pdev)
         goto err;
     }
     input_set_drvdata(input_data, data);
+
+	input_set_abs_params(input_data, ABS_X, 0, 1<<16, 0, 0);
+#if SENSOR_TYPE <= 4
+	input_set_abs_params(input_data, ABS_Y, 0, 1<<16, 0, 0);
+	input_set_abs_params(input_data, ABS_Z, 0, 1<<16, 0, 0);
+#endif
+	input_set_abs_params(input_data, ABS_STATUS, 0, 1, 0, 0);
+	input_set_abs_params(input_data, ABS_WAKE, 0, 1<<31, 0, 0);
+	input_set_abs_params(input_data, ABS_CONTROL_REPORT, 0, 1<<16, 0, 0);
+
     input_registered = 1;
 
     rt = sysfs_create_group(&input_data->dev.kobj,

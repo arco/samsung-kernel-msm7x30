@@ -759,6 +759,12 @@ lightsensor_probe(struct platform_device *pdev)
     input_set_capability(input_data, EV_ABS, ABS_Y); 
     input_set_capability(input_data, EV_ABS, ABS_WAKE); /* wake */
     input_set_capability(input_data, EV_ABS, ABS_CONTROL_REPORT); /* enabled/delay */
+
+	input_set_abs_params(input_data, ABS_X, 0, 1, 0, 0);
+	input_set_abs_params(input_data, ABS_Y, 0, 1, 0, 0);
+	input_set_abs_params(input_data, ABS_WAKE, 0, (1<<31), 0, 0);
+	input_set_abs_params(input_data, ABS_CONTROL_REPORT, 0, 1<<16, 0, 0);
+
     input_data->name = SENSOR_NAME;
 
     rt = input_register_device(input_data);
