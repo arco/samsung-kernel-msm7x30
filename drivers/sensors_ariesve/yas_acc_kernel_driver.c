@@ -166,7 +166,7 @@ static int yas_acc_close(struct inode *inode, struct file *file)
 	return err;
 }
 
-static long yas_acc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long yas_acc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int err= 0 ;
 	struct yas_acc_private_data* data = gyas_acc;
