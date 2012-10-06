@@ -143,7 +143,7 @@ EXPORT_SYMBOL(sec_class);
 struct device *switch_dev;
 EXPORT_SYMBOL(switch_dev);
 
-#define MSM_PMEM_SF_SIZE	0x1700000
+#define MSM_PMEM_SF_SIZE		0x1A00000
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MSM_FB_PRIM_BUF_SIZE	(800 * 480 * 4 * 3) /* 4bpp * 3 Pages */
 #else
@@ -165,7 +165,7 @@ EXPORT_SYMBOL(switch_dev);
 
 #define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE + MSM_FB_EXT_BUF_SIZE, 4096)
 
-#define MSM_PMEM_ADSP_SIZE		0x1E00000
+#define MSM_PMEM_ADSP_SIZE		0x2D00000
 #define MSM_FLUID_PMEM_ADSP_SIZE	0x2800000
 #define PMEM_KERNEL_EBI0_SIZE		0x600000
 #define MSM_PMEM_AUDIO_SIZE		0x200000
@@ -3425,11 +3425,11 @@ static struct i2c_board_info touchkey_info[] __initdata = {
 static int oliver_tsp_ldo_on(void)
 {
 	int rc = 0;
-	struct vreg *vreg_ldo2, *vreg_ldo10 = NULL;
+	struct regulator *vreg_ldo2, *vreg_ldo10 = NULL;
 
 	printk("[TSP] M1 TSP LDO init\n");
 	// VREG_TSP_1.8V
-	vreg_ldo2 = vreg_get(NULL, "gp4");		
+	vreg_ldo2 = regulator_get(NULL, "gp4");		
 	if (IS_ERR(vreg_ldo2)) {
 		rc = PTR_ERR(vreg_ldo2);
 		pr_err("%s: gp6 vreg get failed (%d)\n",
@@ -3439,15 +3439,15 @@ static int oliver_tsp_ldo_on(void)
 
 	// VREG_TSP_A3.0V
 	// Oliver Board rev univ01 ldo10 is gp11
-	vreg_ldo10 = vreg_get(NULL, "xo_out"); 
+	vreg_ldo10 = regulator_get(NULL, "xo_out"); 
 	if (IS_ERR(vreg_ldo10)) {
 		rc = PTR_ERR(vreg_ldo10);
 		pr_err("%s: gp9 vreg get failed (%d)\n",
 		       __func__, rc);
 		return rc;
 	}
-
-	rc = vreg_set_level(vreg_ldo2, 1800);
+/*
+	rc =  regulator_set_voltage(vreg_ldo2, 1800);
 	if (rc) {
 		pr_err("%s: vreg LDO2 set level failed (%d)\n",
 		       __func__, rc);
@@ -3459,9 +3459,9 @@ static int oliver_tsp_ldo_on(void)
 		pr_err("%s: vreg LDO10 set level failed (%d)\n",
 		       __func__, rc);
 		return rc;
-	}
+	}*/
 
-	rc = vreg_enable(vreg_ldo2);
+	rc = regulator_enable(vreg_ldo2);
 
 	if (rc) {
 		pr_err("%s: LDO2 vreg enable failed (%d)\n",
@@ -3469,7 +3469,7 @@ static int oliver_tsp_ldo_on(void)
 		return rc;
 	}
 
-	rc = vreg_enable(vreg_ldo10);
+	rc = regulator_enable(vreg_ldo10);
 
 	if (rc) {
 		pr_err("%s: LDO10 vreg enable failed (%d)\n",
@@ -4268,45 +4268,25 @@ static struct platform_device qcedev_device = {
 
 static unsigned char quickvx_mddi_client = 1;
 
-static struct regulator *mddi_ldo20;
-static struct regulator *mddi_lcd;
+static struct regulator *mddi_ldo17;
+static struct regulator *mddi_ldo15;
 
 static int display_common_init(void)
 {
-	struct regulator_bulk_data regs[2] = {
-		{ .supply = "ldo20", /* voltage set in display_common_power */},
-		{ .supply = NULL,    /* mddi_lcd, initialized below */ },
-	};
-
 	int rc = 0;
 
-	/* lcd: LDO15 @3.0V */
-	regs[1].supply = "ldo15";
-	regs[1].min_uV = 3000000;
-	regs[1].max_uV = 3000000;
-
-	rc = regulator_bulk_get(NULL, ARRAY_SIZE(regs), regs);
-	if (rc) {
+	mddi_ldo17 = regulator_get(NULL, "ldo17");
+	if (IS_ERR(mddi_ldo17)) {
 		pr_err("%s: regulator_bulk_get failed: %d\n",
 				__func__, rc);
-		goto bail;
 	}
 
-	rc = regulator_bulk_set_voltage(ARRAY_SIZE(regs), regs);
-	if (rc) {
-		pr_err("%s: regulator_bulk_set_voltage failed: %d\n",
+	mddi_ldo15 = regulator_get(NULL, "ldo15");
+	if (IS_ERR(mddi_ldo15)) {
+		pr_err("%s: regulator_bulk_get failed: %d\n",
 				__func__, rc);
-		goto put_regs;
 	}
 
-	mddi_ldo20 = regs[0].consumer;
-	mddi_lcd   = regs[1].consumer;
-
-	return rc;
-
-put_regs:
-	regulator_bulk_free(ARRAY_SIZE(regs), regs);
-bail:
 	return rc;
 }
 
@@ -4332,23 +4312,15 @@ static int display_common_power(int on)
 	}
 
 
-	rc = regulator_set_voltage(mddi_ldo20, 1500000, 1500000);
-
-	if (rc) {
-		pr_err("%s: could not set voltage for ldo20: %d\n",
-				__func__, rc);
-		return rc;
-	}
-
 	if (on) {
-		rc = regulator_enable(mddi_ldo20);
+		rc = regulator_enable(mddi_ldo17);
 		if (rc) {
 			pr_err("%s: LDO20 regulator enable failed (%d)\n",
 			       __func__, rc);
 			return rc;
 		}
 
-		rc = regulator_enable(mddi_lcd);
+		rc = regulator_enable(mddi_ldo15);
 		if (rc) {
 			pr_err("%s: LCD regulator enable failed (%d)\n",
 				__func__, rc);
@@ -4358,14 +4330,14 @@ static int display_common_power(int on)
 		mdelay(5);		/* ensure power is stable */
 
 	} else {
-		rc = regulator_disable(mddi_ldo20);
+		rc = regulator_disable(mddi_ldo17);
 		if (rc) {
 			pr_err("%s: LDO20 regulator disable failed (%d)\n",
 			       __func__, rc);
 			return rc;
 		}
 
-		rc = regulator_disable(mddi_lcd);
+		rc = regulator_disable(mddi_ldo15);
 		if (rc) {
 			pr_err("%s: LCD regulator disable failed (%d)\n",
 				__func__, rc);
@@ -4384,6 +4356,8 @@ static int msm_fb_mddi_sel_clk(u32 *clk_rate)
 
 static int msm_fb_mddi_client_power(u32 client_id)
 {
+	struct regulator *vreg_ldo20;
+	int rc;
 	printk(KERN_NOTICE "\n client_id = 0x%x", client_id);
 	/* Check if it is Quicklogic client */
 	if (client_id == 0xc5835800) {
@@ -4394,6 +4368,21 @@ static int msm_fb_mddi_client_power(u32 client_id)
 		gpio_set_value(97, 0);
 		gpio_set_value_cansleep(PM8058_GPIO_PM_TO_SYS(
 			PMIC_GPIO_QUICKVX_CLK), 0);
+
+		vreg_ldo20 = regulator_get(NULL, "gp13");
+
+		if (IS_ERR(vreg_ldo20)) {
+			rc = PTR_ERR(vreg_ldo20);
+			pr_err("%s: gp13 vreg get failed (%d)\n",
+				   __func__, rc);
+			return rc;
+		}
+		rc = regulator_enable(vreg_ldo20);
+		if (rc) {
+			pr_err("%s: LDO20 vreg enable failed (%d)\n",
+			       __func__, rc);
+			return rc;
+		}
 	}
 
 	return 0;
@@ -4419,7 +4408,6 @@ static struct msm_panel_common_pdata mdp_pdata = {
 	.mdp_core_clk_table = mdp_core_clk_rate_table,
 	.num_mdp_clk = ARRAY_SIZE(mdp_core_clk_rate_table),
 	.mdp_rev = MDP_REV_40,
-	.mem_hid = MEMTYPE_EBI0,
 };
 
 static struct msm_gpio lcd_panel_gpios[] = {
@@ -4488,7 +4476,7 @@ static int lcdc_common_panel_power(int on)
 static int lcdc_panel_power(int on)
 {
 	int flag_on = !!on;
-	static int lcdc_power_save_on, lcdc_power_initialized;
+	static int lcdc_power_save_on;
 
 	return 0;	
 
@@ -4496,12 +4484,6 @@ static int lcdc_panel_power(int on)
 		return 0;
 
 	lcdc_power_save_on = flag_on;
-
-	if (unlikely(!lcdc_power_initialized)) {
-		quickvx_mddi_client = 0;
-		display_common_init();
-		lcdc_power_initialized = 1;
-	}
 
 	return lcdc_common_panel_power(on);
 }
@@ -4568,7 +4550,7 @@ static struct tvenc_platform_data atv_pdata = {
 static void __init msm_fb_add_devices(void)
 {
 	msm_fb_register_device("mdp", &mdp_pdata);
-	msm_fb_register_device("pmdh", &mddi_pdata);
+	//msm_fb_register_device("pmdh", &mddi_pdata);
 	msm_fb_register_device("lcdc", &lcdc_pdata);
 	msm_fb_register_device("tvenc", &atv_pdata);
 #ifdef CONFIG_FB_MSM_TVOUT
@@ -7381,6 +7363,7 @@ static void __init msm7x30_init(void)
 #ifdef WLAN_STATIC_BUF
 	init_wifi_mem();
 #endif
+
 }
 
 static unsigned pmem_sf_size = MSM_PMEM_SF_SIZE;
@@ -7559,7 +7542,6 @@ MACHINE_START(ARIESVE, "GT-I9001 Board")
 	.timer = &msm_timer,
 	.init_early = msm7x30_init_early,
 	.handle_irq = vic_handle_irq,
-	.fixup = msm7x30_fixup,
 MACHINE_END
 
 MACHINE_START(MSM7X30_SURF, "QCT MSM7X30 SURF")
