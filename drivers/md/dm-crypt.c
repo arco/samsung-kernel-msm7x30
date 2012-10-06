@@ -164,7 +164,6 @@ struct crypt_config {
 
 #define MIN_IOS        16
 #define MIN_POOL_PAGES 32
-#define MIN_BIO_PAGES  8
 
 static struct kmem_cache *_crypt_io_pool;
 
@@ -820,9 +819,9 @@ static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size,
 		}
 
 		/*
-		 * if additional pages cannot be allocated without waiting,
-		 * return a partially allocated bio, the caller will then try
-		 * to allocate additional bios while submitting this partial bio
+		 * If additional pages cannot be allocated without waiting,
+		 * return a partially-allocated bio.  The caller will then try
+		 * to allocate more bios while submitting this partial bio.
 		 */
 		gfp_mask = (gfp_mask | __GFP_NOWARN) & ~__GFP_WAIT;
 

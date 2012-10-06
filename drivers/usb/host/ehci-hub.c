@@ -1274,6 +1274,18 @@ static int ehci_hub_control (
 		case USB_PORT_FEAT_TEST:
 			if (selector && selector <= 5) {
 				ehci_quiesce(ehci);
+
+			/* Put all enabled ports into suspend */
+			while (ports--) {
+				u32 __iomem *sreg =
+						&ehci->regs->port_status[ports];
+
+				temp = ehci_readl(ehci, sreg) & ~PORT_RWC_BITS;
+				if (temp & PORT_PE)
+					ehci_writel(ehci, temp | PORT_SUSPEND,
+							sreg);
+			}
+
 				ehci_halt(ehci);
 				temp |= selector << 16;
 				ehci_writel(ehci, temp, status_reg);

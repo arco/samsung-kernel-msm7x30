@@ -323,7 +323,6 @@ static bool svc_xprt_has_something_to_do(struct svc_xprt *xprt)
  */
 void svc_xprt_enqueue(struct svc_xprt *xprt)
 {
-	struct svc_serv	*serv = xprt->xpt_server;
 	struct svc_pool *pool;
 	struct svc_rqst	*rqstp;
 	int cpu;
@@ -369,8 +368,6 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 				rqstp, rqstp->rq_xprt);
 		rqstp->rq_xprt = xprt;
 		svc_xprt_get(xprt);
-		rqstp->rq_reserved = serv->sv_max_mesg;
-		atomic_add(rqstp->rq_reserved, &xprt->xpt_reserved);
 		pool->sp_stats.threads_woken++;
 		wake_up(&rqstp->rq_wait);
 	} else {
@@ -650,8 +647,6 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 	if (xprt) {
 		rqstp->rq_xprt = xprt;
 		svc_xprt_get(xprt);
-		rqstp->rq_reserved = serv->sv_max_mesg;
-		atomic_add(rqstp->rq_reserved, &xprt->xpt_reserved);
 
 		/* As there is a shortage of threads and this request
 		 * had to be queued, don't allow the thread to wait so
@@ -748,6 +743,8 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 		else
 			len = xprt->xpt_ops->xpo_recvfrom(rqstp);
 		dprintk("svc: got len=%d\n", len);
+		rqstp->rq_reserved = serv->sv_max_mesg;
+		atomic_add(rqstp->rq_reserved, &xprt->xpt_reserved);
 	}
 	svc_xprt_received(xprt);
 
@@ -804,7 +801,8 @@ int svc_send(struct svc_rqst *rqstp)
 
 	/* Grab mutex to serialize outgoing data. */
 	mutex_lock(&xprt->xpt_mutex);
-	if (test_bit(XPT_DEAD, &xprt->xpt_flags))
+	if (test_bit(XPT_DEAD, &xprt->xpt_flags)
+			|| test_bit(XPT_CLOSE, &xprt->xpt_flags))
 		len = -ENOTCONN;
 	else
 		len = xprt->xpt_ops->xpo_sendto(rqstp);
@@ -901,14 +899,7 @@ void svc_delete_xprt(struct svc_xprt *xprt)
 	spin_lock_bh(&serv->sv_lock);
 	if (!test_and_set_bit(XPT_DETACHED, &xprt->xpt_flags))
 		list_del_init(&xprt->xpt_list);
-	/*
-	 * The only time we're called while xpt_ready is still on a list
-	 * is while the list itself is about to be destroyed (in
-	 * svc_destroy).  BUT svc_xprt_enqueue could still be attempting
-	 * to add new entries to the sp_sockets list, so we can't leave
-	 * a freed xprt on it.
-	 */
-	list_del_init(&xprt->xpt_ready);
+	BUG_ON(!list_empty(&xprt->xpt_ready));
 	if (test_bit(XPT_TEMP, &xprt->xpt_flags))
 		serv->sv_tmpcnt--;
 	spin_unlock_bh(&serv->sv_lock);
@@ -936,22 +927,48 @@ void svc_close_xprt(struct svc_xprt *xprt)
 }
 EXPORT_SYMBOL_GPL(svc_close_xprt);
 
-void svc_close_all(struct list_head *xprt_list)
+static void svc_close_list(struct list_head *xprt_list)
 {
 	struct svc_xprt *xprt;
-	struct svc_xprt *tmp;
 
-	/*
-	 * The server is shutting down, and no more threads are running.
-	 * svc_xprt_enqueue() might still be running, but at worst it
-	 * will re-add the xprt to sp_sockets, which will soon get
-	 * freed.  So we don't bother with any more locking, and don't
-	 * leave the close to the (nonexistent) server threads:
-	 */
-	list_for_each_entry_safe(xprt, tmp, xprt_list, xpt_list) {
+	list_for_each_entry(xprt, xprt_list, xpt_list) {
 		set_bit(XPT_CLOSE, &xprt->xpt_flags);
-		svc_delete_xprt(xprt);
+		set_bit(XPT_BUSY, &xprt->xpt_flags);
 	}
+}
+
+void svc_close_all(struct svc_serv *serv)
+{
+	struct svc_pool *pool;
+	struct svc_xprt *xprt;
+	struct svc_xprt *tmp;
+	int i;
+
+	svc_close_list(&serv->sv_tempsocks);
+	svc_close_list(&serv->sv_permsocks);
+
+	for (i = 0; i < serv->sv_nrpools; i++) {
+		pool = &serv->sv_pools[i];
+
+		spin_lock_bh(&pool->sp_lock);
+		while (!list_empty(&pool->sp_sockets)) {
+			xprt = list_first_entry(&pool->sp_sockets, struct svc_xprt, xpt_ready);
+			list_del_init(&xprt->xpt_ready);
+		}
+		spin_unlock_bh(&pool->sp_lock);
+	}
+	/*
+	 * At this point the sp_sockets lists will stay empty, since
+	 * svc_enqueue will not add new entries without taking the
+	 * sp_lock and checking XPT_BUSY.
+	 */
+	list_for_each_entry_safe(xprt, tmp, &serv->sv_tempsocks, xpt_list)
+		svc_delete_xprt(xprt);
+	list_for_each_entry_safe(xprt, tmp, &serv->sv_permsocks, xpt_list)
+		svc_delete_xprt(xprt);
+
+	BUG_ON(!list_empty(&serv->sv_permsocks));
+	BUG_ON(!list_empty(&serv->sv_tempsocks));
 }
 
 /*

@@ -15,6 +15,7 @@
 #include <asm/e820.h>
 #include <asm/setup.h>
 #include <asm/acpi.h>
+#include <asm/numa.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
@@ -192,9 +193,21 @@ static unsigned long __init xen_get_max_pages(void)
 	domid_t domid = DOMID_SELF;
 	int ret;
 
-	ret = HYPERVISOR_memory_op(XENMEM_maximum_reservation, &domid);
-	if (ret > 0)
-		max_pages = ret;
+	/*
+	 * For the initial domain we use the maximum reservation as
+	 * the maximum page.
+	 *
+	 * For guest domains the current maximum reservation reflects
+	 * the current maximum rather than the static maximum. In this
+	 * case the e820 map provided to us will cover the static
+	 * maximum region.
+	 */
+	if (xen_initial_domain()) {
+		ret = HYPERVISOR_memory_op(XENMEM_maximum_reservation, &domid);
+		if (ret > 0)
+			max_pages = ret;
+	}
+
 	return min(max_pages, MAX_DOMAIN_PAGES);
 }
 
@@ -451,4 +464,7 @@ void __init xen_arch_setup(void)
 	boot_option_idle_override = IDLE_HALT;
 
 	fiddle_vdso();
+#ifdef CONFIG_NUMA
+	numa_off = 1;
+#endif
 }

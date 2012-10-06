@@ -130,9 +130,17 @@ qh_refresh (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	else {
 		qtd = list_entry (qh->qtd_list.next,
 				struct ehci_qtd, qtd_list);
-		/* first qtd may already be partially processed */
-		if (cpu_to_hc32(ehci, qtd->qtd_dma) == qh->hw->hw_current)
+		/*
+		 * first qtd may already be partially processed.
+		 * If we come here during unlink, the QH overlay region
+		 * might have reference to the just unlinked qtd. The
+		 * qtd is updated in qh_completions(). Update the QH
+		 * overlay here.
+		 */
+		if (cpu_to_hc32(ehci, qtd->qtd_dma) == qh->hw->hw_current) {
+			qh->hw->hw_qtd_next = qtd->hw_next;
 			qtd = NULL;
+		}
 	}
 
 	if (qtd)
@@ -649,7 +657,7 @@ qh_urb_transaction (
 	/*
 	 * data transfer stage:  buffer setup
 	 */
-	i = urb->num_sgs;
+	i = urb->num_mapped_sgs;
 	if (len > 0 && i > 0) {
 		sg = urb->sg;
 		buf = sg_dma_address(sg);
