@@ -212,7 +212,6 @@ EXPORT_SYMBOL(switch_dev);
 #define OPTNAV_I2C_SLAVE_ADDR	(0xB0 >> 1)
 #define OPTNAV_IRQ		20
 #define OPTNAV_CHIP_SELECT	19
-
 /* Macros assume PMIC GPIOs start at 0 */
 #define PM8058_GPIO_PM_TO_SYS(pm_gpio)     (pm_gpio + NR_GPIO_IRQS)
 #define PM8058_GPIO_SYS_TO_PM(sys_gpio)    (sys_gpio - NR_GPIO_IRQS)
@@ -5285,7 +5284,7 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&android_pmem_adsp_device,
 	&android_pmem_audio_device,
-//	&msm_device_i2c,
+	&msm_device_i2c,
 	&msm_device_i2c_2,
 	&msm_device_uart_dm1,
 	&hs_device,
@@ -7190,7 +7189,7 @@ static void __init msm7x30_init(void)
 	msm_fb_add_devices();
 	msm_pm_set_platform_data(msm_pm_data, ARRAY_SIZE(msm_pm_data));
 	BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
-//	msm_device_i2c_init();
+	msm_device_i2c_init();
 	msm_device_i2c_2_init();
 #if defined(CONFIG_USE_QUP_I2C)
 	qup_device_i2c_init();
