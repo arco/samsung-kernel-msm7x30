@@ -377,8 +377,6 @@ struct zone {
 	/* Set to true when the PG_migrate_skip bits should be cleared */
 	bool			compact_blockskip_flush;
 
-	unsigned long		compact_blockskip_expire;
-
 	/* pfns where compaction scanners should start */
 	unsigned long		compact_cached_free_pfn;
 	unsigned long		compact_cached_migrate_pfn;
