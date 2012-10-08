@@ -10,8 +10,8 @@
 # * I/O expander drivers go to drivers/gpio
 #
 
-obj-$(CONFIG_SENSORS_MT9T013)	+= mt9t013.o
-obj-$(CONFIG_SENSORS_YDA165)	+= yda165.o
+obj-$(CONFIG_SENSORS_YDA165)	 += yda165.o
+obj-$(CONFIG_USB_SWITCH_FSA9480) += fsa9480.o
 
 ifeq ($(CONFIG_I2C_DEBUG_CHIP),y)
 EXTRA_CFLAGS += -DDEBUG
