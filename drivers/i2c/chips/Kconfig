@@ -6,18 +6,20 @@
 
 menu "Miscellaneous I2C Chip support"
 
-config SENSORS_MT9T013
-	tristate "MT9T013 Camera Driver"
-	depends on I2C
-	default y
-	help
-	 MT9T013 Camera Driver implemented by HTC.
-
 config SENSORS_YDA165
 	bool "YDA165 Audio Amp Driver"
 	depends on I2C
 	default n
 	help
 	 YDA165 Audio AMP	
+
+config USB_SWITCH_FSA9480
+	tristate "FSA9480 USB Switch"
+	depends on I2C
+	help
+	  The FSA9480 is a USB port accessory detector and switch.
+	  The FSA9480 is fully controlled using I2C and enables USB data,
+	  stereo and mono audio, video, microphone and UART data to use
+	  a common connector port.
 
 endmenu

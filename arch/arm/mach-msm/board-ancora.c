@@ -105,7 +105,7 @@
 #include <linux/i2c/ak8975.h>
 #endif
 #ifdef CONFIG_USB_SWITCH_FSA9480
-#include <linux/fsa9480.h>
+#include <linux/i2c/fsa9480.h>
 #endif
 
 #ifdef CONFIG_CHARGER_SMB328A
