@@ -48,7 +48,6 @@
 extern struct device *switch_dev;
 static int usb_state = 0;
 #include <linux/usb/android_composite.h>
-#include <mach/devs.h>// MSM8255
 
 extern int android_usb_get_current_mode(void);
 extern void android_usb_switch(int mode);
@@ -65,8 +64,6 @@ extern int charging_boot;
 extern int power_off_done;  // For Device Reset/Off
 extern bool power_down;
 #endif
-
-extern int android_probe_done; // for check  android probe done 
 
 #if defined(CONFIG_MACH_APACHE)
 struct fsa9480_platform_data *fsa9480_pdata;
@@ -807,7 +804,7 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 					}
 					if(!charging_boot)
 					{
-					DEBUG_FSA9480("USB ---!charging_boot && android_probe_done\n");					
+					DEBUG_FSA9480("USB ---!charging_boot\n");
 						usb_switch_state();
 					} 					
 					curr_usb_status = 1;                    
