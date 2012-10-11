@@ -143,7 +143,7 @@ EXPORT_SYMBOL(sec_class);
 struct device *switch_dev;
 EXPORT_SYMBOL(switch_dev);
 
-#define MSM_PMEM_SF_SIZE		0x1A00000
+#define MSM_PMEM_SF_SIZE	0x1700000
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MSM_FB_PRIM_BUF_SIZE	(800 * 480 * 4 * 3) /* 4bpp * 3 Pages */
 #else
@@ -165,7 +165,7 @@ EXPORT_SYMBOL(switch_dev);
 
 #define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE + MSM_FB_EXT_BUF_SIZE, 4096)
 
-#define MSM_PMEM_ADSP_SIZE		0x2D00000
+#define MSM_PMEM_ADSP_SIZE		0x1E00000
 #define MSM_FLUID_PMEM_ADSP_SIZE	0x2800000
 #define PMEM_KERNEL_EBI0_SIZE		0x600000
 #define MSM_PMEM_AUDIO_SIZE		0x200000
@@ -4406,6 +4406,7 @@ static struct msm_panel_common_pdata mdp_pdata = {
 	.mdp_core_clk_table = mdp_core_clk_rate_table,
 	.num_mdp_clk = ARRAY_SIZE(mdp_core_clk_rate_table),
 	.mdp_rev = MDP_REV_40,
+	.mem_hid = MEMTYPE_EBI0,
 };
 
 static struct msm_gpio lcd_panel_gpios[] = {
@@ -7540,4 +7541,5 @@ MACHINE_START(ARIESVE, "GT-I9001 Board")
 	.timer = &msm_timer,
 	.init_early = msm7x30_init_early,
 	.handle_irq = vic_handle_irq,
+	.fixup = msm7x30_fixup,
 MACHINE_END
