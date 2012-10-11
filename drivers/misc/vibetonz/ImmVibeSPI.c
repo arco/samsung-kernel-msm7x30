@@ -326,14 +326,6 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_SetSamples(VibeUInt8 nActuatorIndex
 }
 
 /*
-** Called to set force output frequency parameters
-*/
-IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_SetFrequency(VibeUInt8 nActuatorIndex, VibeUInt16 nFrequencyParameterID, VibeUInt32 nFrequencyParameterValue)
-{
-    return VIBE_S_SUCCESS;
-}
-
-/*
 ** Called to get the device name (device name must be returned as ANSI char)
 */
 IMMVIBESPIAPI VibeStatus ImmVibeSPI_Device_GetName(VibeUInt8 nActuatorIndex, char *szDevName, int nSize)
