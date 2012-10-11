@@ -46,7 +46,7 @@
 #include "../../staging/android/timed_output.h"
 #include <linux/delay.h>
 #include <linux/wakelock.h>
-#include <mach/vreg.h>
+#include <linux/regulator/consumer.h>
 
 #include "tspdrv.h"
 #include "ImmVibeSPI.c"
@@ -104,7 +104,7 @@ static int g_nMajor = 0;
 #define VIBRATOR_DUTY	87000/2
 
 static struct hrtimer timer;
-static struct vreg *vreg_ldo19;
+static struct regulator *vreg_ldo19;
 
 static int max_timeout = 5000;
 static int vibrator_value = 0;
@@ -257,8 +257,6 @@ static ssize_t immTest_show(struct device *dev, struct device_attribute *attr, c
 static ssize_t immTest_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
 {
 	char *after;
-	unsigned long arg1=0, arg2=0;
-
 	unsigned long value = simple_strtoul(buf, &after, 10);
 
    	if(value ==1000)
@@ -337,7 +335,7 @@ int vibe_init(void)
 	}
 
 	// VDD_VIB_3.0V
-	vreg_ldo19 = vreg_get(NULL, "wlan2");
+	vreg_ldo19 = regulator_get(NULL, "wlan2");
 	if (IS_ERR(vreg_ldo19)) {
 		rc = PTR_ERR(vreg_ldo19);
 		pr_err("%s: wlan2 vreg get failed (%d)\n",
@@ -345,14 +343,14 @@ int vibe_init(void)
 		return rc;
 	}
 
-	rc = vreg_set_level(vreg_ldo19, 3000);
+	rc = regulator_set_voltage(vreg_ldo19,3000000,3000000);
 	if (rc) {
 		pr_err("%s: vreg LDO19 set level failed (%d)\n",
 		       __func__, rc);
 		return rc;
 	}
 
-	rc = vreg_enable(vreg_ldo19);
+	rc = regulator_enable(vreg_ldo19);
 
 	if (rc) {
 		pr_err("%s: LDO19 vreg enable failed (%d)\n",
@@ -470,6 +468,7 @@ static ssize_t read(struct file *file, char *buf, size_t count, loff_t *ppos)
     *ppos += nBufSize;
     return nBufSize;
 }
+
 
 static ssize_t write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
@@ -619,11 +618,11 @@ static long ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 #ifdef VIBE_TUNING_IMMR
 		/*commands from the test app(ChangeFreq.apk)*/
 		case TSPDRV_TUNING_ARG1:
-			printk("[tspdrv] TSPDRV_TUNING_ARG1 arg : %d\n", arg);
+			printk("[tspdrv] TSPDRV_TUNING_ARG1 arg : %ld\n", arg);
 			g_nLRA_GP_CLK_M = arg;
 			break;
 		case TSPDRV_TUNING_ARG2:
-			printk("[tspdrv] TSPDRV_TUNING_ARG2 arg : %d\n", arg);
+			printk("[tspdrv] TSPDRV_TUNING_ARG2 arg : %ld\n", arg);
 			g_nLRA_GP_CLK_N = arg; 
 			g_nLRA_GP_CLK_D = (g_nLRA_GP_CLK_N >> 1);
 			break;
