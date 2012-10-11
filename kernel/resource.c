@@ -437,6 +437,9 @@ static int __find_resource(struct resource *root, struct resource *old,
 		else
 			tmp.end = root->end;
 
+		if (tmp.end < tmp.start)
+			goto next;
+
 		resource_clip(&tmp, constraint->min, constraint->max);
 		arch_remove_reservations(&tmp);
 
@@ -454,8 +457,10 @@ static int __find_resource(struct resource *root, struct resource *old,
 				return 0;
 			}
 		}
-		if (!this)
+
+next:		if (!this || this->end == root->end)
 			break;
+
 		if (this != old)
 			tmp.start = this->end + 1;
 		this = this->sibling;
