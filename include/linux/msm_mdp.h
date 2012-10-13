@@ -449,11 +449,6 @@ struct mdp_lut_cfg_data {
 	} data;
 };
 
-struct mdp_bl_scale_data {
-	uint32_t min_lvl;
-	uint32_t scale;
-};
-
 struct mdp_qseed_cfg_data {
 	uint32_t block;
 	uint32_t table_num;
@@ -467,7 +462,6 @@ enum {
 	mdp_op_pcc_cfg,
 	mdp_op_csc_cfg,
 	mdp_op_lut_cfg,
-	mdp_bl_scale_cfg,
 	mdp_op_qseed_cfg,
 	mdp_op_max,
 };
@@ -478,7 +472,6 @@ struct msmfb_mdp_pp {
 		struct mdp_pcc_cfg_data pcc_cfg_data;
 		struct mdp_csc_cfg_data csc_cfg_data;
 		struct mdp_lut_cfg_data lut_cfg_data;
-		struct mdp_bl_scale_data bl_scale_data;
 		struct mdp_qseed_cfg_data qseed_cfg_data;
 	} data;
 };
