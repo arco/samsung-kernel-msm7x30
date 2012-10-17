@@ -48,15 +48,13 @@
 #include "mdp.h"
 #include "mdp4.h"
 
-#ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
-#define MSM_FB_NUM	3
-#endif
-
-#ifdef CONFIG_FB_MSM_SEC_BOOTLOGO
-extern int charging_boot;
+#ifdef CONFIG_FB_MSM_LOGO
 #define INIT_IMAGE_FILE "/ARIESVE.rle"
 #define CHARGING_IMAGE_FILE "/charging.rle"
-extern int load_565rle_image_onfb( char *filename, int start_x, int start_y, bool bf_supported);
+#endif
+
+#ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
+#define MSM_FB_NUM	3
 #endif
 
 /*  Idle wakelock to prevent PC between wake up and Vsync */
@@ -1351,17 +1349,11 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	     mfd->index, fbi->var.xres, fbi->var.yres, fbi->fix.smem_len);
 
 #ifdef CONFIG_FB_MSM_LOGO
-	/* Flip buffer */
-	if (!load_565rle_image(INIT_IMAGE_FILE, bf_supported))
-		;
-#endif
-
-#ifdef CONFIG_FB_MSM_SEC_BOOTLOGO
-	if ( charging_boot ) {
-		if (!load_565rle_image_onfb(CHARGING_IMAGE_FILE, 5, 0, bf_supported)) ;
+	if (charging_boot) {
+		if (!load_565rle_image(CHARGING_IMAGE_FILE, bf_supported)) ;
 	}
 	else {
-		if (!load_565rle_image_onfb(INIT_IMAGE_FILE, 0, 0, bf_supported)) ;	/* Flip buffer */
+		if (!load_565rle_image(INIT_IMAGE_FILE, bf_supported)) ;
 	}
 #endif
 
