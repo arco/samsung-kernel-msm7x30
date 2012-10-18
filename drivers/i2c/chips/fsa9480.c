@@ -277,11 +277,6 @@ int fsa9480_i2c_tx_data(char* txData, int length)
 {
 	int rc; 
 
-	if (!pclient) {
-		printk(KERN_ERR "[FSA9480]: fsa9480_i2c_tx_data error pclient is NULL pointer\n");
-		return -EINVAL;
-	}
-
 	struct i2c_msg msg[] = {
 		{
 			.addr = pclient->addr,
@@ -290,6 +285,12 @@ int fsa9480_i2c_tx_data(char* txData, int length)
 			.buf = txData,		
 		},
 	};
+
+	if (!pclient) {
+		printk(KERN_ERR "[FSA9480]: fsa9480_i2c_tx_data error pclient is NULL pointer\n");
+		return -EINVAL;
+	}
+	
 
 	rc = i2c_transfer(pclient->adapter, msg, 1);
 	if (rc < 0) {
