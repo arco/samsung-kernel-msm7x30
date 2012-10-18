@@ -195,7 +195,7 @@ out:
 	return ret;
 }
 
-static void bl_set_timeout() {
+static void bl_set_timeout(void) {
 	if (bl_timeout > 0) {
 		mod_timer(&bl_timer, jiffies + msecs_to_jiffies(bl_timeout));
 	}
@@ -354,7 +354,7 @@ static void cypress_touchkey_early_resume(struct early_suspend *h)
 
 #if defined(TOUCH_UPDATE)
 extern int get_touchkey_firmware(char *version);
-extern int ISSP_main();
+extern int ISSP_main(void);
 static int touchkey_update_status = 0;
 struct work_struct touch_update_work;
 struct workqueue_struct *touchkey_wq;
@@ -585,7 +585,7 @@ static ssize_t touch_led_control(struct device *dev,
 				 size_t size)
 {
 	u8 data = 0x10;
-	if (sscanf(buf, "%d\n", &data) == 1) {
+	if (sscanf(buf, "%d\n", (int *)&data) == 1) {
 		if (!tempdata->is_powering_on && !tempdata->is_sleeping) {
 			//printk(KERN_DEBUG "touch_led_control: %d \n", data);
 			if (data || !bl_on) // Deactivate led only if BLN is inactive
@@ -964,7 +964,9 @@ static int cypress_touchkey_probe(struct i2c_client *client,
 	return 0;
 
 err_req_irq:
+#if 0
 err_backlight_on:
+#endif
 err_read:
 	devdata->pdata->touchkey_onoff(TOUCHKEY_OFF);
 	input_unregister_device(input_dev);
@@ -1016,7 +1018,7 @@ struct i2c_driver touchkey_i2c_driver = {
 static int __init touchkey_init(void)
 {
 	int ret = 0;
-	int retry = 3;
+	//int retry = 3;
 #if 0
 	//update version "eclair/vendor/samsung/apps/Lcdtest/src/com/sec/android/app/lcdtest/touch_firmware.java"
 	//if ((data[1] >= 0xa1) && (data[1] < 0xa9)) {
