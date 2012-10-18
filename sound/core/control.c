@@ -28,6 +28,7 @@
 #include <sound/minors.h>
 #include <sound/info.h>
 #include <sound/control.h>
+#include "../../arch/arm/mach-msm/pm.h"
 
 /* max number of user-defined controls */
 #define MAX_USER_CONTROLS	32
@@ -1264,6 +1265,26 @@ static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
 	return err;
 }
 
+static int snd_ctl_pm_sleep_mode_change(int __user *ptr)
+{
+	extern int msm_pm_idle_sleep_mode;
+
+	int bState = 0;
+
+	if (get_user(bState, ptr))
+		return -EFAULT;
+
+	if (bState == 1) {
+		msm_pm_idle_sleep_mode = MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT; //
+		snd_printk(KERN_INFO "msm_pm_idle_sleep_mode change to WAIT_FOR_INTERRUPT.\n");
+	} else {
+		msm_pm_idle_sleep_mode = CONFIG_MSM7X00A_IDLE_SLEEP_MODE;
+		snd_printk(KERN_INFO "msm_pm_idle_sleep_mode change to IDLE_SLEEP_MODE.\n");
+	}
+
+	return 0;
+}
+
 static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct snd_ctl_file *ctl;
@@ -1316,6 +1337,8 @@ static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 #else
 		return put_user(SNDRV_CTL_POWER_D0, ip) ? -EFAULT : 0;
 #endif
+	case SNDRV_CTL_IOCTL_PM_IDLE_SLEEP_MODE_CHANGE:
+	return snd_ctl_pm_sleep_mode_change(ip);
 	}
 	down_read(&snd_ioctl_rwsem);
 	list_for_each_entry(p, &snd_control_ioctls, list) {

@@ -870,6 +870,7 @@ struct snd_ctl_tlv {
 #define SNDRV_CTL_IOCTL_RAWMIDI_PREFER_SUBDEVICE _IOW('U', 0x42, int)
 #define SNDRV_CTL_IOCTL_POWER		_IOWR('U', 0xd0, int)
 #define SNDRV_CTL_IOCTL_POWER_STATE	_IOR('U', 0xd1, int)
+#define SNDRV_CTL_IOCTL_PM_IDLE_SLEEP_MODE_CHANGE	_IOW('U', 0xe0, int)
 
 /*
  *  Read interface.
