@@ -78,7 +78,7 @@ enum {
 	MSM_PM_DEBUG_IDLE = 1U << 6,
 };
 
-static int msm_pm_debug_mask;
+static int msm_pm_debug_mask = MSM_PM_DEBUG_SMSM_STATE;
 module_param_named(
 	debug_mask, msm_pm_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP
 );
@@ -1279,7 +1279,7 @@ static int msm_pm_power_collapse_standalone(void)
 	int collapsed = 0;
 	int ret;
 
-	MSM_PM_DPRINTK(MSM_PM_DEBUG_SUSPEND|MSM_PM_DEBUG_POWER_COLLAPSE,
+	MSM_PM_DPRINTK(MSM_PM_DEBUG_SUSPEND,
 		KERN_INFO, "%s()\n", __func__);
 
 	ret = msm_spm_set_low_power_mode(MSM_SPM_MODE_POWER_COLLAPSE, false);
@@ -1312,7 +1312,7 @@ static int msm_pm_power_collapse_standalone(void)
 		local_fiq_enable();
 	}
 
-	MSM_PM_DPRINTK(MSM_PM_DEBUG_SUSPEND | MSM_PM_DEBUG_POWER_COLLAPSE,
+	MSM_PM_DPRINTK(MSM_PM_DEBUG_SUSPEND,
 		KERN_INFO,
 		"%s(): msm_pm_collapse returned %d\n", __func__, collapsed);
 
