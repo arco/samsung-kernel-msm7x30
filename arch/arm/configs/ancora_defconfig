@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.45 Kernel Configuration
+# Linux/arm 3.0.46 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1916,8 +1916,7 @@ CONFIG_MSM_VIDC_VENC=y
 CONFIG_MSM_VIDC_VDEC=y
 CONFIG_FB_MSM=y
 # CONFIG_FB_MSM_BACKLIGHT is not set
-# CONFIG_FB_MSM_LOGO is not set
-CONFIG_FB_MSM_SEC_BOOTLOGO=y
+CONFIG_FB_MSM_LOGO=y
 CONFIG_FB_MSM_LCDC_HW=y
 CONFIG_FB_MSM_TRIPLE_BUFFER=y
 # CONFIG_FB_MSM_MDP22 is not set
