@@ -21,18 +21,19 @@
 #include <linux/platform_device.h>
 #include <linux/rfkill.h>
 
-static bool previous;
+#include <mach/gpio.h>
+
+#define GPIO_BT_WLAN_REG_ON	144
+#define GPIO_BT_RESET		146
 
 static int bluetooth_toggle_radio(void *data, bool blocked)
 {
 	int ret = 0;
 	int (*power_control)(int enable);
 
+	printk("%s",__func__);
 	power_control = data;
-	if (previous != blocked)
 		ret = (*power_control)(!blocked);
-	if (!ret)
-		previous = blocked;
 	return ret;
 }
 
@@ -45,6 +46,8 @@ static int bluetooth_power_rfkill_probe(struct platform_device *pdev)
 	struct rfkill *rfkill;
 	int ret;
 
+	printk("%s\n",__func__);
+
 	rfkill = rfkill_alloc("bt_power", &pdev->dev, RFKILL_TYPE_BLUETOOTH,
 			      &bluetooth_power_rfkill_ops,
 			      pdev->dev.platform_data);
@@ -56,7 +59,6 @@ static int bluetooth_power_rfkill_probe(struct platform_device *pdev)
 
 	/* force Bluetooth off during init to allow for user control */
 	rfkill_init_sw_state(rfkill, 1);
-	previous = 1;
 
 	ret = rfkill_register(rfkill);
 	if (ret) {
@@ -87,12 +89,17 @@ static int __devinit bt_power_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 
+	printk("%s\n",__func__);
+
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
 	if (!pdev->dev.platform_data) {
 		dev_err(&pdev->dev, "platform data not initialized\n");
 		return -ENOSYS;
 	}
+
+	gpio_request(GPIO_BT_WLAN_REG_ON, "GPIO_BT_WLAN_REG_ON");
+	gpio_request(GPIO_BT_RESET, "GPIO_BT_RESET");
 
 	ret = bluetooth_power_rfkill_probe(pdev);
 
@@ -120,6 +127,8 @@ static struct platform_driver bt_power_driver = {
 static int __init bluetooth_power_init(void)
 {
 	int ret;
+
+	pr_info("bluetooth_power_init \n");
 
 	ret = platform_driver_register(&bt_power_driver);
 	return ret;

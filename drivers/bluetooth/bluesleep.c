@@ -62,6 +62,8 @@
 #define VERSION		"1.1"
 #define PROC_DIR	"bluetooth/sleep"
 
+#define WAKE_GPIO_ACTIVE_HIGH
+
 struct bluesleep_info {
 	unsigned host_wake;
 	unsigned ext_wake;
@@ -149,9 +151,15 @@ static void hsuart_power(int on)
 static inline int bluesleep_can_sleep(void)
 {
 	/* check if MSM_WAKE_BT_GPIO and BT_WAKE_MSM_GPIO are both deasserted */
+#ifdef WAKE_GPIO_ACTIVE_HIGH
+	return !gpio_get_value(bsi->ext_wake) &&
+		!gpio_get_value(bsi->host_wake) &&
+		(bsi->uport != NULL);
+#else
 	return gpio_get_value(bsi->ext_wake) &&
 		gpio_get_value(bsi->host_wake) &&
 		(bsi->uport != NULL);
+#endif
 }
 
 void bluesleep_sleep_wakeup(void)
@@ -160,7 +168,11 @@ void bluesleep_sleep_wakeup(void)
 		BT_DBG("waking up...");
 		/* Start the timer */
 		mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL * HZ));
+#ifdef WAKE_GPIO_ACTIVE_HIGH
+		gpio_set_value(bsi->ext_wake, 1);
+#else
 		gpio_set_value(bsi->ext_wake, 0);
+#endif
 		clear_bit(BT_ASLEEP, &flags);
 		/*Activating UART */
 		hsuart_power(1);
@@ -206,7 +218,11 @@ static void bluesleep_hostwake_task(unsigned long data)
 
 	spin_lock(&rw_lock);
 
+#ifdef WAKE_GPIO_ACTIVE_HIGH
+	if (!gpio_get_value(bsi->host_wake))
+#else
 	if (gpio_get_value(bsi->host_wake))
+#endif
 		bluesleep_rx_busy();
 	else
 		bluesleep_rx_idle();
@@ -228,8 +244,11 @@ static void bluesleep_outgoing_data(void)
 	set_bit(BT_TXDATA, &flags);
 
 	/* if the tx side is sleeping... */
+#ifdef WAKE_GPIO_ACTIVE_HIGH
+	if (!gpio_get_value(bsi->ext_wake)) {
+#else
 	if (gpio_get_value(bsi->ext_wake)) {
-
+#endif
 		BT_DBG("tx was sleeping");
 		bluesleep_sleep_wakeup();
 	}
@@ -290,7 +309,11 @@ static void bluesleep_tx_timer_expire(unsigned long data)
 	/* were we silent during the last timeout? */
 	if (!test_bit(BT_TXDATA, &flags)) {
 		BT_DBG("Tx has been idle");
+#ifdef WAKE_GPIO_ACTIVE_HIGH
+		gpio_set_value(bsi->ext_wake, 0);
+#else
 		gpio_set_value(bsi->ext_wake, 1);
+#endif
 		bluesleep_tx_idle();
 	} else {
 		BT_DBG("Tx data during last period");
@@ -345,10 +368,16 @@ static int bluesleep_start(void)
 	mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL*HZ));
 
 	/* assert BT_WAKE */
-	gpio_set_value(bsi->ext_wake, 0);
+//	gpio_configure(bsi->ext_wake, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
+	gpio_tlmm_config(GPIO_CFG(bsi->ext_wake, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+
+//	gpio_configure(bsi->host_wake, GPIOF_INPUT);
+	gpio_tlmm_config(GPIO_CFG(bsi->host_wake, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+
 	retval = request_irq(bsi->host_wake_irq, bluesleep_hostwake_isr,
-				IRQF_DISABLED | IRQF_TRIGGER_FALLING,
+		IRQF_DISABLED | IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 				"bluetooth hostwake", NULL);
+
 	if (retval  < 0) {
 		BT_ERR("Couldn't acquire BT_HOST_WAKE IRQ");
 		goto fail;
@@ -385,7 +414,12 @@ static void bluesleep_stop(void)
 	}
 
 	/* assert BT_WAKE */
+#ifdef WAKE_GPIO_ACTIVE_HIGH
+	gpio_set_value(bsi->ext_wake, 1);
+#else
 	gpio_set_value(bsi->ext_wake, 0);
+#endif
+
 	del_timer(&tx_timer);
 	clear_bit(BT_PROTO, &flags);
 
@@ -616,7 +650,11 @@ free_bsi:
 static int bluesleep_remove(struct platform_device *pdev)
 {
 	/* assert bt wake */
+#ifdef WAKE_GPIO_ACTIVE_HIGH
+	gpio_set_value(bsi->ext_wake, 1);
+#else
 	gpio_set_value(bsi->ext_wake, 0);
+#endif
 	if (test_bit(BT_PROTO, &flags)) {
 		if (disable_irq_wake(bsi->host_wake_irq))
 			BT_ERR("Couldn't disable hostwake IRQ wakeup mode \n");
