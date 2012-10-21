@@ -915,7 +915,7 @@ static void rfkill_sync_work(struct work_struct *work)
 
 int __must_check rfkill_register(struct rfkill *rfkill)
 {
-	static unsigned long rfkill_no;
+	static unsigned long rfkill_no = 2;
 	struct device *dev = &rfkill->dev;
 	int error;
 
@@ -928,9 +928,31 @@ int __must_check rfkill_register(struct rfkill *rfkill)
 		goto unlock;
 	}
 
+#if 1
+	if (rfkill->name == "bt_power")
+	{
+		rfkill->idx = rfkill_no;
+		dev_set_name(dev, "rfkill%lu", 0);
+		printk("rfkill_register : %s", rfkill->name);
+	}
+	else if(rfkill->name == "bt_sleep")
+	{
+		rfkill->idx = rfkill_no;
+		dev_set_name(dev, "rfkill%lu", 1);
+		printk("rfkill_register : %s", rfkill->name);
+	}
+	else
+	{
+		rfkill->idx = rfkill_no;
+		dev_set_name(dev, "rfkill%lu", rfkill_no);
+		printk("rfkill_register : %s", rfkill->name);
+		rfkill_no++;
+	}
+#else
 	rfkill->idx = rfkill_no;
 	dev_set_name(dev, "rfkill%lu", rfkill_no);
 	rfkill_no++;
+#endif
 
 	list_add_tail(&rfkill->node, &rfkill_list);
 
