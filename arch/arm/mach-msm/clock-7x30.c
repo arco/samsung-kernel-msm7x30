@@ -2770,9 +2770,7 @@ static struct clk_local_ownership {
 	{ CLK_LOOKUP("ebi1_lcdc_clk",	ebi_lcdc_clk.c,	NULL) },
 	{ CLK_LOOKUP("ebi1_mddi_clk",	ebi_mddi_clk.c,	NULL) },
 	{ CLK_LOOKUP("ebi1_tv_clk",	ebi_tv_clk.c,	NULL) },
-#ifndef CONFIG_MACH_ARIESVE
 	{ CLK_LOOKUP("mem_clk",		ebi_vcd_clk.c,	"msm_vidc.0") },
-#endif
 	{ CLK_LOOKUP("ebi1_vfe_clk",	ebi_vfe_clk.c,	NULL) },
 #ifndef CONFIG_MACH_ARIESVE
 	{ CLK_LOOKUP("mem_clk",		ebi_adm_clk.c,	"msm_dmov") },
