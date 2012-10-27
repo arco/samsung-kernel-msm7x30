@@ -81,7 +81,7 @@ static int fsa9480_probe_done = 0;
 int disable_vbus_flag =0 ;
 #endif
 
-#define _SUPPORT_SAMSUNG_AUTOINSTALLER_
+//#define _SUPPORT_SAMSUNG_AUTOINSTALLER_
 #define dmsg(arg,...) printk("[USB_SWITCH] %s(%d): "arg,__FUNCTION__,__LINE__,##__VA_ARGS__)
 
 #define DRIVER_NAME  "usb_mass_storage"   
@@ -397,7 +397,7 @@ EXPORT_SYMBOL(fsa9480_select_mode);
 static void fsa9480_chip_init(void)
 {
 	unsigned char cont_reg = 0;
-	int ret;
+	int ret = 0;
 	
 	printk("[FSA9480] fsa9480_chip_init \n");	
 	if (!pclient) 
@@ -559,6 +559,7 @@ static void usb_switch_mode(int mode)
 	}
 }
 
+#if 0
 static int get_current_mode(void)
 {
 	int mode = 0;
@@ -567,6 +568,7 @@ static int get_current_mode(void)
 	
 	return mode;
 }
+#endif
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 
@@ -705,6 +707,7 @@ void uart_switch_mode_select(int mode) {
 }
 EXPORT_SYMBOL(uart_switch_mode_select);
 
+#if 0
 static ssize_t DefaultESNStatus_switch_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
     if (g_default_ESN_status) {    
@@ -761,6 +764,7 @@ static ssize_t dock_switch_store(struct device *dev, struct device_attribute *at
 }
 
 static DEVICE_ATTR(dock, S_IRUGO |S_IWUGO | S_IRUSR | S_IWUSR, dock_switch_show, dock_switch_store);
+#endif
 
 void usb_switch_state(void)
 {
