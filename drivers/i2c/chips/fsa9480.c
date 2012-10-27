@@ -1348,7 +1348,7 @@ exit_check_functionality_failed:
 }
 
 	
-static int fsa9480_remove(struct i2c_client *client)
+static int __devexit fsa9480_remove(struct i2c_client *client)
 {
 	struct fsa9480_data *mt;
 
@@ -1357,16 +1357,6 @@ static int fsa9480_remove(struct i2c_client *client)
 	pclient = NULL;
 	kfree(mt);
 	return 0;
-}
-
-static void fsa9480_shutdown(struct i2c_client *client)
-{
-	struct fsa9480_data *mt;
-
-	mt = i2c_get_clientdata(client);
-	free_irq(client->irq, mt);
-	pclient = NULL;
-	kfree(mt);
 }
 
 static const struct i2c_device_id fsa9480_id[] = {
@@ -1375,11 +1365,6 @@ static const struct i2c_device_id fsa9480_id[] = {
 };
 
 MODULE_DEVICE_TABLE(i2c, fsa9480_id);
-
-static int fsa9480_suspend(struct i2c_client *client, pm_message_t mesg)
-{
-	return 0;
-}
 
 static int fsa9480_resume(struct i2c_client *client)
 {
@@ -1392,12 +1377,10 @@ static int fsa9480_resume(struct i2c_client *client)
 
 static struct i2c_driver fsa9480_driver = {
 	.probe 		= fsa9480_probe,
-	.remove 	= fsa9480_remove,
-	.suspend	= fsa9480_suspend,
-	.resume	= fsa9480_resume,
-	.shutdown = fsa9480_shutdown,
+	.remove		= __devexit_p(fsa9480_remove),
+	.resume		= fsa9480_resume,
 	.id_table	= fsa9480_id,
-	.driver = {		
+	.driver = {
 		.name   = "fsa9480",
 	},
 };
