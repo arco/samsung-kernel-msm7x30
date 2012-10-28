@@ -292,7 +292,7 @@ struct audio_mvs_buf_node {
 };
 
 /* Each buffer is 20 ms, queue holds 200 ms of data. */
-#define MVS_MAX_Q_LEN 10
+#define MVS_MAX_Q_LEN 4
 
 struct audio_mvs_info_type {
 	enum audio_mvs_state_type state;
@@ -318,6 +318,7 @@ struct audio_mvs_info_type {
 
 	struct task_struct *task;
 
+	wait_queue_head_t in_wait;
 	wait_queue_head_t wait;
 	wait_queue_head_t mode_wait;
 	wait_queue_head_t out_wait;
@@ -841,7 +842,7 @@ static void audio_mvs_process_rpc_request(uint32_t procedure,
 				pr_debug("%s: MVS CB mode status %d\n",
 					 __func__, mode_status);
 
-				if (mode_status == AUDIO_MVS_MODE_READY) {
+				if (mode_status != AUDIO_MVS_MODE_NOT_AVAIL) {
 					audio->rpc_status = RPC_STATUS_SUCCESS;
 					wake_up(&audio->mode_wait);
 				}
@@ -1154,6 +1155,7 @@ static void audio_mvs_process_rpc_request(uint32_t procedure,
 
 		mutex_unlock(&audio->in_lock);
 
+		wake_up(&audio->in_wait);
 		dl_reply.valid_frame_info_ptr = cpu_to_be32(0x00000001);
 
 		dl_reply.frame_mode = cpu_to_be32(audio->frame_mode);
@@ -1676,6 +1678,7 @@ static int __init audio_mvs_init(void)
 
 	init_waitqueue_head(&audio_mvs_info.wait);
 	init_waitqueue_head(&audio_mvs_info.mode_wait);
+	init_waitqueue_head(&audio_mvs_info.in_wait);
 	init_waitqueue_head(&audio_mvs_info.out_wait);
 
 	INIT_LIST_HEAD(&audio_mvs_info.in_queue);
