@@ -628,9 +628,9 @@ static ssize_t s6e63m0_store_power(struct device *dev, struct device_attribute *
     DPRINT("s6e63m0_store_power is called: %d", power);
 
     if (power == 1)
-        lcdc_s6e63m0_panel_on((struct platform_device*) dev);
+        lcdc_s6e63m0_panel_on(to_platform_device(dev));
     else if(power == 0)
-        lcdc_s6e63m0_panel_off((struct platform_device*) dev);
+        lcdc_s6e63m0_panel_off(to_platform_device(dev));
     else if(power == 2){
         lcdc_s6e63m0_write(disp_on_sequence);
 #if defined(CONFIG_MACH_APACHE)
