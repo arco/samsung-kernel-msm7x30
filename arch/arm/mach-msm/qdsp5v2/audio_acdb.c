@@ -2263,6 +2263,7 @@ struct acdb_fluence_block *get_audpp_fluence_block(void)
 	return NULL;
 }
 
+#if 0
 static s32 acdb_fill_audpreproc_fluence(void)
 {
 	struct acdb_fluence_block *fluence_block = NULL;
@@ -2289,6 +2290,7 @@ static s32 acdb_fill_audpreproc_fluence(void)
 					& 0xFFFF0000) >> 16);
 	return 0;
 }
+#endif
 
 s32 acdb_calibrate_audpreproc(void)
 {
@@ -2351,6 +2353,8 @@ s32 acdb_calibrate_audpreproc(void)
 		} else
 			MM_DBG("RMC block was not found\n");
 	}
+/*remove fluence code because that acdb data has not fluence struct*/
+#if 0
 	if (!acdb_data.fleuce_feature_status[acdb_data.preproc_stream_id]) {
 		result = acdb_fill_audpreproc_fluence();
 		if (!(IS_ERR_VALUE(result))) {
@@ -2370,6 +2374,7 @@ s32 acdb_calibrate_audpreproc(void)
 			MM_ERR("fluence block is not found\n");
 	} else
 		MM_DBG("fluence block override\n");
+#endif
 done:
 	return result;
 }
@@ -2422,6 +2427,8 @@ static void handle_tx_device_ready_callback(void)
 	u8 ret = 0;
 	u8 acdb_value_apply = 0;
 	u8 result = 0;
+	struct header *prs_hdr;
+	u8 result_2 = 0 ;
 	u8 stream_id = acdb_data.preproc_stream_id;
 
 	if (acdb_data.multiple_sessions) {
@@ -2474,6 +2481,18 @@ static void handle_tx_device_ready_callback(void)
 		}
 		acdb_cache_tx[stream_id].node_status = ACDB_VALUES_FILLED;
 		acdb_send_calibration();
+	}
+	prs_hdr = (struct header *)
+	(acdb_cache_tx[acdb_data.cur_tx_session].virt_addr_acdb_values);
+	printk("prs_hdr->dbor_signature = [0x%x]\n",prs_hdr->dbor_signature);
+	if ( prs_hdr->dbor_signature != DBOR_SIGNATURE ) {
+		printk("Gon's Workaround is called \n") ;
+		result_2 = acdb_get_calibration();
+		if (result_2 < 0) {
+			MM_ERR("Not able to get calibration"
+			" data continue\n");
+			return;
+		}
 	}
 }
 
@@ -3379,6 +3398,7 @@ static int __init acdb_init(void)
 	s32 result = 0;
 
 	memset(&acdb_data, 0, sizeof(acdb_data));
+	init_waitqueue_head(&acdb_data.wait);
 	spin_lock_init(&acdb_data.dsp_lock);
 	acdb_data.cb_thread_task = kthread_run(acdb_calibrate_device,
 		NULL, "acdb_cb_thread");
@@ -3398,7 +3418,6 @@ static int __init acdb_init(void)
 		MM_ERR("RTC ACDB=>INIT Failure\n");
 
 #endif
-	init_waitqueue_head(&acdb_data.wait);
 
 	return misc_register(&acdb_misc);
 err:
