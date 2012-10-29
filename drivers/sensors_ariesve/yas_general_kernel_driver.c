@@ -52,9 +52,6 @@
 #define ABS_WAKE                        (ABS_MISC)
 #define ABS_CONTROL_REPORT              (ABS_THROTTLE)
 
-static int suspend(void);
-static int resume(void);
-
 struct sensor_data {
     struct mutex mutex;
     int enabled;
@@ -66,63 +63,6 @@ struct sensor_data {
 
 static struct platform_device *sensor_pdev = NULL;
 static struct input_dev *this_data = NULL;
-
-static int
-suspend(void)
-{
-    /* implement suspend of the sensor */
-    YLOGD(("%s: suspend\n", SENSOR_NAME));
-
-    if (strcmp(SENSOR_NAME, "gyroscope") == 0) {
-        /* suspend gyroscope */
-    }
-    else if (strcmp(SENSOR_NAME, "light") == 0) {
-        /* suspend light */
-    }
-    else if (strcmp(SENSOR_NAME, "pressure") == 0) {
-        /* suspend pressure */
-    }
-    else if (strcmp(SENSOR_NAME, "temperature") == 0) {
-        /* suspend temperature */
-    }
-    else if (strcmp(SENSOR_NAME, "proximity") == 0) {
-        /* suspend proximity */
-    }
-
-    return 0;
-}
-
-static int
-resume(void)
-{
-    /* implement resume of the sensor */
-    YLOGD(("%s: resume\n", SENSOR_NAME));
-
-    if (strcmp(SENSOR_NAME, "gyroscope") == 0) {
-        /* resume gyroscope */
-    }
-    else if (strcmp(SENSOR_NAME, "light") == 0) {
-        /* resume light */
-    }
-    else if (strcmp(SENSOR_NAME, "pressure") == 0) {
-        /* resume pressure */
-    }
-    else if (strcmp(SENSOR_NAME, "temperature") == 0) {
-        /* resume temperature */
-    }
-    else if (strcmp(SENSOR_NAME, "proximity") == 0) {
-        /* resume proximity */
-    }
-
-#if DEBUG
-    {
-        struct sensor_data *data = input_get_drvdata(this_data);
-        data->suspend = 0;
-    }
-#endif /* DEBUG */
-
-    return 0;
-}
 
 
 /* Sysfs interface */
@@ -167,6 +107,7 @@ sensor_delay_store(struct device *dev,
     data->delay = value;
 
     input_report_abs(input_data, ABS_CONTROL_REPORT, (data->enabled<<16) | value);
+	input_sync(input_data);
 
     mutex_unlock(&data->mutex);
 
@@ -205,16 +146,9 @@ sensor_enable_store(struct device *dev,
 
     mutex_lock(&data->mutex);
 
-    input_report_abs(input_data, ABS_CONTROL_REPORT, (value<<16) | data->delay);
-
-    if (data->enabled && !value) {
-        suspend();
-    }
-    if (!data->enabled && value) {
-        resume();
-    }
     data->enabled = value;
-
+    input_report_abs(input_data, ABS_CONTROL_REPORT, (value<<16) | data->delay);
+	input_sync(input_data);
     mutex_unlock(&data->mutex);
 
     return count;
@@ -230,7 +164,7 @@ sensor_wake_store(struct device *dev,
     static int cnt = 1;
 
     input_report_abs(input_data, ABS_WAKE, cnt++);
-
+	input_sync(input_data);
     return count;
 }
 
@@ -356,7 +290,7 @@ sensor_suspend(struct platform_device *pdev, pm_message_t state)
 
     if (data->enabled) {
         input_report_abs(this_data, ABS_CONTROL_REPORT, (0<<16) | data->delay);
-        rt = suspend();
+		input_sync(this_data);
     }
 
     mutex_unlock(&data->mutex);
@@ -373,8 +307,8 @@ sensor_resume(struct platform_device *pdev)
     mutex_lock(&data->mutex);
 
     if (data->enabled) {
-        rt = resume();
         input_report_abs(this_data, ABS_CONTROL_REPORT, (1<<16) | data->delay);
+		input_sync(this_data);
     }
 
     mutex_unlock(&data->mutex);
@@ -432,7 +366,7 @@ sensor_probe(struct platform_device *pdev)
 #endif
 	input_set_abs_params(input_data, ABS_STATUS, 0, 1, 0, 0);
 	input_set_abs_params(input_data, ABS_WAKE, 0, 1<<31, 0, 0);
-	input_set_abs_params(input_data, ABS_CONTROL_REPORT, 0, 1<<16, 0, 0);
+	input_set_abs_params(input_data, ABS_CONTROL_REPORT, 0, 2<<16, 0, 0);
 
     input_registered = 1;
 
