@@ -328,9 +328,9 @@ struct pdp_info {
 
 /* PDP information table */
 static struct pdp_info *pdp_table[MAX_PDP_CONTEXT];
-static DECLARE_MUTEX(pdp_lock);
+static DEFINE_SEMAPHORE(pdp_lock);
 #ifdef NO_TTY_MUTEX_VNET
-static DECLARE_MUTEX(pdp_txlock);
+static DEFINE_SEMAPHORE(pdp_txlock);
 #endif
 
 /* DPRAM-related stuffs */
@@ -783,8 +783,10 @@ static int vnet_open(struct net_device *net)
 
 static int vnet_stop(struct net_device *net)
 {
+	struct pdp_info *dev = (struct pdp_info *)net->ml_priv;
+
 	netif_stop_queue(net);
-	flush_scheduled_work(); /* flush any pending tx tasks */
+	flush_work(&dev->vn_dev.xmit_task);	/* flush any pending tx tasks */
 
 	return 0;
 }
@@ -1121,8 +1123,10 @@ static int vs_open(struct tty_struct *tty, struct file *filp)
 	}
 
 	tty->driver_data = (void *)dev;
-	tty->low_latency = 1;
+	/* change 1 to 0 */
+	tty->low_latency = 0;
 	dev->vs_dev.tty = tty;
+	dev->vs_dev.refcount++;
 
 	return 0;
 }
@@ -2067,7 +2071,8 @@ static int __init multipdp_init(void)
 {
 	int ret;
 
-	DPRINTK(2, "++\n");
+	pdp_net_activation_count = 0;
+	vnet_start_xmit_flag = 0;
 
 	wake_lock_init(&pdp_wake_lock, WAKE_LOCK_SUSPEND, "MULTI_PDP");
 	pdp_wake_time = DEFAULT_RAW_WAKE_TIME;
