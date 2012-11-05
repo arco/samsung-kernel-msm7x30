@@ -638,6 +638,11 @@ static void msm_otg_start_host(struct usb_otg *otg, int on)
 				clk_disable_unprepare(dev->iface_clk);
 		}
 
+		if (on)
+			otg_pm_qos_update_latency(dev, 1);
+		else
+			otg_pm_qos_update_latency(dev, 0);
+
 		dev->start_host(otg->host, on);
 
 		if (!on && pdata->setup_gpio)
