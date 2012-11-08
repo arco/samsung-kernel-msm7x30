@@ -2059,6 +2059,10 @@ static void msm_otg_set_vbus_state(int online)
 	static bool init;
 	struct msm_otg *motg = the_msm_otg;
 
+	/* Ignore received BSV interrupts, if ID pin is GND */
+	if (!test_bit(ID, &motg->inputs))
+		return;
+
 	if (online) {
 		pr_debug("PMIC: BSV set\n");
 		set_bit(B_SESS_VLD, &motg->inputs);
