@@ -4260,24 +4260,39 @@ static struct platform_device qcedev_device = {
 static unsigned char quickvx_mddi_client = 1;
 
 static struct regulator *mddi_ldo17;
-static struct regulator *mddi_ldo15;
+static struct regulator *mddi_lcd;
 
 static int display_common_init(void)
 {
+	struct regulator_bulk_data regs[2] = {
+		{ .supply = "ldo17", .min_uV = 1800000, .max_uV = 1800000},
+		{ .supply = "ldo15", .min_uV = 3000000, .max_uV = 3000000},
+	};
+
 	int rc = 0;
 
-	mddi_ldo17 = regulator_get(NULL, "ldo17");
-	if (IS_ERR(mddi_ldo17)) {
+	rc = regulator_bulk_get(NULL, ARRAY_SIZE(regs), regs);
+	if (rc) {
 		pr_err("%s: regulator_bulk_get failed: %d\n",
-				__func__, rc);
+			__func__, rc);
+		goto bail;
 	}
 
-	mddi_ldo15 = regulator_get(NULL, "ldo15");
-	if (IS_ERR(mddi_ldo15)) {
-		pr_err("%s: regulator_bulk_get failed: %d\n",
-				__func__, rc);
+	rc = regulator_bulk_set_voltage(ARRAY_SIZE(regs), regs);
+	if (rc) {
+		pr_err("%s: regulator_bulk_set_voltage failed: %d\n",
+			__func__, rc);
+		goto put_regs;
 	}
 
+	mddi_ldo17 = regs[0].consumer;
+	mddi_lcd   = regs[1].consumer;	/* ldo15 */
+
+	return rc;
+
+put_regs:
+	regulator_bulk_free(ARRAY_SIZE(regs), regs);
+bail:
 	return rc;
 }
 
@@ -4295,40 +4310,38 @@ static int display_common_power(int on)
 	if (unlikely(!display_regs_initialized)) {
 		rc = display_common_init();
 		if (rc) {
-			pr_err("%s: regulator init failed: %d\n",
-					__func__, rc);
+			pr_err("%s: regulator init failed: %d\n", __func__, rc);
 			return rc;
 		}
 		display_regs_initialized = true;
 	}
 
-
 	if (on) {
 		rc = regulator_enable(mddi_ldo17);
 		if (rc) {
-			pr_err("%s: LDO20 regulator enable failed (%d)\n",
-			       __func__, rc);
+			pr_err("%s: LDO17 regulator enable failed (%d)\n",
+				__func__, rc);
 			return rc;
 		}
 
-		rc = regulator_enable(mddi_ldo15);
+		rc = regulator_enable(mddi_lcd);
 		if (rc) {
 			pr_err("%s: LCD regulator enable failed (%d)\n",
 				__func__, rc);
 			return rc;
 		}
 
-		mdelay(5);		/* ensure power is stable */
+		mdelay(5);	/* ensure power is stable */
 
 	} else {
 		rc = regulator_disable(mddi_ldo17);
 		if (rc) {
-			pr_err("%s: LDO20 regulator disable failed (%d)\n",
-			       __func__, rc);
+			pr_err("%s: LDO17 regulator disable failed (%d)\n",
+				__func__, rc);
 			return rc;
 		}
 
-		rc = regulator_disable(mddi_ldo15);
+		rc = regulator_disable(mddi_lcd);
 		if (rc) {
 			pr_err("%s: LCD regulator disable failed (%d)\n",
 				__func__, rc);
@@ -4347,8 +4360,9 @@ static int msm_fb_mddi_sel_clk(u32 *clk_rate)
 
 static int msm_fb_mddi_client_power(u32 client_id)
 {
-	struct regulator *vreg_ldo20;
+	struct regulator *mddi_ldo20;
 	int rc;
+
 	printk(KERN_NOTICE "\n client_id = 0x%x", client_id);
 	/* Check if it is Quicklogic client */
 	if (client_id == 0xc5835800) {
@@ -4360,18 +4374,21 @@ static int msm_fb_mddi_client_power(u32 client_id)
 		gpio_set_value_cansleep(PM8058_GPIO_PM_TO_SYS(
 			PMIC_GPIO_QUICKVX_CLK), 0);
 
-		vreg_ldo20 = regulator_get(NULL, "gp13");
+		mddi_ldo20 = regulator_get(NULL, "gp13");
 
-		if (IS_ERR(vreg_ldo20)) {
-			rc = PTR_ERR(vreg_ldo20);
-			pr_err("%s: gp13 vreg get failed (%d)\n",
-				   __func__, rc);
+		if (IS_ERR(mddi_ldo20)) {
+			rc = PTR_ERR(mddi_ldo20);
+			pr_err("%s: could not get ldo20: %d\n", __func__, rc);
 			return rc;
 		}
-		rc = regulator_enable(vreg_ldo20);
+		rc = regulator_set_voltage(mddi_ldo20, 1500000, 1500000);
 		if (rc) {
-			pr_err("%s: LDO20 vreg enable failed (%d)\n",
-			       __func__, rc);
+			pr_err("%s: could not set ldo20 voltage: %d\n", __func__, rc);
+			return rc;
+		}
+		rc = regulator_enable(mddi_ldo20);
+		if (rc) {
+			pr_err("%s: could not enable ldo20: %d\n", __func__, rc);
 			return rc;
 		}
 	}
