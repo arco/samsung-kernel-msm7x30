@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.46 Kernel Configuration
+# Linux/arm 3.0.50 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -2311,7 +2311,7 @@ CONFIG_USB_MSM_ACA=y
 CONFIG_USB_MSM_STANDARD_ACA=y
 CONFIG_MMC=y
 # CONFIG_MMC_DEBUG is not set
-CONFIG_MMC_PERF_PROFILING=y
+# CONFIG_MMC_PERF_PROFILING is not set
 CONFIG_MMC_UNSAFE_RESUME=y
 CONFIG_MMC_CLKGATE=y
 # CONFIG_MMC_EMBEDDED_SDIO is not set
