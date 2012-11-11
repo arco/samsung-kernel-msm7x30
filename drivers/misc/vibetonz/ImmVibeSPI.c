@@ -34,6 +34,8 @@
 #include "tspdrv.h"
 #include <linux/clk.h>
 
+#include <../mach-msm/clock.h>
+
 #ifdef IMMVIBESPIAPI
 #undef IMMVIBESPIAPI
 #endif
@@ -137,7 +139,14 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_AmpDisable(VibeUInt8 nActuatorIndex
 		//gpio_direction_output(GPIO_VIBTONE_PWM, GPIO_LEVEL_LOW);
 		//gpio_free(GPIO_VIBTONE_EN1);
 		gpio_set_value(GPIO_VIBTONE_EN1, GPIO_LEVEL_LOW);
-		clk_disable(android_vib_clk);
+		
+		/* Init - fix for android_vib_clk is unbalanced error */
+		if (android_vib_clk->count == 0) {
+			printk("[VIBETONZ] %s: there are no android_vib_clk to disable \n",__func__);
+		} else {
+			clk_disable(android_vib_clk);
+		}
+		/* End - fix for android_vib_clk is unbalanced error */
     }
 
     return VIBE_S_SUCCESS;
