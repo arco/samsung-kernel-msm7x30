@@ -2912,10 +2912,12 @@ static void vfe31_process_error_irq(uint32_t errStatus)
 
 	if (errStatus & VFE31_IMASK_CAMIF_ERROR) {
 		pr_err("vfe31_irq: camif errors\n");
+#if !defined(CONFIG_MACH_ANCORA) && !defined(CONFIG_MACH_ANCORA_TMO) && !defined(CONFIG_MACH_APACHE)
 		temp = (uint32_t *)(vfe31_ctrl->vfebase + VFE_CAMIF_STATUS);
 		camifStatus = msm_io_r(temp);
 		pr_err("camifStatus  = 0x%x\n", camifStatus);
 		vfe31_send_msg_no_payload(MSG_ID_CAMIF_ERROR);
+#endif
 	}
 
 	if (errStatus & VFE31_IMASK_STATS_CS_OVWR)
@@ -2934,7 +2936,15 @@ static void vfe31_process_error_irq(uint32_t errStatus)
 		pr_err("vfe31_irq: realign bug CR overflow\n");
 
 	if (errStatus & VFE31_IMASK_VIOLATION)
+	{
 		pr_err("vfe31_irq: violation interrupt\n");
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+		temp = (uint32_t *)(vfe31_ctrl->vfebase + VFE_CAMIF_STATUS);
+		camifStatus = msm_io_r(temp);
+		pr_info("camifStatus  = 0x%x\n", camifStatus);
+		vfe31_send_msg_no_payload(MSG_ID_CAMIF_ERROR);
+#endif
+	}
 
 	if (errStatus & VFE31_IMASK_IMG_MAST_0_BUS_OVFL)
 		pr_err("vfe31_irq: image master 0 bus overflow\n");
