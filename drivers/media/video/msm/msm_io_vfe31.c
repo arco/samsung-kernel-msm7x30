@@ -120,7 +120,7 @@ static uint32_t vpe_clk_rate;
 static uint32_t jpeg_clk_rate;
 
 static struct regulator_bulk_data regs[] = {
-	{ .supply = "gp2",  .min_uV = 2600000, .max_uV = 2600000 },
+//	{ .supply = "gp2",  .min_uV = 2600000, .max_uV = 2600000 },
 	{ .supply = "lvsw1" },
 	{ .supply = "fs_vfe" },
 	/* sn12m0pz regulators */
@@ -304,7 +304,11 @@ int msm_camio_clk_enable(enum msm_camio_clk_type clktype)
 	case CAMIO_CSI0_CLK:
 		camio_csi_clk =
 		clk = clk_get(NULL, "csi_clk");
+#ifdef CONFIG_SENSOR_MC7
+		msm_camio_clk_rate_set_2(clk, 384000000);
+#else
 		msm_camio_clk_rate_set_2(clk, 153600000);
+#endif
 		break;
 	case CAMIO_CSI0_VFE_CLK:
 		camio_csi_vfe_clk =

@@ -799,6 +799,9 @@ struct msm_snapshot_pp_status {
 #define CFG_GET_ACTUATOR_INFO		35
 #define CFG_MAX			36
 
+#define CFG_SET_EXPOSURE_VALUE	30
+#define CFG_SET_ROTATION	31
+#define CFG_SET_DATALINE_CHECK	32
 
 #define MOVE_NEAR	0
 #define MOVE_FAR	1
@@ -809,6 +812,7 @@ struct msm_snapshot_pp_status {
 #define SENSOR_HFR_60FPS_MODE 3
 #define SENSOR_HFR_90FPS_MODE 4
 #define SENSOR_HFR_120FPS_MODE 5
+#define SENSOR_SNAPSHOT_TRANSFER 6
 
 #define SENSOR_QTR_SIZE			0
 #define SENSOR_FULL_SIZE		1
@@ -896,6 +900,7 @@ struct msm_snapshot_pp_status {
 /* QRD */
 #define CFG_SET_EXPOSURE_COMPENSATION 35
 
+#if 0
 #define  CAMERA_WB_AUTO               1 /* This list must match aeecamera.h */
 #define  CAMERA_WB_CUSTOM             2
 #define  CAMERA_WB_INCANDESCENT       3
@@ -904,6 +909,7 @@ struct msm_snapshot_pp_status {
 #define  CAMERA_WB_CLOUDY_DAYLIGHT    6
 #define  CAMERA_WB_TWILIGHT           7
 #define  CAMERA_WB_SHADE              8
+#endif
 
 #define CAMERA_EXPOSURE_COMPENSATION_LV0			12
 #define CAMERA_EXPOSURE_COMPENSATION_LV1			6
@@ -1114,6 +1120,10 @@ struct sensor_cfg_data {
 		uint16_t pictp_pl;
 		uint32_t pict_max_exp_lc;
 		uint16_t p_fps;
+		int8_t ev;
+		int8_t wb;
+		int8_t rotation;
+		int8_t dataline;
 		struct sensor_init_cfg init_info;
 		struct sensor_pict_fps gfps;
 		struct exp_gain_cfg exp_gain;
@@ -1272,5 +1282,428 @@ struct img_plane_info {
 	uint32_t sp_y_offset;
 	uint8_t vpe_can_use;
 };
+
+#if defined (CONFIG_OEM_CAMERA)
+typedef struct{
+	uint32_t device_id;
+	uint32_t cmd;
+	uint32_t  value_1;
+	uint32_t  value_2;
+#ifndef CONFIG_MACH_ARIESVE
+    uint32_t  value_3;//pault
+#endif
+	void* p;
+} sensor_ext_cfg_data;
+
+typedef struct {
+	char company;
+	char module_vesion;
+	char year;
+	char month;
+	char update_times[2];
+} sensor_version_info;
+
+typedef struct {
+	uint32_t dev_num;
+	char module_name[10];
+} sensor_name_info;
+
+struct sensor_version {
+	unsigned int major;
+	unsigned int minor;
+};
+
+struct sensor_date_info {
+	unsigned int year;
+	unsigned int month;
+	unsigned int date;
+};
+
+struct sensor_sensor_maker{
+	unsigned int maker;
+	unsigned int optical;
+};
+
+struct sensor_version_af{
+	unsigned int low;
+	unsigned int high;
+};
+
+struct sensor_gamma{
+	unsigned int rg_low;
+	unsigned int rg_high;
+	unsigned int bg_low;
+	unsigned int bg_high;
+};
+
+struct sensor_firmware_info
+{
+    struct sensor_version fw;
+    struct sensor_version prm;
+    struct sensor_date_info dateinfo;
+    struct sensor_sensor_maker sensor_info;
+    struct sensor_version_af af_info;    
+    struct sensor_gamma gamma;    
+    unsigned int fw_dump_size;
+	unsigned  int sensor_version;
+};
+
+struct gps_info_common {
+	unsigned int 	direction;
+	unsigned int 	dgree;
+	unsigned int	minute;
+	unsigned int	second;
+};
+
+enum v4l2_blur
+{
+	BLUR_LEVEL_0 = 0,
+	BLUR_LEVEL_1,
+	BLUR_LEVEL_2,
+	BLUR_LEVEL_3,
+	BLUR_LEVEL_MAX,
+};
+
+int mc7_sensor_ext_config(void __user *arg);
+int ce147_sensor_ext_config(void __user *arg);
+int s5ka3dfx_sensor_ext_config(void __user *arg);
+int s5k4ecgx_sensor_ext_config(void __user *arg);
+#ifndef CONFIG_MACH_ARIESVE
+int s5k4ecgx_sensor_esd_detected();
+int s5k5ccaf_sensor_esd_detected(); //ESD
+int sr030pc30_sensor_esd_detected(); //ESD
+#endif
+int ce147_get_fw_data(void __user *arg);
+int sr030pc30_sensor_ext_config(void __user *argp);
+#ifndef CONFIG_MACH_ARIESVE
+int s5k5ccaf_sensor_ext_config(void __user *arg);
+#ifdef CONFIG_SENSOR_SR130PC10
+int sr130pc10_sensor_ext_config(void __user *argp);
+#endif
+#endif
+#define MSM_CAM_IOCTL_EXT_CONFIG  _IOWR(MSM_CAM_IOCTL_MAGIC, 50, sensor_ext_cfg_data)
+#define MSM_CAM_IOCTL_FIRMWARE_UPDATE  _IOWR(MSM_CAM_IOCTL_MAGIC, 51, sensor_ext_cfg_data)
+#define MSM_CAM_IOCTL_READ_VERSION_INFO  _IOWR(MSM_CAM_IOCTL_MAGIC, 52, struct sensor_firmware_info)
+#define MSM_CAM_IOCTL_READ_MODULE_NAME  _IOWR(MSM_CAM_IOCTL_MAGIC, 53, sensor_name_info)
+
+#define	EXIF_EXPOSURE_TIME		        0
+#define	EXIF_TV					1
+#define	EXIF_AV					2
+#define	EXIF_BV					3
+#define	EXIF_EBV				4
+#define	EXIF_ISO				5
+#define	EXIF_FLASH				6
+
+enum ext_cfg_command
+{
+    EXT_CFG_SET_FLASH = 0,
+    EXT_CFG_SET_FLASH_MODE,
+    EXT_CFG_SET_AUTO_CONTRAST,
+    EXT_CFG_SET_SCENE,
+    EXT_CFG_SET_SHARPNESS,
+    EXT_CFG_SET_EFFECT,
+    EXT_CFG_SET_SATURATION,
+    EXT_CFG_SET_ISO,
+    EXT_CFG_SET_WB,
+    EXT_CFG_SET_CONTRAST,
+    EXT_CFG_SET_BRIGHTNESS,
+    EXT_CFG_SET_ZOOM,
+    EXT_CFG_SET_FPS,
+    EXT_CFG_SET_FPS_MODE,
+    EXT_CFG_SET_AF_MODE,
+    EXT_CFG_SET_AF_START,
+    EXT_CFG_SET_AF_STOP,
+    EXT_CFG_SET_AF_OPERATION,
+    EXT_CFG_GET_AF_STATUS,
+    EXT_CFG_SET_TOUCHAF_POS,
+    EXT_CFG_SET_FACE_DETECT,
+    EXT_CFG_SET_METERING,
+    EXT_CFG_SET_CONTINUOUS_AF,
+    EXT_CFG_SET_PREVIEW_SIZE,
+    EXT_CFG_SET_PICTURE_SIZE,
+    EXT_CFG_SET_JPEG_QUALITY,
+    EXT_CFG_SET_ANTISHAKE,
+    EXT_CFG_SET_WDR,
+    EXT_CFG_SET_EXIF,
+    EXT_CFG_SET_DTP,
+    EXT_CFG_SET_AE_AWB,
+    EXT_CFG_SET_FRONT_CAMERA_MODE,
+    EXT_CFG_SET_BEAUTY,
+    EXT_CFG_SET_VINTAGEMODE,
+    EXT_CFG_SET_BATCH_REFLECTION,
+    EXT_CFG_GET_JPEG_SIZE,
+    EXT_CFG_UPDATE_FIRMWARE,
+    EXT_CFG_DUMP_FIRMWARE,
+    EXT_CFG_SET_GPS_LATITUDE,
+    EXT_CFG_SET_GPS_LONGITUDE,
+    EXT_CFG_SET_GPS_ALTITUDE,
+    EXT_CFG_SET_GPS_TIMESTAMP,
+    EXT_CFG_SET_EXIF_TIME_INFO,
+    EXT_CFG_SET_GPS_PROCESSINGMETHOD,
+    EXT_CFG_SET_EXIF_ORIENTATION_INFO,
+    EXT_CFG_SET_BLUR,
+    EXT_CFG_SET_THUMB_NULL,
+    EXT_CFG_SET_CAM_MODE,
+    EXT_CFG_GET_EXIF_INFO,
+    EXT_CFG_GET_FLASH_INFO,
+    EXT_CFG_GET_VGACAM_ROTATED, // kurtlee    
+    EXT_CFG_TEST_ESD,
+    EXT_CFG_MAX,
+#ifndef CONFIG_MACH_ARIESVE
+    EXT_CFG_TEMP, //TELECA_BATTERY
+#endif
+};
+
+enum ext_cfg_command_cammode
+{
+	EXT_CFG_CAM_MODE_CAMERA,
+	EXT_CFG_CAM_MODE_CAMCORDER,
+	EXT_CFG_CAM_MODE_FACTORY_TEST,
+};
+
+enum ext_cfg_command_jpeq_quality
+{
+	EXT_CFG_JPEG_QUALITY_SUPERFINE,
+	EXT_CFG_JPEG_QUALITY_FINE,
+	EXT_CFG_JPEG_QUALITY_NORMAL,
+};
+
+enum ext_cfg_command_auto_contrast
+{
+	EXT_CFG_AUTO_CONTRAST_ON,
+	EXT_CFG_AUTO_CONTRAST_OFF,
+};
+
+enum ext_cfg_command_framerate
+{
+	EXT_CFG_FRAME_AUTO = 0,
+	EXT_CFG_FRAME_FIX_15 = 15,
+	EXT_CFG_FRAME_FIX_20 = 20,
+	EXT_CFG_FRAME_FIX_30 = 30,
+};
+
+enum ext_cfg_command_effect
+{
+	EXT_CFG_EFFECT_NORMAL,
+	EXT_CFG_EFFECT_NEGATIVE,
+	EXT_CFG_EFFECT_MONO,
+	EXT_CFG_EFFECT_SEPIA,
+};
+
+enum ext_cfg_command_whitebalance
+{
+	EXT_CFG_WB_AUTO,
+	EXT_CFG_WB_DAYLIGHT,
+	EXT_CFG_WB_CLOUDY,
+	EXT_CFG_WB_FLUORESCENT,
+	EXT_CFG_WB_INCANDESCENT,
+};
+
+enum ext_cfg_command_brightness
+{                   
+#ifdef CONFIG_MACH_ARIESVE      
+	EXT_CFG_BR_STEP_M_4,
+#else
+	EXT_CFG_BR_STEP_M_4 = -4,
+#endif
+	EXT_CFG_BR_STEP_M_3,
+	EXT_CFG_BR_STEP_M_2,
+	EXT_CFG_BR_STEP_M_1,
+	EXT_CFG_BR_STEP_0,
+	EXT_CFG_BR_STEP_P_1,
+	EXT_CFG_BR_STEP_P_2,
+	EXT_CFG_BR_STEP_P_3,
+	EXT_CFG_BR_STEP_P_4,
+};
+
+enum ext_cfg_command_contrast
+{
+	EXT_CFG_CR_STEP_M_2,               
+	EXT_CFG_CR_STEP_M_1,                
+	EXT_CFG_CR_STEP_0,                  
+	EXT_CFG_CR_STEP_P_1,                
+	EXT_CFG_CR_STEP_P_2,                
+};
+
+enum ext_cfg_command_saturation
+{
+	EXT_CFG_SA_STEP_M_2,                
+	EXT_CFG_SA_STEP_M_1,                
+	EXT_CFG_SA_STEP_0,                  
+	EXT_CFG_SA_STEP_P_1,                
+	EXT_CFG_SA_STEP_P_2,                
+};
+
+enum ext_cfg_command_sharpness
+{
+	EXT_CFG_SP_STEP_M_2,                
+	EXT_CFG_SP_STEP_M_1,                
+	EXT_CFG_SP_STEP_0,                 
+	EXT_CFG_SP_STEP_P_1,                
+	EXT_CFG_SP_STEP_P_2,                
+};
+
+enum ext_cfg_command_iso
+{
+	EXT_CFG_ISO_AUTO,
+	EXT_CFG_ISO_50,
+	EXT_CFG_ISO_100,
+	EXT_CFG_ISO_200,
+	EXT_CFG_ISO_400,
+};
+
+enum ext_cfg_command_metering
+{
+	EXT_CFG_METERING_NORMAL, //matrix
+	EXT_CFG_METERING_SPOT,
+	EXT_CFG_METERING_CENTER,
+};
+
+enum ext_cfg_command_scene
+{
+	EXT_CFG_SCENE_OFF,
+	EXT_CFG_SCENE_PORTRAIT,
+	EXT_CFG_SCENE_LANDSCAPE,
+	EXT_CFG_SCENE_SPORTS,
+	EXT_CFG_SCENE_PARTY,
+	EXT_CFG_SCENE_BEACH,
+	EXT_CFG_SCENE_SUNSET,
+	EXT_CFG_SCENE_DAWN,
+	EXT_CFG_SCENE_FALL,
+	EXT_CFG_SCENE_NIGHTSHOT,
+	EXT_CFG_SCENE_BACKLIGHT,
+	EXT_CFG_SCENE_FIREWORK,
+	EXT_CFG_SCENE_TEXT,
+	EXT_CFG_SCENE_CANDLE,
+};
+
+enum ext_cfg_command_af_operation
+{
+	EXT_CFG_AF_CHECK_STATUS,
+	EXT_CFG_AF_OFF,
+	EXT_CFG_AF_SET_NORMAL,
+	EXT_CFG_AF_SET_MACRO,
+	EXT_CFG_AF_DO,
+	EXT_CFG_AF_SET_MANUAL,
+	EXT_CFG_AF_CHECK_2nd_STATUS,
+	EXT_CFG_AF_SET_AE_FOR_FLASH,
+	EXT_CFG_AF_BACK_AE_FOR_FLASH,
+	EXT_CFG_AF_CHECK_AE_STATUS,
+	EXT_CFG_AF_POWEROFF,
+};
+
+enum ext_cfg_command_af_status
+{
+	EXT_CFG_AF_PROGRESS = 1,
+	EXT_CFG_AF_SUCCESS,
+	EXT_CFG_AF_LOWCONF,//Fail
+	EXT_CFG_AF_CANCELED,
+	EXT_CFG_AF_TIMEOUT,
+	EXT_CFG_AE_STABLE,
+	EXT_CFG_AE_UNSTABLE,
+};
+
+enum ext_cfg_command_ae_awb
+{
+	EXT_CFG_AE_LOCK,
+	EXT_CFG_AE_UNLOCK,
+	EXT_CFG_AWB_LOCK,
+	EXT_CFG_AWB_UNLOCK,
+};
+
+enum ext_cfg_command_cpu_policy
+{
+	EXT_CFG_CPU_CONSERVATIVE,
+	EXT_CFG_CPU_ONDEMAND,
+	EXT_CFG_CPU_PERFORMANCE,
+};
+
+enum ext_cfg_command_dtp
+{
+	EXT_CFG_DTP_OFF,
+	EXT_CFG_DTP_ON,
+};
+
+enum ext_cfg_command_zoom
+{
+	EXT_CFG_ZOOM_STEP_0,
+	EXT_CFG_ZOOM_STEP_1,
+	EXT_CFG_ZOOM_STEP_2,
+	EXT_CFG_ZOOM_STEP_3,
+	EXT_CFG_ZOOM_STEP_4,
+	EXT_CFG_ZOOM_STEP_5,
+	EXT_CFG_ZOOM_STEP_6,
+	EXT_CFG_ZOOM_STEP_7,
+	EXT_CFG_ZOOM_STEP_8,
+};
+
+enum ext_cfg_command_picture_size
+{
+	EXT_CFG_SNAPSHOT_SIZE_2560x1920_5M,
+#ifndef CONFIG_MACH_ARIESVE
+	EXT_CFG_SNAPSHOT_SIZE_2560x1536_4M_WIDE,
+#endif
+	EXT_CFG_SNAPSHOT_SIZE_2048x1536_3M,
+#ifndef CONFIG_MACH_ARIESVE
+	EXT_CFG_SNAPSHOT_SIZE_2048x1232_2_4M_WIDE,
+#endif
+	EXT_CFG_SNAPSHOT_SIZE_1600x1200_2M,
+#ifndef CONFIG_MACH_ARIESVE
+	EXT_CFG_SNAPSHOT_SIZE_1600x960_1_5M_WIDE,
+#endif
+	EXT_CFG_SNAPSHOT_SIZE_1280x960_1M,
+#ifndef CONFIG_MACH_ARIESVE
+	EXT_CFG_SNAPSHOT_SIZE_800x480_4K_WIDE,
+#endif
+	EXT_CFG_SNAPSHOT_SIZE_640x480_VGA,
+	EXT_CFG_SNAPSHOT_SIZE_320x240_QVGA,
+};
+
+enum ext_cfg_command_preview_size
+{
+#ifndef CONFIG_MACH_ARIESVE
+      EXT_CFG_PREVIEW_SIZE_1280x720_D1,
+	EXT_CFG_PREVIEW_SIZE_800x480_WVGA,
+#endif
+	EXT_CFG_PREVIEW_SIZE_720x480_D1,
+	EXT_CFG_PREVIEW_SIZE_640x480_VGA,
+	EXT_CFG_PREVIEW_SIZE_320x240_QVGA,
+	EXT_CFG_PREVIEW_SIZE_176x144_QCIF,
+};
+
+enum ext_cfg_command_flash
+{
+	EXT_CFG_FLASH_ON,
+	EXT_CFG_FLASH_OFF,
+	EXT_CFG_FLASH_AUTO,
+	EXT_CFG_FLASH_TURN_ON,
+	EXT_CFG_FLASH_TURN_OFF,
+};
+#ifndef CONFIG_MACH_ARIESVE
+//pault
+enum ext_cfg_command_exposure
+{
+  CAMERA_EXPOSURE_NEGATIVE_2,
+  CAMERA_EXPOSURE_NEGATIVE_1,
+  CAMERA_EXPOSURE_0,
+  CAMERA_EXPOSURE_POSITIVE_1,
+  CAMERA_EXPOSURE_POSITIVE_2
+};
+
+enum ext_cfg_command_wb
+{
+  CAMERA_WB_MIN_MINUS_1,
+  CAMERA_WB_AUTO = 1,  /* This list must match aeecamera.h */
+  CAMERA_WB_CUSTOM,
+  CAMERA_WB_INCANDESCENT,
+  CAMERA_WB_FLUORESCENT,
+  CAMERA_WB_DAYLIGHT,
+  CAMERA_WB_CLOUDY_DAYLIGHT,
+  CAMERA_WB_TWILIGHT,
+  CAMERA_WB_SHADE,
+  CAMERA_WB_MAX_PLUS_1
+};
+#endif
+#endif /* CONFIG_OEM_CAMERA */
 
 #endif /* __LINUX_MSM_CAMERA_H */
