@@ -855,6 +855,7 @@ void kgsl_pwrctrl_wake(struct kgsl_device *device)
 		if (device->idle_wakelock.name)
 			wake_lock(&device->idle_wakelock);
 	case KGSL_STATE_ACTIVE:
+		kgsl_pwrctrl_request_state(device, KGSL_STATE_NONE);
 		break;
 	default:
 		KGSL_PWR_WARN(device, "unhandled state %s\n",
