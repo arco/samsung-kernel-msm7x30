@@ -55,6 +55,7 @@
 #define VCD_I_SLICE_DELIVERY_MODE (VCD_START_BASE + 0x27)
 #define VCD_I_VOP_TIMING_CONSTANT_DELTA (VCD_START_BASE + 0x28)
 #define VCD_I_SET_TURBO_CLK (VCD_START_BASE + 0x29)
+#define VCD_I_H263_PLUSPTYPE (VCD_START_BASE + 0x2C)
 
 #define VCD_START_REQ      (VCD_START_BASE + 0x1000)
 #define VCD_I_REQ_IFRAME   (VCD_START_REQ + 0x1)
@@ -286,6 +287,10 @@ struct vcd_property_rate_control {
 struct vcd_property_qp_range {
 	u32              max_qp;
 	u32              min_qp;
+};
+
+struct vcd_property_plusptype {
+	u32              plusptype_enable;
 };
 
 struct vcd_property_session_qp {
