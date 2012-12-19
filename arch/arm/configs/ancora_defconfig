@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.50 Kernel Configuration
+# Linux/arm 3.0.55 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1811,7 +1811,6 @@ CONFIG_VIDEO_HELPER_CHIPS_AUTO=y
 # Miscelaneous helper chips
 #
 # CONFIG_VIDEO_CPIA2 is not set
-# CONFIG_VIDEO_SR030PC30 is not set
 # CONFIG_VIDEO_NOON010PC30 is not set
 # CONFIG_SOC_CAMERA is not set
 # CONFIG_V4L_USB_DRIVERS is not set
@@ -1830,7 +1829,7 @@ CONFIG_OEM_CAMERA=y
 CONFIG_USE_QUP_I2C=y
 # CONFIG_SENSOR_MC7 is not set
 # CONFIG_SENSOR_CE147 is not set
-# CONFIG_SENSOR_S5K4ECGX is not set
+CONFIG_SENSOR_S5K4ECGX=y
 # CONFIG_SENSOR_S5KA3DFX is not set
 # CONFIG_MT9T013 is not set
 # CONFIG_MT9D112 is not set
@@ -1858,7 +1857,7 @@ CONFIG_MSM_GEMINI=y
 CONFIG_MSM_VPE=y
 # CONFIG_QUP_EXCLUSIVE_TO_CAMERA is not set
 # CONFIG_S5K3L1YX is not set
-# CONFIG_SENSOR_SR030PC30 is not set
+CONFIG_SENSOR_SR030PC30=y
 # CONFIG_SENSOR_SR030PC30_T679 is not set
 # CONFIG_SENSOR_SR130PC10 is not set
 # CONFIG_V4L_MEM2MEM_DRIVERS is not set
