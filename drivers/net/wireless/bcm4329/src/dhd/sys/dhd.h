@@ -35,7 +35,9 @@
 #define _dhd_h_
 
 #if defined(LINUX)
+#if defined(CHROMIUMOS_COMPAT_WIRELESS)
 #include <linux/sched.h>
+#endif
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -58,7 +60,7 @@
 #define EIO			4
 #define ETIMEDOUT	5
 #define ERESTARTSYS 6
-#endif
+#endif /* LINUX */
 
 #include <wlioctl.h>
 
@@ -192,7 +194,7 @@ typedef struct dhd_pub {
 				wait_event_timeout(a, FALSE, HZ/100); \
 			} \
 		} 	while (0)
-	#define DHD_PM_RESUME_WAIT(a) 		_DHD_PM_RESUME_WAIT(a, 200)
+	#define DHD_PM_RESUME_WAIT(a) 			_DHD_PM_RESUME_WAIT(a, 500)
 	#define DHD_PM_RESUME_WAIT_FOREVER(a) 	_DHD_PM_RESUME_WAIT(a, ~0)
 	#define DHD_PM_RESUME_RETURN_ERROR(a)	do { if (dhd_mmc_suspend) return a; } while (0)
 	#define DHD_PM_RESUME_RETURN		do { if (dhd_mmc_suspend) return; } while (0)
@@ -522,17 +524,5 @@ extern char nv_path[MOD_PARAM_PATHLEN];
 
 extern void dhd_wait_for_event(dhd_pub_t *dhd, bool *lockvar);
 extern void dhd_wait_event_wakeup(dhd_pub_t*dhd);
-
-/* dhd_commn arp offload wrapers */
-extern void dhd_arp_cleanup(dhd_pub_t *dhd);
-int dhd_arp_get_arp_hostip_table(dhd_pub_t *dhd, void *buf, int buflen);
-void dhd_arp_offload_add_ip(dhd_pub_t *dhd, u32 ipaddr);
-
-#define DHD_UNICAST_FILTER_NUM         0
-#define DHD_BROADCAST_FILTER_NUM       1
-#define DHD_MULTICAST4_FILTER_NUM      2
-#define DHD_MULTICAST6_FILTER_NUM      3
-extern int net_os_set_packet_filter(struct net_device *dev, int val);
-extern int net_os_rxfilter_add_remove(struct net_device *dev, int val, int num);
 
 #endif /* _dhd_h_ */
