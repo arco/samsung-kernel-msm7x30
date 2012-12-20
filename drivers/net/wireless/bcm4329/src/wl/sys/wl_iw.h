@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_iw.h,v 1.5.34.1.6.36.4.18 2011/02/10 19:33:12 Exp $
+ * $Id: wl_iw.h,v 1.5.34.1.6.36.4.15 2010/11/17 03:13:51 Exp $
  */
 
 
@@ -52,11 +52,6 @@
 #define PNOSETUP_SET_CMD			"PNOSETUP " 
 #define PNOENABLE_SET_CMD			"PNOFORCE"
 #define PNODEBUG_SET_CMD			"PNODEBUG"
-#define TXPOWER_SET_CMD				"TXPOWER"
-#define RXFILTER_START_CMD			"RXFILTER-START"
-#define RXFILTER_STOP_CMD			"RXFILTER-STOP"
-#define RXFILTER_ADD_CMD			"RXFILTER-ADD"
-#define RXFILTER_REMOVE_CMD			"RXFILTER-REMOVE"
 
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 #define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -143,13 +138,13 @@ typedef struct wl_iw_ss_cache{
 } wl_iw_ss_cache_t;
 
 typedef struct wl_iw_ss_cache_ctrl {
-	wl_iw_ss_cache_t *m_cache_head;
-	int m_link_down;
-	int m_timer_expired;
-	char m_active_bssid[ETHER_ADDR_LEN];
-	uint m_prev_scan_mode;
-	uint m_cons_br_scan_cnt;
-	struct timer_list *m_timer;
+	wl_iw_ss_cache_t *m_cache_head;	
+	int m_link_down;		
+	int m_timer_expired;		
+	char m_active_bssid[ETHER_ADDR_LEN];	
+	uint m_prev_scan_mode;	
+	uint m_cons_br_scan_cnt;	
+	struct timer_list *m_timer;	
 } wl_iw_ss_cache_ctrl_t;
 
 typedef enum broadcast_first_scan {
@@ -204,6 +199,7 @@ void wl_iw_detach(void);
 extern int net_os_set_suspend_disable(struct net_device *dev, int val);
 extern int net_os_set_suspend(struct net_device *dev, int val);
 extern int net_os_set_dtim_skip(struct net_device *dev, int val);
+extern int net_os_set_packet_filter(struct net_device *dev, int val);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
 #define IWE_STREAM_ADD_EVENT(info, stream, ends, iwe, extra) \
@@ -223,12 +219,11 @@ extern int net_os_set_dtim_skip(struct net_device *dev, int val);
 
 extern int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled);
 extern int dhd_pno_clean(dhd_pub_t *dhd);
-extern int dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, \
-					    ushort  scan_fr, int pno_repeat, int pno_freq_expo_max);
+extern int dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, ushort  scan_fr);
 extern int dhd_pno_get_status(dhd_pub_t *dhd);
 extern int dhd_dev_pno_reset(struct net_device *dev);
 extern int dhd_dev_pno_set(struct net_device *dev, wlc_ssid_t* ssids_local, \
-				 int nssid, ushort  scan_fr, int pno_repeat, int pno_freq_expo_max);
+				 int nssid, ushort  scan_fr);
 extern int dhd_dev_pno_enable(struct net_device *dev,  int pfn_enabled);
 extern int dhd_dev_get_pno_status(struct net_device *dev);
 void	dhd_bus_country_set(struct net_device *dev, char *country_code);
@@ -240,9 +235,8 @@ extern int dhd_get_dtim_skip(dhd_pub_t *dhd);
 #define PNO_TLV_RESERVED		'0'
 #define PNO_TLV_TYPE_SSID_IE	'S'
 #define PNO_TLV_TYPE_TIME		'T'
-#define PNO_TLV_FREQ_REPEAT		'R'
-#define PNO_TLV_FREQ_EXPO_MAX	'M'
-#define PNO_EVENT_UP			"PNO_EVENT"
+#define  PNO_EVENT_UP			"PNO_EVENT"
+#define PNO_SCAN_MAX_FW		508	
 
 typedef struct cmd_tlv {
 	char prefix;
@@ -251,18 +245,8 @@ typedef struct cmd_tlv {
 	char reserved;
 } cmd_tlv_t;
 
-#ifdef SOFTAP_TLV_CFG
-#define SOFTAP_SET_CMD				"SOFTAPSET "
-#define SOFTAP_TLV_PREFIX			'A'
-#define SOFTAP_TLV_VERSION			'1'
-#define SOFTAP_TLV_SUBVERSION			'0'
-#define SOFTAP_TLV_RESERVED			'0'
 
-#define TLV_TYPE_SSID				'S'
-#define TLV_TYPE_SECUR				'E'
-#define TLV_TYPE_KEY				'K'
-#define TLV_TYPE_CHANNEL			'C'
-#endif
+
 
 typedef struct cscan_tlv {
 	char prefix;
