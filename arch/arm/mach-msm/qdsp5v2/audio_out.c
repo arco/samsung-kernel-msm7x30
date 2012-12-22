@@ -43,7 +43,7 @@
 #include <mach/qdsp5v2/audio_dev_ctl.h>
 #include <mach/msm_memtypes.h>
 #include <mach/cpuidle.h>
-#include <linux/ion.h>
+#include <linux/msm_ion.h>
 #include <mach/htc_pwrsink.h>
 #include <mach/debug_mm.h>
 
@@ -720,7 +720,7 @@ static int __init audio_init(void)
 	the_audio.client = client;
 
 	handle = ion_alloc(client, DMASZ, SZ_4K,
-		ION_HEAP(ION_AUDIO_HEAP_ID));
+		ION_HEAP(ION_AUDIO_HEAP_ID),0);
 	if (IS_ERR_OR_NULL(handle)) {
 		MM_ERR("Unable to create allocate O/P buffers\n");
 		rc = -ENOMEM;
@@ -744,7 +744,7 @@ static int __init audio_init(void)
 		goto buff_get_flags_error;
 	}
 
-	the_audio.map_v_write = ion_map_kernel(client, handle, ionflag);
+	the_audio.map_v_write = ion_map_kernel(client, handle);
 	if (IS_ERR(the_audio.map_v_write)) {
 		MM_ERR("could not map write buffers\n");
 		rc = -ENOMEM;

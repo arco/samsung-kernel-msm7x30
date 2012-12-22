@@ -27,7 +27,7 @@
 #include <linux/wait.h>
 #include <linux/dma-mapping.h>
 #include <linux/msm_audio_amrnb.h>
-#include <linux/ion.h>
+#include <linux/msm_ion.h>
 #include <linux/memory_alloc.h>
 
 #include <mach/iommu.h>
@@ -803,7 +803,7 @@ static int audamrnb_in_open(struct inode *inode, struct file *file)
 	audio->client = client;
 
 	handle = ion_alloc(client, DMASZ, SZ_4K,
-		ION_HEAP(ION_AUDIO_HEAP_ID));
+		ION_HEAP(ION_AUDIO_HEAP_ID),0);
 	if (IS_ERR_OR_NULL(handle)) {
 		MM_ERR("Unable to create allocate O/P buffers\n");
 		rc = -ENOMEM;
@@ -828,7 +828,7 @@ static int audamrnb_in_open(struct inode *inode, struct file *file)
 		goto buff_get_flags_error;
 	}
 
-	audio->map_v_read = ion_map_kernel(client, handle, ionflag);
+	audio->map_v_read = ion_map_kernel(client, handle);
 	if (IS_ERR(audio->map_v_read)) {
 		MM_ERR("could not map write buffers\n");
 		rc = -ENOMEM;
