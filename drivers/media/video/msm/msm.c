@@ -23,11 +23,7 @@
 
 #define MSM_MAX_CAMERA_SENSORS 5
 
-#ifdef CONFIG_MSM_CAMERA_DEBUG
-#define D(fmt, args...) pr_debug("msm: " fmt, ##args)
-#else
-#define D(fmt, args...) do {} while (0)
-#endif
+#define D(fmt, args...) printk("msm: " fmt, ##args)
 
 static unsigned msm_camera_v4l2_nr = -1;
 static struct msm_cam_server_dev g_server_dev;
@@ -2255,6 +2251,10 @@ static long msm_ioctl_config(struct file *fp, unsigned int cmd,
 		}
 		}
 
+		break;
+	case MSM_CAM_IOCTL_CTRL_CMD_DONE:
+		D("%s: MSM_CAM_IOCTL_CTRL_CMD_DONE\n", __func__);
+		rc = msm_ctrl_cmd_done((void __user *)arg);
 		break;
 
 	case MSM_CAM_IOCTL_V4L2_EVT_NOTIFY:

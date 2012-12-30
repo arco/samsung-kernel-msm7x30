@@ -119,7 +119,7 @@ static void vpe_config_axi_default(void)
 {
 	msm_io_w(0x25, vpe_device->vpebase + VPE_AXI_ARB_2_OFFSET);
 
-	CDBG("%s: yaddr %ld cbcraddr %ld", __func__,
+	printk("%s: yaddr %ld cbcraddr %ld", __func__,
 		 vpe_ctrl->out_y_addr, vpe_ctrl->out_cbcr_addr);
 
 	if (!vpe_ctrl->out_y_addr || !vpe_ctrl->out_cbcr_addr)
@@ -140,7 +140,7 @@ static int vpe_reset(void)
 
 	vpe_reset_state_variables();
 	vpe_version = msm_io_r(vpe_device->vpebase + VPE_HW_VERSION_OFFSET);
-	CDBG("vpe_version = 0x%x\n", vpe_version);
+	printk("vpe_version = 0x%x\n", vpe_version);
 
 	/* disable all interrupts.*/
 	msm_io_w(0, vpe_device->vpebase + VPE_INTR_ENABLE_OFFSET);
@@ -186,13 +186,13 @@ int msm_vpe_cfg_update(void *pinfo)
 	rot_flag = msm_io_r(vpe_device->vpebase +
 						VPE_OP_MODE_OFFSET) & 0xE00;
 	if (pinfo != NULL) {
-		CDBG("Crop info in2_w = %d, in2_h = %d "
+		printk("Crop info in2_w = %d, in2_h = %d "
 			"out2_h = %d out2_w = %d \n", pcrop->in2_w,
 			pcrop->in2_h,
 			pcrop->out2_h, pcrop->out2_w);
 		rc = vpe_update_scaler(pcrop);
 	}
-	CDBG("return rc = %d rot_flag = %d\n", rc, rot_flag);
+	printk("return rc = %d rot_flag = %d\n", rc, rot_flag);
 	rc |= rot_flag;
 
 	return rc;
@@ -276,7 +276,7 @@ static int vpe_update_scaler(struct video_crop_t *pcrop)
 
 	if ((pcrop->in2_w >= pcrop->out2_w) &&
 		(pcrop->in2_h >= pcrop->out2_h)) {
-		CDBG(" =======VPE no zoom needed.\n");
+		printk(" =======VPE no zoom needed.\n");
 
 		temp = msm_io_r(vpe_device->vpebase + VPE_OP_MODE_OFFSET)
 		& 0xfffffffc;
@@ -285,7 +285,7 @@ static int vpe_update_scaler(struct video_crop_t *pcrop)
 
 		msm_io_w(0, vpe_device->vpebase + VPE_SRC_XY_OFFSET);
 
-		CDBG("vpe_ctrl->in_h_w = %d \n", vpe_ctrl->in_h_w);
+		printk("vpe_ctrl->in_h_w = %d \n", vpe_ctrl->in_h_w);
 		msm_io_w(vpe_ctrl->in_h_w , vpe_device->vpebase +
 				VPE_SRC_SIZE_OFFSET);
 
@@ -293,7 +293,7 @@ static int vpe_update_scaler(struct video_crop_t *pcrop)
 	}
 	/* If fall through then scaler is needed.*/
 
-	CDBG("========VPE zoom needed.\n");
+	printk("========VPE zoom needed.\n");
 	/* assumption is both direction need zoom. this can be
 	improved. */
 	temp =
@@ -305,7 +305,7 @@ static int vpe_update_scaler(struct video_crop_t *pcrop)
 	out_ROI_width = pcrop->out2_w;
 	out_ROI_height = pcrop->out2_h;
 
-	CDBG("src w = 0x%x, h=0x%x, dst w = 0x%x, h =0x%x.\n",
+	printk("src w = 0x%x, h=0x%x, dst w = 0x%x, h =0x%x.\n",
 		src_ROI_width, src_ROI_height, out_ROI_width,
 		out_ROI_height);
 	src_roi = (src_ROI_height << 16) + src_ROI_width;
@@ -315,12 +315,12 @@ static int vpe_update_scaler(struct video_crop_t *pcrop)
 	src_x = (out_ROI_width - src_ROI_width)/2;
 	src_y = (out_ROI_height - src_ROI_height)/2;
 
-	CDBG("src_x = %d, src_y=%d.\n", src_x, src_y);
+	printk("src_x = %d, src_y=%d.\n", src_x, src_y);
 
 	src_xy = src_y*(1<<16) + src_x;
 	msm_io_w(src_xy, vpe_device->vpebase +
 			VPE_SRC_XY_OFFSET);
-	CDBG("src_xy = %d, src_roi=%d.\n", src_xy, src_roi);
+	printk("src_xy = %d, src_roi=%d.\n", src_xy, src_roi);
 
 	/* decide whether to use FIR or M/N for scaling */
 	if ((out_ROI_width == 1 && src_ROI_width < 4) ||
@@ -453,9 +453,9 @@ static int vpe_update_scaler(struct video_crop_t *pcrop)
 	} else if (scale_unit_sel_y == 1) /* M over N scalar   */
 		phase_init_y = 0;
 
-	CDBG("phase step x = %d, step y = %d.\n",
+	printk("phase step x = %d, step y = %d.\n",
 		 phase_step_x, phase_step_y);
-	CDBG("phase init x = %d, init y = %d.\n",
+	printk("phase init x = %d, init y = %d.\n",
 		 phase_init_x, phase_init_y);
 
 	msm_io_w(phase_step_x, vpe_device->vpebase +
@@ -495,14 +495,14 @@ static int vpe_update_scaler_with_dis(struct video_crop_t *pcrop,
 	uint64_t numerator, denominator;
 	int32_t  zoom_dis_x, zoom_dis_y;
 
-	CDBG("%s: pcrop->in2_w = %d, pcrop->in2_h = %d\n", __func__,
+	printk("%s: pcrop->in2_w = %d, pcrop->in2_h = %d\n", __func__,
 		 pcrop->in2_w, pcrop->in2_h);
-	CDBG("%s: pcrop->out2_w = %d, pcrop->out2_h = %d\n", __func__,
+	printk("%s: pcrop->out2_w = %d, pcrop->out2_h = %d\n", __func__,
 		 pcrop->out2_w, pcrop->out2_h);
 
 	if ((pcrop->in2_w >= pcrop->out2_w) &&
 		(pcrop->in2_h >= pcrop->out2_h)) {
-		CDBG(" =======VPE no zoom needed, DIS is still enabled. \n");
+		printk(" =======VPE no zoom needed, DIS is still enabled. \n");
 
 		temp = msm_io_r(vpe_device->vpebase + VPE_OP_MODE_OFFSET)
 		& 0xfffffffc;
@@ -514,14 +514,14 @@ static int vpe_update_scaler_with_dis(struct video_crop_t *pcrop,
 
 		msm_io_w(src_xy, vpe_device->vpebase + VPE_SRC_XY_OFFSET);
 
-		CDBG("vpe_ctrl->in_h_w = 0x%x \n", vpe_ctrl->in_h_w);
+		printk("vpe_ctrl->in_h_w = 0x%x \n", vpe_ctrl->in_h_w);
 		msm_io_w(vpe_ctrl->in_h_w, vpe_device->vpebase +
 				 VPE_SRC_SIZE_OFFSET);
 		return rc;
 	}
 	/* If fall through then scaler is needed.*/
 
-	CDBG("========VPE zoom needed + DIS enabled.\n");
+	printk("========VPE zoom needed + DIS enabled.\n");
 	/* assumption is both direction need zoom. this can be
 	 improved. */
 	temp = msm_io_r(vpe_device->vpebase +
@@ -548,7 +548,7 @@ static int vpe_update_scaler_with_dis(struct video_crop_t *pcrop,
 	smaller values.  The intention was to make sure that the
 	offset does not exceed margin.   But in the case it could
 	result src_roi bigger, due to subtract a smaller value. */
-	CDBG("src w = 0x%x, h=0x%x, dst w = 0x%x, h =0x%x.\n",
+	printk("src w = 0x%x, h=0x%x, dst w = 0x%x, h =0x%x.\n",
 		src_ROI_width, src_ROI_height, out_ROI_width,
 		out_ROI_height);
 
@@ -556,12 +556,12 @@ static int vpe_update_scaler_with_dis(struct video_crop_t *pcrop,
 
 	msm_io_w(src_roi, vpe_device->vpebase + VPE_SRC_SIZE_OFFSET);
 
-	CDBG("src_x = %d, src_y=%d.\n", src_x, src_y);
+	printk("src_x = %d, src_y=%d.\n", src_x, src_y);
 
 	src_xy = src_y*(1<<16) + src_x;
 	msm_io_w(src_xy, vpe_device->vpebase +
 			VPE_SRC_XY_OFFSET);
-	CDBG("src_xy = 0x%x, src_roi=0x%x.\n", src_xy, src_roi);
+	printk("src_xy = 0x%x, src_roi=0x%x.\n", src_xy, src_roi);
 
 	/* decide whether to use FIR or M/N for scaling */
 	if ((out_ROI_width == 1 && src_ROI_width < 4) ||
@@ -689,9 +689,9 @@ static int vpe_update_scaler_with_dis(struct video_crop_t *pcrop,
 	} else if (scale_unit_sel_y == 1) /* M over N scalar   */
 		phase_init_y = 0;
 
-	CDBG("phase step x = %d, step y = %d.\n",
+	printk("phase step x = %d, step y = %d.\n",
 		phase_step_x, phase_step_y);
-	CDBG("phase init x = %d, init y = %d.\n",
+	printk("phase init x = %d, init y = %d.\n",
 		phase_init_x, phase_init_y);
 
 	msm_io_w(phase_step_x, vpe_device->vpebase +
@@ -714,13 +714,13 @@ void msm_send_frame_to_vpe(uint32_t p0_phy_add, uint32_t p1_phy_add,
 {
 	uint32_t temp_pyaddr = 0, temp_pcbcraddr = 0;
 
-	CDBG("vpe input, p0_phy_add = 0x%x, p1_phy_add = 0x%x\n",
+	printk("vpe input, p0_phy_add = 0x%x, p1_phy_add = 0x%x\n",
 		p0_phy_add, p1_phy_add);
 	msm_io_w(p0_phy_add, vpe_device->vpebase + VPE_SRCP0_ADDR_OFFSET);
 	msm_io_w(p1_phy_add, vpe_device->vpebase + VPE_SRCP1_ADDR_OFFSET);
 
 	if (vpe_ctrl->state == VPE_STATE_ACTIVE)
-		CDBG(" =====VPE is busy!!!  Wrong!========\n");
+		printk(" =====VPE is busy!!!  Wrong!========\n");
 
 	if (output_type != OUTPUT_TYPE_ST_R)
 		vpe_ctrl->ts = *ts;
@@ -761,7 +761,7 @@ static int vpe_proc_general(struct msm_vpe_cmd *cmd)
 	struct msm_vpe_buf_info *vpe_buf;
 	int turbo_mode = 0;
 	struct msm_sync *sync = (struct msm_sync *)vpe_ctrl->syncdata;
-	CDBG("vpe_proc_general: cmdID = %s, length = %d\n",
+	printk("vpe_proc_general: cmdID = %s, length = %d\n",
 		vpe_general_cmd[cmd->id], cmd->length);
 	switch (cmd->id) {
 	case VPE_ENABLE:
@@ -807,7 +807,7 @@ static int vpe_proc_general(struct msm_vpe_cmd *cmd)
 		break;
 
 	case VPE_OPERATION_MODE_CFG:
-		CDBG("cmd->length = %d \n", cmd->length);
+		printk("cmd->length = %d \n", cmd->length);
 		if (cmd->length != VPE_OPERATION_MODE_CFG_LEN) {
 			rc = -EINVAL;
 			goto vpe_proc_general_done;
@@ -821,7 +821,7 @@ static int vpe_proc_general(struct msm_vpe_cmd *cmd)
 			goto vpe_proc_general_done;
 		}
 		rc = vpe_operation_config(cmdp);
-		CDBG("rc = %d \n", rc);
+		printk("rc = %d \n", rc);
 		break;
 
 	case VPE_OUTPUT_PLANE_CFG:
@@ -881,7 +881,7 @@ static int vpe_proc_general(struct msm_vpe_cmd *cmd)
 		vpe_update_scaler_with_dis(&(vpe_buf->vpe_crop),
 					&(vpe_ctrl->dis_offset));
 
-		msm_send_frame_to_vpe(vpe_buf->p0_phy, vpe_buf->p1_phy,
+		msm_send_frame_to_vpe(vpe_buf->y_phy, vpe_buf->cbcr_phy,
 						&(vpe_buf->ts), OUTPUT_TYPE_V);
 
 		if (!qcmd || !atomic_read(&qcmd->on_heap)) {
@@ -904,7 +904,7 @@ vpe_proc_general_done:
 static void vpe_addr_convert(struct msm_vpe_phy_info *pinfo,
 	enum vpe_resp_msg type, void *data, void **ext, int32_t *elen)
 {
-	CDBG("In vpe_addr_convert type = %d\n", type);
+	printk("In vpe_addr_convert type = %d\n", type);
 	switch (type) {
 	case VPE_MSG_OUTPUT_V:
 		pinfo->output_id = OUTPUT_TYPE_V;
@@ -917,11 +917,11 @@ static void vpe_addr_convert(struct msm_vpe_phy_info *pinfo,
 		break;
 	} /* switch */
 
-	CDBG("In vpe_addr_convert output_id = %d\n", pinfo->output_id);
+	printk("In vpe_addr_convert output_id = %d\n", pinfo->output_id);
 
-	pinfo->p0_phy =
+	pinfo->y_phy =
 		((struct vpe_message *)data)->_u.msgOut.p0_Buffer;
-	pinfo->p1_phy =
+	pinfo->cbcr_phy =
 		((struct vpe_message *)data)->_u.msgOut.p1_Buffer;
 	*ext  = vpe_ctrl->extdata;
 	*elen = vpe_ctrl->extlen;
@@ -934,11 +934,11 @@ void vpe_proc_ops(uint8_t id, void *msg, size_t len)
 	rp = vpe_ctrl->resp->vpe_alloc(sizeof(struct msm_vpe_resp),
 		vpe_ctrl->syncdata, GFP_ATOMIC);
 	if (!rp) {
-		CDBG("rp: cannot allocate buffer\n");
+		printk("rp: cannot allocate buffer\n");
 		return;
 	}
 
-	CDBG("vpe_proc_ops, msgId = %d rp->evt_msg.msg_id = %d\n",
+	printk("vpe_proc_ops, msgId = %d rp->evt_msg.msg_id = %d\n",
 		id, rp->evt_msg.msg_id);
 	rp->evt_msg.type   = MSM_CAMERA_MSG;
 	rp->evt_msg.msg_id = id;
@@ -968,7 +968,7 @@ void vpe_proc_ops(uint8_t id, void *msg, size_t len)
 		rp->type = VPE_MSG_GENERAL;
 		break;
 	}
-	CDBG("%s: time = %ld\n",
+	printk("%s: time = %ld\n",
 			__func__, vpe_ctrl->ts.tv_nsec);
 
 	vpe_ctrl->resp->vpe_resp(rp, MSM_CAM_Q_VPE_MSG,
@@ -980,17 +980,17 @@ int vpe_config_axi(struct axidata *ad)
 {
 	uint32_t p1;
 	struct msm_pmem_region *regp1 = NULL;
-	CDBG("vpe_config_axi:bufnum1 = %d.\n", ad->bufnum1);
+	printk("vpe_config_axi:bufnum1 = %d.\n", ad->bufnum1);
 
 	if (ad->bufnum1 != 1)
 		return -EINVAL;
 
 	regp1 = &(ad->region[0]);
 	/* for video  Y address */
-	p1 = (regp1->paddr + regp1->info.planar0_off);
+	p1 = (regp1->paddr + regp1->info.y_off);
 	msm_io_w(p1, vpe_device->vpebase + VPE_OUTP0_ADDR_OFFSET);
 	/* for video  CbCr address */
-	p1 = (regp1->paddr + regp1->info.planar1_off);
+	p1 = (regp1->paddr + regp1->info.cbcr_off);
 	msm_io_w(p1, vpe_device->vpebase + VPE_OUTP1_ADDR_OFFSET);
 
 	return 0;
@@ -1007,11 +1007,11 @@ int msm_vpe_config(struct msm_vpe_cfg_cmd *cmd, void *data)
 				__LINE__);
 		return -EFAULT;
 	}
-	CDBG("%s: cmd_type %d\n", __func__, cmd->cmd_type);
+	printk("%s: cmd_type %d\n", __func__, cmd->cmd_type);
 	switch (cmd->cmd_type) {
 	case CMD_VPE:
 		rc = vpe_proc_general(&vpecmd);
-		CDBG(" rc = %d\n", rc);
+		printk(" rc = %d\n", rc);
 		break;
 
 	case CMD_AXI_CFG_VPE:
@@ -1027,7 +1027,7 @@ int msm_vpe_config(struct msm_vpe_cfg_cmd *cmd, void *data)
 	default:
 		break;
 	}
-	CDBG("%s: rc = %d\n", __func__, rc);
+	printk("%s: rc = %d\n", __func__, rc);
 	return rc;
 }
 
@@ -1085,7 +1085,7 @@ static void vpe_send_msg_no_payload(enum VPE_MESSAGE_ID id)
 {
 	struct vpe_message msg;
 
-	CDBG("vfe31_send_msg_no_payload\n");
+	printk("vfe31_send_msg_no_payload\n");
 	msg._d = id;
 	vpe_proc_ops(id, &msg, 0);
 }
@@ -1098,7 +1098,7 @@ static void vpe_do_tasklet(unsigned long data)
 
 	struct vpe_isr_queue_cmd_type *qcmd = NULL;
 
-	CDBG("=== vpe_do_tasklet start === \n");
+	printk("=== vpe_do_tasklet start === \n");
 
 	spin_lock_irqsave(&vpe_ctrl->tasklet_lock, flags);
 	qcmd = list_first_entry(&vpe_ctrl->tasklet_q,
@@ -1115,9 +1115,9 @@ static void vpe_do_tasklet(unsigned long data)
 	/* interrupt to be processed,  *qcmd has the payload.  */
 	if (qcmd->irq_status & 0x1) {
 		if (vpe_ctrl->output_type == OUTPUT_TYPE_ST_L) {
-			CDBG("vpe left frame done.\n");
+			printk("vpe left frame done.\n");
 			vpe_ctrl->output_type = 0;
-			CDBG("vpe send out msg.\n");
+			printk("vpe send out msg.\n");
 			orig_src_y = msm_io_r(vpe_device->vpebase +
 				VPE_SRCP0_ADDR_OFFSET);
 			orig_src_cbcr = msm_io_r(vpe_device->vpebase +
@@ -1127,7 +1127,7 @@ static void vpe_do_tasklet(unsigned long data)
 				VPE_OUTP0_ADDR_OFFSET);
 			pcbcraddr = msm_io_r(vpe_device->vpebase +
 				VPE_OUTP1_ADDR_OFFSET);
-			CDBG("%s: out_w = %d, out_h = %d\n", __func__,
+			printk("%s: out_w = %d, out_h = %d\n", __func__,
 				vpe_ctrl->out_w, vpe_ctrl->out_h);
 
 			if ((vpe_ctrl->frame_pack == TOP_DOWN_FULL) ||
@@ -1149,7 +1149,7 @@ static void vpe_do_tasklet(unsigned long data)
 					vpe_device->vpebase +
 					VPE_OUTP1_ADDR_OFFSET);
 			} else
-				CDBG("%s: Invalid packing = %d\n", __func__,
+				printk("%s: Invalid packing = %d\n", __func__,
 					vpe_ctrl->frame_pack);
 
 			vpe_send_msg_no_payload(MSG_ID_VPE_OUTPUT_ST_L);
@@ -1159,7 +1159,7 @@ static void vpe_do_tasklet(unsigned long data)
 		} else if (vpe_ctrl->output_type == OUTPUT_TYPE_ST_R) {
 			src_y = orig_src_y;
 			src_cbcr = orig_src_cbcr;
-			CDBG("%s: out_w = %d, out_h = %d\n", __func__,
+			printk("%s: out_w = %d, out_h = %d\n", __func__,
 				vpe_ctrl->out_w, vpe_ctrl->out_h);
 
 			if ((vpe_ctrl->frame_pack == TOP_DOWN_FULL) ||
@@ -1173,7 +1173,7 @@ static void vpe_do_tasklet(unsigned long data)
 				pyaddr = msm_io_r(vpe_device->vpebase +
 				VPE_OUTP0_ADDR_OFFSET) - vpe_ctrl->out_w;
 			} else
-				CDBG("%s: Invalid packing = %d\n", __func__,
+				printk("%s: Invalid packing = %d\n", __func__,
 					vpe_ctrl->frame_pack);
 
 			pcbcraddr = vpe_ctrl->pcbcr_before_dis;
@@ -1202,11 +1202,11 @@ static void vpe_do_tasklet(unsigned long data)
 
 		/*  now pass this frame to msm_camera.c. */
 		if (vpe_ctrl->output_type == OUTPUT_TYPE_ST_R) {
-			CDBG("vpe send out R msg.\n");
+			printk("vpe send out R msg.\n");
 			vpe_send_outmsg(MSG_ID_VPE_OUTPUT_ST_R, pyaddr,
 				pcbcraddr, pyaddr);
 		} else if (vpe_ctrl->output_type == OUTPUT_TYPE_V) {
-			CDBG("vpe send out V msg.\n");
+			printk("vpe send out V msg.\n");
 			vpe_send_outmsg(MSG_ID_VPE_OUTPUT_V, pyaddr,
 				pcbcraddr, pyaddr);
 		}
@@ -1225,7 +1225,7 @@ static irqreturn_t vpe_parse_irq(int irq_num, void *data)
 	uint32_t irq_status = 0;
 	struct vpe_isr_queue_cmd_type *qcmd;
 
-	CDBG("vpe_parse_irq.\n");
+	printk("vpe_parse_irq.\n");
 	/* read and clear back-to-back. */
 	irq_status = msm_io_r_mb(vpe_device->vpebase +
 							VPE_INTR_STATUS_OFFSET);
@@ -1271,7 +1271,7 @@ int msm_vpe_open(void)
 {
 	int rc = 0;
 
-	CDBG("%s: In \n", __func__);
+	printk("%s: In \n", __func__);
 
 	vpe_ctrl = kzalloc(sizeof(struct vpe_ctrl_type), GFP_KERNEL);
 	if (!vpe_ctrl) {
@@ -1280,7 +1280,7 @@ int msm_vpe_open(void)
 	}
 
 	spin_lock_init(&vpe_ctrl->ops_lock);
-	CDBG("%s: Out\n", __func__);
+	printk("%s: Out\n", __func__);
 
 	return rc;
 }
@@ -1289,7 +1289,7 @@ int msm_vpe_release(void)
 {
 	/* clean up....*/
 	int rc = 0;
-	CDBG("%s: state %d\n", __func__, vpe_ctrl->state);
+	printk("%s: state %d\n", __func__, vpe_ctrl->state);
 	if (vpe_ctrl->state != VPE_STATE_IDLE)
 		rc = vpe_disable();
 
@@ -1303,10 +1303,10 @@ int vpe_enable(uint32_t clk_rate)
 	int rc = 0;
 	unsigned long flags = 0;
 	/* don't change the order of clock and irq.*/
-	CDBG("%s: enable_clock rate %u\n", __func__, clk_rate);
+	printk("%s: enable_clock rate %u\n", __func__, clk_rate);
 	spin_lock_irqsave(&vpe_ctrl->ops_lock, flags);
 	if (vpe_ctrl->state != VPE_STATE_IDLE) {
-		CDBG("%s: VPE already enabled", __func__);
+		printk("%s: VPE already enabled", __func__);
 		spin_unlock_irqrestore(&vpe_ctrl->ops_lock, flags);
 		return 0;
 	}
@@ -1320,7 +1320,7 @@ int vpe_enable(uint32_t clk_rate)
 		return rc;
 	}
 
-	CDBG("%s: enable_irq\n", __func__);
+	printk("%s: enable_irq\n", __func__);
 	vpe_enable_irq();
 
 	/* initialize the data structure - lock, queue etc. */
@@ -1334,10 +1334,10 @@ int vpe_disable(void)
 {
 	int rc = 0;
 	unsigned long flags = 0;
-	CDBG("%s: called", __func__);
+	printk("%s: called", __func__);
 	spin_lock_irqsave(&vpe_ctrl->ops_lock, flags);
 	if (vpe_ctrl->state == VPE_STATE_IDLE) {
-		CDBG("%s: VPE already disabled", __func__);
+		printk("%s: VPE already disabled", __func__);
 		spin_unlock_irqrestore(&vpe_ctrl->ops_lock, flags);
 		return 0;
 	}

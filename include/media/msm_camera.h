@@ -245,9 +245,6 @@ struct msm_ctrl_cmd {
 	uint16_t status;
 	uint32_t timeout_ms;
 	int resp_fd; /* FIXME: to be used by the kernel, pass-through for now */
-	int vnode_id;  /* video dev id. Can we overload resp_fd? */
-	uint32_t stream_type; /* used to pass value to qcamera server */
-	int config_ident; /*used as identifier for config node*/
 };
 
 struct msm_cam_evt_msg {
@@ -499,9 +496,6 @@ struct msm_pmem_info {
 	uint32_t len;
 	uint32_t y_off;
 	uint32_t cbcr_off;
-	uint32_t planar0_off;
-	uint32_t planar1_off;
-	uint32_t planar2_off;
 	uint8_t active;
 };
 
@@ -568,26 +562,15 @@ struct msm_mem_map_info {
 struct msm_frame {
 	struct timespec ts;
 	int path;
-	int type;
 	unsigned long buffer;
-	uint32_t phy_offset;
 	uint32_t y_off;
 	uint32_t cbcr_off;
-	uint32_t planar0_off;
-	uint32_t planar1_off;
-	uint32_t planar2_off;
 	int fd;
 
 	void *cropinfo;
 	int croplen;
 	uint32_t error_code;
 	struct fd_roi_info roi_info;
-	uint32_t frame_id;
-	int stcam_quality_ind;
-	uint32_t stcam_conv_value;
-
-	struct ion_allocation_data ion_alloc;
-	struct ion_fd_data fd_data;
 };
 
 enum msm_st_frame_packing {
@@ -631,22 +614,11 @@ struct stats_buff {
 };
 
 struct msm_stats_buf {
-	uint8_t awb_ymin;
-	struct stats_buff aec;
-	struct stats_buff awb;
-	struct stats_buff af;
-	struct stats_buff ihist;
-	struct stats_buff rs;
-	struct stats_buff cs;
-	struct stats_buff skin;
 	int type;
-	uint32_t status_bits;
 	unsigned long buffer;
 	int fd;
-	int length;
-	struct ion_handle *handle;
-	uint32_t frame_id;
 };
+
 #define MSM_V4L2_EXT_CAPTURE_MODE_DEFAULT 0
 /* video capture mode in VIDIOC_S_PARM */
 #define MSM_V4L2_EXT_CAPTURE_MODE_PREVIEW \
@@ -782,10 +754,7 @@ struct msm_snapshot_pp_status {
 #define SENSOR_PREVIEW_MODE		0
 #define SENSOR_SNAPSHOT_MODE		1
 #define SENSOR_RAW_SNAPSHOT_MODE	2
-#define SENSOR_HFR_60FPS_MODE 3
-#define SENSOR_HFR_90FPS_MODE 4
-#define SENSOR_HFR_120FPS_MODE 5
-#define SENSOR_SNAPSHOT_TRANSFER 6
+#define SENSOR_SNAPSHOT_TRANSFER 4
 
 #define SENSOR_QTR_SIZE			0
 #define SENSOR_FULL_SIZE		1
