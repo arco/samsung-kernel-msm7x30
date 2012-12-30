@@ -321,7 +321,7 @@ enum  vfe_recording_state {
 #define V31_OUT_CLAMP_OFF         0x00000524
 #define V31_OUT_CLAMP_LEN         8
 
-#define V31_OPERATION_CFG_LEN     32
+#define V31_OPERATION_CFG_LEN     28
 
 #define V31_AXI_OUT_OFF           0x00000038
 #define V31_AXI_OUT_LEN           212
@@ -770,30 +770,35 @@ enum VFE31_MESSAGE_ID {
 	MSG_ID_OUTPUT_S,
 	MSG_ID_OUTPUT_V,
 	MSG_ID_SNAPSHOT_DONE,
-	MSG_ID_COMMON,
-	MSG_ID_EPOCH1, /* 10 */
+	MSG_ID_STATS_AEC,
+	MSG_ID_STATS_AF, /* 10 */
+	MSG_ID_STATS_AWB,
+	MSG_ID_STATS_RS,
+	MSG_ID_STATS_CS,
+	MSG_ID_STATS_IHIST,
+	MSG_ID_STATS_SKIN,
+	MSG_ID_EPOCH1,
 	MSG_ID_EPOCH2,
 	MSG_ID_SYNC_TIMER0_DONE,
 	MSG_ID_SYNC_TIMER1_DONE,
-	MSG_ID_SYNC_TIMER2_DONE,
+	MSG_ID_SYNC_TIMER2_DONE, /* 20 */
 	MSG_ID_ASYNC_TIMER0_DONE,
 	MSG_ID_ASYNC_TIMER1_DONE,
 	MSG_ID_ASYNC_TIMER2_DONE,
 	MSG_ID_ASYNC_TIMER3_DONE,
 	MSG_ID_AE_OVERFLOW,
-	MSG_ID_AF_OVERFLOW, /* 20 */
+	MSG_ID_AF_OVERFLOW,
 	MSG_ID_AWB_OVERFLOW,
 	MSG_ID_RS_OVERFLOW,
 	MSG_ID_CS_OVERFLOW,
-	MSG_ID_IHIST_OVERFLOW,
+	MSG_ID_IHIST_OVERFLOW, /* 30 */
 	MSG_ID_SKIN_OVERFLOW,
 	MSG_ID_AXI_ERROR,
 	MSG_ID_CAMIF_OVERFLOW,
 	MSG_ID_VIOLATION,
 	MSG_ID_CAMIF_ERROR,
-	MSG_ID_BUS_OVERFLOW, /* 30 */
+	MSG_ID_BUS_OVERFLOW,
 	MSG_ID_SOF_ACK,
-	MSG_ID_STOP_REC_ACK,
 };
 
 struct stats_buffer {
@@ -807,10 +812,10 @@ struct stats_buffer {
 	uint32_t skin;
 };
 
-struct vfe_msg_stats {
-	struct stats_buffer buff;
+
+struct vfe_msg_stats{
+	uint32_t    buffer;
 	uint32_t    frameCounter;
-	uint32_t    status_bits;
 };
 
 
@@ -842,9 +847,8 @@ struct vfe31_irq_status {
 
 struct vfe_msg_output {
 	uint8_t   output_id;
-	uint32_t  p0_addr;
-	uint32_t  p1_addr;
-	uint32_t  p2_addr;
+	uint32_t  yBuffer;
+	uint32_t  cbcrBuffer;
 	struct vfe_frame_bpc_info bpcInfo;
 	struct vfe_frame_asf_info asfInfo;
 	uint32_t  frameCounter;
@@ -879,9 +883,7 @@ struct vfe31_cmd_type {
 struct vfe31_free_buf {
 	struct list_head node;
 	uint32_t paddr;
-	uint32_t planar0_off;
-	uint32_t planar1_off;
-	uint32_t planar2_off;
+	uint32_t y_off;
 	uint32_t cbcr_off;
 };
 
