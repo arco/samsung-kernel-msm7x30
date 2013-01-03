@@ -2975,6 +2975,7 @@ out:
 #else
 static int msmsdcc_enable(struct mmc_host *mmc)
 {
+	int rc;
 	struct msmsdcc_host *host = mmc_priv(mmc);
 	unsigned long flags;
 

@@ -810,11 +810,12 @@ static inline int mdp4_mddi_on(struct platform_device *pdev)
 
 
 #ifndef CONFIG_FB_MSM_MDDI
+#if 0
 static inline void mdp4_mddi_rdptr_init(int cndx)
 {
 	/* empty */
 }
-
+#endif
 #endif
 
 void set_cont_splashScreen_status(int);
@@ -908,7 +909,15 @@ static inline void mdp4_iommu_detach(void)
 }
 #endif
 
+#ifdef CONFIG_FB_MSM_DTV
 void mdp_vid_quant_set(void);
+#else
+static inline void mdp_vid_quant_set(void)
+{
+	/* empty */
+}
+#endif
+
 #ifndef CONFIG_FB_MSM_MDP40
 static inline void mdp_dsi_cmd_overlay_suspend(struct msm_fb_data_type *mfd)
 {
