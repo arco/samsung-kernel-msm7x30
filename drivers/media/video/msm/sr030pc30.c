@@ -460,7 +460,7 @@ static void sr030pc30_set_power_rev00( int onoff)
 
     CAMDRV_DEBUG("(vreg_set_level(vreg_ldo20, 1800 \n");  
 
-    if(regulator_set_voltage(vreg_ldo20, 1800000)){
+    if(vreg_set_level(vreg_ldo20, 1800)){
         CAMDRV_DEBUG("[SR030PC30]%s: vreg_set_level failed\n", __func__);
     }
     if(onoff == 1) //POWER ON
