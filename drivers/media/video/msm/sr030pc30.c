@@ -1225,9 +1225,10 @@ int sr030pc30_sensor_esd_detected() //ESD
 }
 
 int sr030pc30_sensor_ext_config(void __user *argp)
+
 {
-    sensor_ext_cfg_data        cfg_data;
-    int rc=0;
+    sensor_ext_cfg_data cfg_data;
+    int rc = 0;
     int exposureTime_value1 = 0, exposureTime_value2 = 0, exposureTime_value3 = 0;
     int exposureTime = 0;
 
@@ -1236,79 +1237,81 @@ int sr030pc30_sensor_ext_config(void __user *argp)
     {
         printk(KERN_ERR "[CAMDRV/SR030PC300] %s fail copy_from_user!\n", __func__);
     }
-    
+
     switch (cfg_data.cmd)
     {
-        case EXT_CFG_SET_BRIGHTNESS:
-            printk(KERN_ERR "[CAMDRV/SR030PC300] EXT_CFG_SET_BRIGHTNESS (%d %d)\n",cfg_data.cmd,cfg_data.value_1);
-            rc = sr030pc30_set_ev(cfg_data.value_1);
-            break;
-        case EXT_CFG_SET_DTP:
-            printk(KERN_ERR "[CAMDRV/SR030PC300] EXT_CFG_SET_DTP (%d %d)\n",cfg_data.cmd,cfg_data.value_1);
-            rc = sr030pc30_set_dtp(cfg_data.value_1);
+    case EXT_CFG_SET_BRIGHTNESS:
+        printk(KERN_ERR "[CAMDRV/SR030PC300] EXT_CFG_SET_BRIGHTNESS (%d %d)\n", cfg_data.cmd, cfg_data.value_1);
+        rc = sr030pc30_set_ev(cfg_data.value_1);
+        break;
+    case EXT_CFG_SET_DTP:
+        printk(KERN_ERR "[CAMDRV/SR030PC300] EXT_CFG_SET_DTP (%d %d)\n", cfg_data.cmd, cfg_data.value_1);
+        rc = sr030pc30_set_dtp(cfg_data.value_1);
         if (cfg_data.value_1 == 0)
         {
-                cfg_data.value_2 = 2;
+            cfg_data.value_2 = 2;
         }
         else if (cfg_data.value_1 == 1)
         {
-                cfg_data.value_2 = 3;
-            }        
-            break;
-        case EXT_CFG_SET_FPS_MODE:
-            printk(KERN_ERR "[CAMDRV/SR030PC300] EXT_CFG_SET_FPS_MODE (%d %d)\n",cfg_data.cmd,cfg_data.value_1);
+            cfg_data.value_2 = 3;
+        }
+        break;
+    case EXT_CFG_SET_FPS_MODE:
+        printk(KERN_ERR "[CAMDRV/SR030PC300] EXT_CFG_SET_FPS_MODE (%d %d)\n", cfg_data.cmd, cfg_data.value_1);
 
-            rc = sr030pc30_set_fps_mode(cfg_data.value_1);
-            break;            
-        case EXT_CFG_SET_FPS:            
-            printk(KERN_ERR "[CAMDRV/SR030PC300] EXT_CFG_SET_FPS (%d %d)\n",cfg_data.cmd,cfg_data.value_1);
+        rc = sr030pc30_set_fps_mode(cfg_data.value_1);
+        break;
+    case EXT_CFG_SET_FPS:
+        printk(KERN_ERR "[CAMDRV/SR030PC300] EXT_CFG_SET_FPS (%d %d)\n", cfg_data.cmd, cfg_data.value_1);
 
-            rc = sr030pc30_set_fps(cfg_data.value_1);
-            break;
-        case EXT_CFG_SET_BLUR:
-            printk(KERN_ERR "[CAMDRV/SR030PC300] EXT_CFG_SET_BLUR (%d %d)\n",cfg_data.cmd,cfg_data.value_1);
-            rc = sr030pc30_set_blur(sr030pc30_ctrl->vtcall_mode, cfg_data.value_1);
-            break;
-        case EXT_CFG_SET_FRONT_CAMERA_MODE:
-            printk(KERN_ERR "[CAMDRV/SR030PC300] EXT_CFG_SET_FRONT_CAMERA_MODE (%d %d)\n",cfg_data.cmd,cfg_data.value_1);
-            sr030pc30_ctrl->vtcall_mode = cfg_data.value_1;
-            break;
-        case EXT_CFG_GET_VGACAM_ROTATED:
-            printk(KERN_ERR "[CAMDRV/SR030PC300] Set Camera Mirror (%d %d)\n",cfg_data.cmd,cfg_data.value_1);
-            b_VGA_mirror=cfg_data.value_1;   
-	        if(b_VGA_mirror)
-		    {
-		        SR030PC30_WRITE_LIST(sr030pc30_flip_water);			    
-		    }
-		    else
-		    {
-		        SR030PC30_WRITE_LIST(sr030pc30_flip_none);
-		    }
-			
-	        break;        
-        case EXT_CFG_GET_EXIF_INFO:
+        rc = sr030pc30_set_fps(cfg_data.value_1);
+        break;
+    case EXT_CFG_SET_BLUR:
+        printk(KERN_ERR "[CAMDRV/SR030PC300] EXT_CFG_SET_BLUR (%d %d)\n", cfg_data.cmd, cfg_data.value_1);
+        rc = sr030pc30_set_blur(sr030pc30_ctrl->vtcall_mode, cfg_data.value_1);
+        break;
+    case EXT_CFG_SET_FRONT_CAMERA_MODE:
+        printk(KERN_ERR "[CAMDRV/SR030PC300] EXT_CFG_SET_FRONT_CAMERA_MODE (%d %d)\n", cfg_data.cmd, cfg_data.value_1);
+        sr030pc30_ctrl->vtcall_mode = cfg_data.value_1;
+        break;
+    case EXT_CFG_GET_VGACAM_ROTATED:
+        printk(KERN_ERR "[CAMDRV/SR030PC300] Set Camera Mirror (%d %d)\n", cfg_data.cmd, cfg_data.value_1);
+        b_VGA_mirror = cfg_data.value_1;
+        if (b_VGA_mirror)
         {
-          printk(KERN_ERR "[CAMDRV/SR030PC300] EXT_CFG_GET_EXIF_INFO E\n");
+            SR030PC30_WRITE_LIST(sr030pc30_flip_water);
+        }
+        else
+        {
+            SR030PC30_WRITE_LIST(sr030pc30_flip_none);
+        }
+        msleep(300);
+        break;
 
-          /* read ISO */
-          rc = sr030pc30_i2c_write(0x03, 0x20);
-          sr030pc30_i2c_read(0xB0, &cfg_data.cmd);
-			
-          printk(KERN_ERR "[CAMDRV/SR030PC300] ISO **iso(%d)\n",cfg_data.cmd);
 
-          /* Exposure Time */
-          rc = sr030pc30_i2c_write(0x03, 0x20);
-          sr030pc30_i2c_read(0x80, &cfg_data.value_1);
-          sr030pc30_i2c_read(0x81, &cfg_data.value_2);
-          sr030pc30_i2c_read(0x82, &cfg_data.value_3);
-          cfg_data.value_3 = 0xff & cfg_data.value_3;
-          exposureTime = 12000000 / ((cfg_data.value_3<<3) | (cfg_data.value_2<<11) | (cfg_data.value_1<<19));
-          printk("[SR130PC10] cfg_data.value_1=0x%x, cfg_data.value_2=0x%x, cfg_data.value_3=0x%x\n", \
-                  cfg_data.value_1, cfg_data.value_2, cfg_data.value_3);
-          cfg_data.value_1 = exposureTime;
-          printk("[SR130PC10] exposureTime=%d\n", exposureTime);
-        }         
-            break;        
+    case EXT_CFG_GET_EXIF_INFO:
+        {
+            printk(KERN_ERR "[CAMDRV/SR030PC300] EXT_CFG_GET_EXIF_INFO E\n");
+
+            /* read ISO */
+            rc = sr030pc30_i2c_write(0x03, 0x20);
+            sr030pc30_i2c_read(0xB0, &cfg_data.cmd);
+
+            printk(KERN_ERR "[CAMDRV/SR030PC300] ISO **iso(%d)\n", cfg_data.cmd);
+
+            /* Exposure Time */
+            rc = sr030pc30_i2c_write(0x03, 0x20);
+            sr030pc30_i2c_read(0x80, &cfg_data.value_1);
+            sr030pc30_i2c_read(0x81, &cfg_data.value_2);
+            sr030pc30_i2c_read(0x82, &cfg_data.value_3);
+            cfg_data.value_3 = 0xff & cfg_data.value_3;
+            exposureTime = 12000000 / ((cfg_data.value_3 << 3) | (cfg_data.value_2 << 11) | (cfg_data.value_1 << 19));
+            printk("[SR130PC10] cfg_data.value_1=0x%x, cfg_data.value_2=0x%x, cfg_data.value_3=0x%x\n", \
+                   cfg_data.value_1, cfg_data.value_2, cfg_data.value_3);
+            cfg_data.value_1 = exposureTime;
+            printk("[SR130PC10] exposureTime=%d\n", exposureTime);
+        }
+        break;
 
 
         case EXT_CFG_TEST_ESD: //TELECA_ESD 
@@ -1323,8 +1326,10 @@ int sr030pc30_sensor_ext_config(void __user *argp)
           else
           {
             if(esd_enabled)
+            {
               printk("[SR030PC300] esd_enabled\n");
-              return;
+              return rc;
+            }
               
             esd_enabled=1;
             mPreviewRegistersSet = 0;
@@ -1341,17 +1346,19 @@ int sr030pc30_sensor_ext_config(void __user *argp)
           
           }
         break;
-        default:
-            break;
+    default:
+        break;
     }
 
     if (copy_to_user((void *)argp, (const void *)&cfg_data, sizeof(cfg_data)))
     {
         printk(" %s : copy_to_user Failed \n", __func__);
     }
-    
-    return rc;    
+
+    return rc;
 }
+
+
 
 int sr030pc30_sensor_config(void __user *argp)
 {
@@ -1390,7 +1397,7 @@ static int sr030pc30_sensor_release(void)
     printk(KERN_ERR "[CAMDRV/SR030PC300] %s E\n",__FUNCTION__);
     mPreviewRegistersSet = 0;   // Exiting sensor driver. Hence set this flag back to 0.
     esd_enabled=0;
-
+    
     sr030pc30_set_power(0);
     kfree(sr030pc30_ctrl);
 #ifdef CONFIG_LOAD_FILE

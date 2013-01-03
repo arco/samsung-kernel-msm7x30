@@ -68,6 +68,12 @@
 #define SR130PC10_EV_PLUS_3     3
 #define SR130PC10_EV_PLUS_4     4
 
+/* DTP */
+#define SR130PC10_DTP_OFF		0
+#define SR130PC10_DTP_ON		1
+#define SR130PC10_DTP_OFF_ACK		2
+#define SR130PC10_DTP_ON_ACK		3
+
 #define SR130PC10_WRITE_LIST(A) \
     {\
         sr130pc10_sensor_write_list(A,(sizeof(A) / sizeof(A[0])),#A);\
@@ -109,6 +115,33 @@ static int sr130pc10_set_power(int onoff);
 ==============================================================*/
 extern struct sr130pc10_reg sr130pc10_regs;
 
+//paul_1013
+extern struct i2c_client *lp8720_i2c_client;
+
+static inline int lp8720_i2c_write(unsigned char addr, unsigned char data)
+{
+    printk("[CAMDRV/SR130PC10] lp8720_i2c_write begin\n");
+
+    int rc;
+    unsigned char buf[2];
+    struct i2c_msg msg = {
+        .addr = lp8720_i2c_client->addr,
+        .flags = 0,
+        .len = 2,
+        .buf = buf,
+    };
+
+    buf[0] = addr;
+    buf[1] = data;
+
+    rc = i2c_transfer(lp8720_i2c_client->adapter, &msg, 1);
+    if (rc < 0)
+        printk(KERN_ERR "[CAMDRV/SR130PC10] %s: lp8720_i2c_write failed: %d\n",__func__, rc);        
+
+    printk("[CAMDRV/SR130PC10] lp8720_i2c_write finish\n");
+
+    return (rc == 1) ? 0 : -EIO;
+}
 
 /*=============================================================*/
 static int sr130pc10_sensor_read(unsigned short subaddr, unsigned short *data)
@@ -198,14 +231,16 @@ void sr130pc10_set_preview(void)
     int shade_value = 0;
     unsigned short agc_value = 0;
 	preview_enable = 1; //Setting preview flag 
+#if 0
     if(prev_vtcall_mode==sr130pc10_ctrl->vtcall_mode)
         return;
-    
+#endif
     printk(KERN_ERR "[SR130PC10] sr130pc10_set_preview : dtp(%d), vt(%d)\n",sr130pc10_ctrl->dtp_mode, sr130pc10_ctrl->vtcall_mode);
 
     if(!sr130pc10_ctrl->dtp_mode) {
         if(sr130pc10_ctrl->vtcall_mode) {
-            SR130PC10_WRITE_LIST(sr130pc10_init_vt_reg);
+            SR130PC10_WRITE_LIST(sr130pc10_preview_reg); // preview start
+            //SR130PC10_WRITE_LIST(sr130pc10_init_vt_reg);
             SR130PC10_WRITE_LIST(sr130pc10_fps_15);
         } else {
             SR130PC10_WRITE_LIST(sr130pc10_preview_reg); // preview start
@@ -511,10 +546,6 @@ static int sr130pc10_set_power(int onoff)
     }
 /* end of test1 */
 
-
-
-
-
   if(onoff)
   {
     printk("<=PCAM=> ++++++++++++++++++++++++++sr130pc10 test driver++++++++++++++++++++++++++++++++++++ \n");
@@ -538,20 +569,25 @@ static int sr130pc10_set_power(int onoff)
     gpio_set_value(CAM_VT_nSTBY, 0);	
     
     mdelay(1);
-    gpio_set_value(CAM_EN, 1); //CAM_EN->UP	
 
-#if 1
-        if (vreg_enable(vreg_ldo20)) {
-            printk("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!![S5K4ECGX]%s: reg_enable failed\n", __func__);
-        }
-        if (vreg_enable(vreg_ldo11)) {
-            printk("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!![S5K4ECGX]%s: reg_enable failed\n", __func__);
-        }
-#else
-    vreg_enable(vreg_ldo20);
+    //LDO3 1.8v
+    lp8720_i2c_write(0x03, 0x0C);            // 010 01100
+        
+    lp8720_i2c_write(0x08, 0x00);
+    gpio_set_value(CAM_EN, 1); //CAM_EN->UP	lp8720 enable
+
+    //LDO3 1.8v enable        
+    lp8720_i2c_write(0x08, 0x04);
     mdelay(1);
-    vreg_enable(vreg_ldo11);
-#endif
+
+    if (vreg_enable(vreg_ldo20)) {//LDO20 powers both VDDIO 1.8V and 1.3M Core 1.8V
+      printk("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!![SR130PC10]%s: reg_enable failed\n", __func__);
+    }
+    if (vreg_enable(vreg_ldo11)) { //AVDD 2.8V
+      printk("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!![SR130PC10]%s: reg_enable failed\n", __func__);
+    }
+    udelay(100);
+    
     gpio_set_value(CAM_VT_nSTBY, 1); //VGA_STBY UP
     udelay(5);
     
@@ -573,6 +609,7 @@ static int sr130pc10_set_power(int onoff)
     gpio_set_value(CAM_STANDBY,0);
 
     mdelay(1);
+    lp8720_i2c_write(0x08, 0x00);
     gpio_set_value(CAM_EN, 0); //CAM_EN->UP	
 
     printk("I2C Disable \n"); 
@@ -582,28 +619,19 @@ static int sr130pc10_set_power(int onoff)
     gpio_set_value(CAM_VT_RST, 0); //REST -> DOWN
     mdelay(2);
     gpio_tlmm_config(GPIO_CFG(CAM_MCLK, 1,GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_DISABLE);
-    udelay(5);
+    udelay(50);
     gpio_set_value(CAM_VT_nSTBY, 0); //STBY -> DOWN
     udelay(5);
 
-#if 1
-		//Entering shutdown mode
-		if (vreg_disable(vreg_ldo11)) {  //Power down VDDIO 1.8V and 1.3Mcore 1.8V
-            printk("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!![S5K4ECGX]%s: reg_disable failed\n", __func__);
-        }
-        mdelay(1);
-        if (vreg_disable(vreg_ldo20)) {  //Power down AVDD 2.8V 
-            printk("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!![S5K4ECGX]%s: reg_disable failed\n", __func__);
-        }
-#else
-    vreg_disable(vreg_get(NULL, "gp2"));
+    //Entering shutdown mode
+    if (vreg_disable(vreg_ldo11)) {  //Power down AVDD 2.8V 
+      printk("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!![SR130PC10]%s: reg_disable failed\n", __func__);
+    }
     mdelay(1);
-    
-    vreg_disable(vreg_get(NULL, "gp13"));
-    mdelay(1);
-#endif
-//	gpio_set_value(CAM_EN, 0); //EN -> DOWN
-//	mdelay(1);
+    if (vreg_disable(vreg_ldo20)) {  //Power down VDDIO 1.8V and 1.3Mcore 1.8V
+      printk("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!![SR130PC10]%s: reg_disable failed\n", __func__);
+    }
+
   }
 }
 
@@ -692,12 +720,9 @@ int sr130pc10_regs_table_init(void)
 	printk("%s %d\n", __func__, __LINE__);
 
 	set_fs(get_ds());
-#if 0
-	//filp = filp_open("/data/camera/sr130pc10.h", O_RDONLY, 0);
+
 	filp = filp_open("/data/sr130pc10.h", O_RDONLY, 0);
-#else
-	filp = filp_open("/mnt/sdcard/sr130pc10.h", O_RDONLY, 0);
-#endif
+
 	if (IS_ERR(filp)) {
 		printk("file open error %d\n", PTR_ERR(filp));
 		return -1;
@@ -912,6 +937,24 @@ static int sr130pc10_set_dtp(int onoff)
     return 0;
 }
 
+static int sr130pc10_set_fps_mode(unsigned int mode) 
+{
+    printk(KERN_ERR "[CAMDRV/sr130pc10]  %s -mode : %d \n",__FUNCTION__,mode);
+    
+    if((mode == EXT_CFG_FRAME_AUTO) || (mode > EXT_CFG_FRAME_FIX_30))
+    { 
+        printk(KERN_ERR "[CAMDRV/sr130pc10] mode change to CAMERA_MODE");
+        sr130pc10_ctrl->vtcall_mode = 0;
+    }     
+    else
+    {
+        printk(KERN_ERR "[CAMDRV/sr130pc10] mode change to CAMCORDER_MODE");
+        sr130pc10_ctrl->vtcall_mode = 1;
+    }
+   
+    return 0;
+}
+
 int sr130pc10_sensor_ext_config(void __user *argp)
 {
     long ext_config_return = 0;
@@ -942,6 +985,11 @@ int sr130pc10_sensor_ext_config(void __user *argp)
             cfg_data.value_1 = exposureTime;
             printk("[SR130PC10] EXT_CFG_GET_EXIF_INFO: A(%x), B(%x), C(%x)\n", exposureTime_value1, exposureTime_value2, exposureTime_value3);
             printk("[SR130PC10] exposureTime=%d\n", exposureTime);
+
+            // ISO
+            sr130pc10_sensor_write(0x03, 0x20);
+            sr130pc10_sensor_read(0xB0, &cfg_data.cmd);
+            printk(KERN_ERR "[SR130PC10] ISO **iso(%d)\n", cfg_data.cmd);
             break;
          case EXT_CFG_SET_BRIGHTNESS:
          //  printk(KERN_ERR "[CAMDRV/SR130PC10] EXT_CFG_SET_BRIGHTNESS *** ( %d) brightness =%d preview_enable = %d \n",cfg_data.value_1, ,brightness,preview_enable);
@@ -960,6 +1008,7 @@ int sr130pc10_sensor_ext_config(void __user *argp)
             break;
          case EXT_CFG_SET_FPS_MODE:
          // printk(KERN_ERR "[CAMDRV/SR130PC100] EXT_CFG_SET_FPS_MODE ***(%d %d)\n",cfg_data.cmd,cfg_data.value_1);
+            sr130pc10_set_fps_mode(cfg_data.value_1); 
             break;
         case EXT_CFG_SET_WB:
             sr1_whiteBalance = cfg_data.value_1;
@@ -1127,7 +1176,7 @@ static int sr130pc10_sensor_probe(const struct msm_camera_sensor_info *info,
     i2c_del_driver(&sr130pc10_i2c_driver);
     goto probe_done;
   }
-  
+
   printk("[SR130PC10] %s/%d \n", __func__, __LINE__);	
   printk("[SR130PC10] sr130pc10_client->addr : %x\n", sr130pc10_client->addr);
   printk("[SR130PC10] sr130pc10_client->adapter->nr : %d\n", sr130pc10_client->adapter->nr);
