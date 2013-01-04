@@ -132,7 +132,6 @@ struct bma_acc_private_data {
     struct bma_acc_data last;
     int suspend;
     int suspend_enable;
-    int ref_count;
 };
 
 struct bma_acc{
@@ -158,24 +157,17 @@ static int bma_acc_open(struct inode *inode, struct file *file)
 	//struct bma_acc_private_data* data = container_of(file -> private_data,
 	//											struct bma_acc_private_data,
 	//											bma_acc_device);
+	printk("yac_acc_open\n");
 	struct bma_acc_private_data* data = gbma_acc;
-
-	printk("yac_acc_open(%d)\n", data->ref_count);
-	if(data->ref_count++ == 0)
-	{
 	err = bma_acc_set_enable(data->driver, 1);
-	}
-
 	file -> private_data = data;
 	return err;
 }
 static int bma_acc_close(struct inode *inode, struct file *file)
 {
 	int err= 0 ;
+	printk("yac_acc_close\n");
 	struct bma_acc_private_data* data = gbma_acc;
-
-	printk("yac_acc_close (%d)\n", data->ref_count);
-	if(--data->ref_count == 0)
 	err = bma_acc_set_enable(data->driver, 0);
 
 	return err;
