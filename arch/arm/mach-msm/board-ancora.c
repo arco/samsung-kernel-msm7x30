@@ -1246,52 +1246,6 @@ static struct i2c_board_info cy8info[] __initdata = {
 };
 
 static struct i2c_board_info msm_camera_boardinfo[] __initdata = {
-#ifdef CONFIG_MT9D112
-	{
-		I2C_BOARD_INFO("mt9d112", 0x78 >> 1),
-	},
-#endif
-#ifdef CONFIG_WEBCAM_OV9726
-	{
-		I2C_BOARD_INFO("ov9726", 0x10),
-	},
-#endif
-#ifdef CONFIG_S5K3E2FX
-	{
-		I2C_BOARD_INFO("s5k3e2fx", 0x20 >> 1),
-	},
-#endif
-#ifdef CONFIG_MT9P012
-	{
-		I2C_BOARD_INFO("mt9p012", 0x6C >> 1),
-	},
-#endif
-#ifdef CONFIG_VX6953
-	{
-		I2C_BOARD_INFO("vx6953", 0x20),
-	},
-#endif
-#ifdef CONFIG_MT9E013
-	{
-		I2C_BOARD_INFO("mt9e013", 0x6C >> 2),
-	},
-#endif
-#ifdef CONFIG_SN12M0PZ
-	{
-		I2C_BOARD_INFO("sn12m0pz", 0x34 >> 1),
-	},
-#endif
-#if defined(CONFIG_MT9T013) || defined(CONFIG_SENSORS_MT9T013)
-	{
-		I2C_BOARD_INFO("mt9t013", 0x6C),
-	},
-#endif
-#if defined (CONFIG_SENSOR_MC7)
-	{
-		I2C_BOARD_INFO("lsi_mc7", 0x3F >> 1),
-		.irq = MSM_GPIO_TO_INT(175),
-	},
-#endif
 #ifdef CONFIG_SENSOR_S5K4ECGX
 	{
 		I2C_BOARD_INFO("s5k4ecgx", 0x5A>>1),
@@ -1305,42 +1259,6 @@ static struct i2c_board_info msm_camera_boardinfo[] __initdata = {
 };
 
 static struct i2c_board_info msm_camera_rev01_boardinfo[] __initdata = {    //[diony] rear camera slave adress change (rev0.1)
-#ifdef CONFIG_MT9D112
-	{
-		I2C_BOARD_INFO("mt9d112", 0x78 >> 1),
-	},
-#endif
-#ifdef CONFIG_S5K3E2FX
-	{
-		I2C_BOARD_INFO("s5k3e2fx", 0x20 >> 1),
-	},
-#endif
-#ifdef CONFIG_MT9P012
-	{
-		I2C_BOARD_INFO("mt9p012", 0x6C >> 1),
-	},
-#endif
-#ifdef CONFIG_VX6953
-	{
-		I2C_BOARD_INFO("vx6953", 0x20),
-	},
-#endif
-#ifdef CONFIG_SN12M0PZ
-	{
-		I2C_BOARD_INFO("sn12m0pz", 0x34 >> 1),
-	},
-#endif
-#if defined(CONFIG_MT9T013) || defined(CONFIG_SENSORS_MT9T013)
-	{
-		I2C_BOARD_INFO("mt9t013", 0x6C),
-	},
-#endif
-#if defined (CONFIG_SENSOR_MC7)
-	{
-		I2C_BOARD_INFO("lsi_mc7", 0x3F >> 1),
-		.irq = MSM_GPIO_TO_INT(175),
-	},
-#endif
 #ifdef CONFIG_SENSOR_S5K4ECGX
 	{
 		I2C_BOARD_INFO("s5k4ecgx", 0xAC>>1),
@@ -4770,7 +4688,7 @@ static struct lcdc_platform_data lcdc_pdata = {
 static void __init msm_fb_add_devices(void)
 {
 	msm_fb_register_device("mdp", &mdp_pdata);
-	msm_fb_register_device("pmdh", &mddi_pdata);
+	//msm_fb_register_device("pmdh", &mddi_pdata);
 	msm_fb_register_device("lcdc", &lcdc_pdata);
 #ifdef CONFIG_FB_MSM_TVOUT
 	msm_fb_register_device("tvout_device", NULL);
@@ -5564,30 +5482,6 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_SENSOR_SR030PC30
 	&msm_camera_sensor_sr030pc30,
-#endif
-#ifdef CONFIG_MT9T013
-	&msm_camera_sensor_mt9t013,
-#endif
-#ifdef CONFIG_MT9D112
-	&msm_camera_sensor_mt9d112,
-#endif
-#ifdef CONFIG_WEBCAM_OV9726
-	&msm_camera_sensor_ov9726,
-#endif
-#ifdef CONFIG_S5K3E2FX
-	&msm_camera_sensor_s5k3e2fx,
-#endif
-#ifdef CONFIG_MT9P012
-	&msm_camera_sensor_mt9p012,
-#endif
-#ifdef CONFIG_MT9E013
-	&msm_camera_sensor_mt9e013,
-#endif
-#ifdef CONFIG_VX6953
-	&msm_camera_sensor_vx6953,
-#endif
-#ifdef CONFIG_SN12M0PZ
-	&msm_camera_sensor_sn12m0pz,
 #endif
 	&msm_device_vidc_720p,
 #ifdef CONFIG_MSM_GEMINI
