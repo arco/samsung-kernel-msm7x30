@@ -1,4 +1,4 @@
-/* Copyright (c) 2002,2007-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2002,2007-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -617,6 +617,12 @@ static void build_regsave_cmds(struct adreno_device *adreno_dev,
 	*cmd++ = REG_TP0_CHICKEN;
 	*cmd++ = tmp_ctx.reg_values[1];
 
+	if (adreno_is_a20x(adreno_dev)) {
+		*cmd++ = cp_type3_packet(CP_REG_TO_MEM, 2);
+		*cmd++ = REG_RB_BC_CONTROL;
+		*cmd++ = tmp_ctx.reg_values[2];
+	}
+
 	if (adreno_is_a22x(adreno_dev)) {
 		unsigned int i;
 		unsigned int j = 2;
@@ -1136,6 +1142,12 @@ static void build_regrestore_cmds(struct adreno_device *adreno_dev,
 	*cmd++ = cp_type0_packet(REG_TP0_CHICKEN, 1);
 	tmp_ctx.reg_values[1] = virt2gpu(cmd, &drawctxt->gpustate);
 	*cmd++ = 0x00000000;
+
+	if (adreno_is_a20x(adreno_dev)) {
+		*cmd++ = cp_type0_packet(REG_RB_BC_CONTROL, 1);
+		tmp_ctx.reg_values[2] = virt2gpu(cmd, &drawctxt->gpustate);
+		*cmd++ = 0x00000000;
+	}
 
 	if (adreno_is_a22x(adreno_dev)) {
 		unsigned int i;
