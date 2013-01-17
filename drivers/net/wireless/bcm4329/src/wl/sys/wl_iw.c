@@ -701,7 +701,7 @@ wl_iw_set_country(
     int i = 0;
 
     while ((i++ < 6) && (g_first_broadcast_scan < BROADCAST_SCAN_FIRST_RESULT_CONSUMED)) {
-		msleep(500);
+		msleep(100);
     }
     i = 0;
     size = ARRAYSIZE(country_rev_map);
