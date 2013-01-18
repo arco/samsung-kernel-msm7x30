@@ -147,7 +147,11 @@ static struct dbs_tuners {
 	.ignore_nice = 0,
 	.powersave_bias = 0,
 	.freq_boost_time = DEFAULT_FREQ_BOOST_TIME,
-	.boostfreq = 1512000,
+#ifdef CONFIG_MACH_ANCORA_TMO
+	.boostfreq = 1024000,
+#else
+	.boostfreq = 1401600,
+#endif
 };
 
 static inline u64 get_cpu_idle_time_jiffy(unsigned int cpu, u64 *wall)
