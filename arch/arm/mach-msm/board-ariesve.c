@@ -150,6 +150,13 @@ EXPORT_SYMBOL(switch_dev);
 #define MSM_FB_PRIM_BUF_SIZE	(800 * 480 * 4 * 2) /* 4bpp * 2 Pages */
 #endif
 
+#ifdef CONFIG_FB_MSM_OVERLAY0_WRITEBACK
+/* width x height x 3 bpp x 2 frame buffer */
+#define MSM_FB_OVERLAY0_WRITEBACK_SIZE roundup((800 * 480 * 3 * 2), 4096)
+#else
+#define MSM_FB_OVERLAY0_WRITEBACK_SIZE	0
+#endif
+
 #define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE, 4096)
 
 /*
@@ -7418,61 +7425,7 @@ static int __init pmem_kernel_ebi0_size_setup(char *p)
 }
 early_param("pmem_kernel_ebi0_size", pmem_kernel_ebi0_size_setup);
 
-#ifdef CONFIG_ION_MSM
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-static struct ion_co_heap_pdata co_ion_pdata = {
-	.adjacent_mem_id = INVALID_HEAP_ID,
-	.align = PAGE_SIZE,
-};
-#endif
 
-/**
- * These heaps are listed in the order they will be allocated.
- * Don't swap the order unless you know what you are doing!
- */
-static struct ion_platform_data ion_pdata = {
-	.nr = MSM_ION_HEAP_NUM,
-	.heaps = {
-		{
-			.id	= ION_SYSTEM_HEAP_ID,
-			.type	= ION_HEAP_TYPE_SYSTEM,
-			.name	= ION_VMALLOC_HEAP_NAME,
-		},
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-		/* PMEM_ADSP = CAMERA */
-		{
-			.id	= ION_CAMERA_HEAP_ID,
-			.type	= ION_HEAP_TYPE_CARVEOUT,
-			.name	= ION_CAMERA_HEAP_NAME,
-			.memory_type = ION_EBI_TYPE,
-			.extra_data = (void *)&co_ion_pdata,
-		},
-		/* PMEM_AUDIO */
-		{
-			.id	= ION_AUDIO_HEAP_ID,
-			.type	= ION_HEAP_TYPE_CARVEOUT,
-			.name	= ION_AUDIO_HEAP_NAME,
-			.memory_type = ION_EBI_TYPE,
-			.extra_data = (void *)&co_ion_pdata,
-		},
-		/* PMEM_MDP = SF */
-		{
-			.id	= ION_SF_HEAP_ID,
-			.type	= ION_HEAP_TYPE_CARVEOUT,
-			.name	= ION_SF_HEAP_NAME,
-			.memory_type = ION_EBI_TYPE,
-			.extra_data = (void *)&co_ion_pdata,
-		},
-#endif
-	}
-};
-
-static struct platform_device ion_dev = {
-	.name = "ion-msm",
-	.id = 1,
-	.dev = { .platform_data = &ion_pdata },
-};
-#endif
 
 static struct memtype_reserve msm7x30_reserve_table[] __initdata = {
 	[MEMTYPE_SMI] = {
@@ -7485,80 +7438,48 @@ static struct memtype_reserve msm7x30_reserve_table[] __initdata = {
 	},
 };
 
-unsigned long size;
-unsigned long msm_ion_camera_size;
-
-static void fix_sizes(void)
+static void __init size_pmem_devices(void)
 {
+#ifdef CONFIG_ANDROID_PMEM
 	unsigned long size;
 
 	if machine_is_msm7x30_fluid()
 		size = fluid_pmem_adsp_size;
 	else
 		size = pmem_adsp_size;
-#ifdef CONFIG_ION_MSM
-	msm_ion_camera_size = size;
-#endif
-}
-
-static void __init size_pmem_devices(void)
-{
-#ifdef CONFIG_ANDROID_PMEM
-#ifndef CONFIG_MSM_MULTIMEDIA_USE_ION
-
 	android_pmem_adsp_pdata.size = size;
 	android_pmem_audio_pdata.size = pmem_audio_size;
 	android_pmem_pdata.size = pmem_sf_size;
 #endif
-#endif
 }
 
-#ifdef CONFIG_ANDROID_PMEM
-#ifndef CONFIG_MSM_MULTIMEDIA_USE_ION
 static void __init reserve_memory_for(struct android_pmem_platform_data *p)
 {
 	msm7x30_reserve_table[p->memory_type].size += p->size;
 }
-#endif
-#endif
 
 static void __init reserve_pmem_memory(void)
 {
 #ifdef CONFIG_ANDROID_PMEM
-#ifndef CONFIG_MSM_MULTIMEDIA_USE_ION
 	reserve_memory_for(&android_pmem_adsp_pdata);
 	reserve_memory_for(&android_pmem_audio_pdata);
 	reserve_memory_for(&android_pmem_pdata);
 	msm7x30_reserve_table[MEMTYPE_EBI0].size += pmem_kernel_ebi0_size;
 #endif
-#endif
 }
 
-static void __init size_ion_devices(void)
-{
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-	ion_pdata.heaps[1].size = msm_ion_camera_size;
-	ion_pdata.heaps[2].size = MSM_ION_AUDIO_SIZE;
-	ion_pdata.heaps[3].size = MSM_ION_SF_SIZE;
-#endif
-}
 
-static void __init reserve_ion_memory(void)
+static void __init reserve_mdp_memory(void)
 {
-#if defined(CONFIG_ION_MSM) && defined(CONFIG_MSM_MULTIMEDIA_USE_ION)
-	msm7x30_reserve_table[MEMTYPE_EBI0].size += msm_ion_camera_size;
-	msm7x30_reserve_table[MEMTYPE_EBI0].size += MSM_ION_AUDIO_SIZE;
-	msm7x30_reserve_table[MEMTYPE_EBI0].size += MSM_ION_SF_SIZE;
-#endif
+	mdp_pdata.ov0_wb_size = MSM_FB_OVERLAY0_WRITEBACK_SIZE;
+	msm7x30_reserve_table[mdp_pdata.mem_hid].size += mdp_pdata.ov0_wb_size;
 }
 
 static void __init msm7x30_calculate_reserve_sizes(void)
 {
-	fix_sizes();
 	size_pmem_devices();
 	reserve_pmem_memory();
-	size_ion_devices();
-	reserve_ion_memory();
+	reserve_mdp_memory();
 }
 
 static int msm7x30_paddr_to_memtype(unsigned int paddr)
@@ -7646,81 +7567,4 @@ MACHINE_START(ARIESVE, "GT-I9001 Board")
 	.init_early = msm7x30_init_early,
 	.handle_irq = vic_handle_irq,
 	.fixup = msm7x30_fixup,
-MACHINE_END
-
-MACHINE_START(MSM7X30_SURF, "QCT MSM7X30 SURF")
-	.boot_params = PLAT_PHYS_OFFSET + 0x100,
-	.map_io = msm7x30_map_io,
-	.reserve = msm7x30_reserve,
-	.init_irq = msm7x30_init_irq,
-	.init_machine = msm7x30_init,
-	.timer = &msm_timer,
-	.init_early = msm7x30_init_early,
-	.handle_irq = vic_handle_irq,
-MACHINE_END
-
-MACHINE_START(MSM7X30_FFA, "QCT MSM7X30 FFA")
-	.boot_params = PLAT_PHYS_OFFSET + 0x100,
-	.map_io = msm7x30_map_io,
-	.reserve = msm7x30_reserve,
-	.init_irq = msm7x30_init_irq,
-	.init_machine = msm7x30_init,
-	.timer = &msm_timer,
-	.init_early = msm7x30_init_early,
-	.handle_irq = vic_handle_irq,
-MACHINE_END
-
-MACHINE_START(MSM7X30_FLUID, "QCT MSM7X30 FLUID")
-	.boot_params = PLAT_PHYS_OFFSET + 0x100,
-	.map_io = msm7x30_map_io,
-	.reserve = msm7x30_reserve,
-	.init_irq = msm7x30_init_irq,
-	.init_machine = msm7x30_init,
-	.timer = &msm_timer,
-	.init_early = msm7x30_init_early,
-	.handle_irq = vic_handle_irq,
-MACHINE_END
-
-MACHINE_START(MSM8X55_SURF, "QCT MSM8X55 SURF")
-	.boot_params = PHYS_OFFSET + 0x100,
-	.map_io = msm7x30_map_io,
-	.reserve = msm7x30_reserve,
-	.init_irq = msm7x30_init_irq,
-	.init_machine = msm7x30_init,
-	.timer = &msm_timer,
-	.init_early = msm7x30_init_early,
-	.handle_irq = vic_handle_irq,
-MACHINE_END
-
-MACHINE_START(MSM8X55_FFA, "QCT MSM8X55 FFA")
-	.boot_params = PHYS_OFFSET + 0x100,
-	.map_io = msm7x30_map_io,
-	.reserve = msm7x30_reserve,
-	.init_irq = msm7x30_init_irq,
-	.init_machine = msm7x30_init,
-	.timer = &msm_timer,
-	.init_early = msm7x30_init_early,
-	.handle_irq = vic_handle_irq,
-MACHINE_END
-
-MACHINE_START(MSM8X55_SVLTE_SURF, "QCT MSM8X55 SVLTE SURF")
-	.boot_params = PHYS_OFFSET + 0x100,
-	.map_io = msm7x30_map_io,
-	.reserve = msm7x30_reserve,
-	.init_irq = msm7x30_init_irq,
-	.init_machine = msm7x30_init,
-	.timer = &msm_timer,
-	.init_early = msm7x30_init_early,
-	.handle_irq = vic_handle_irq,
-MACHINE_END
-
-MACHINE_START(MSM8X55_SVLTE_FFA, "QCT MSM8X55 SVLTE FFA")
-	.boot_params = PHYS_OFFSET + 0x100,
-	.map_io = msm7x30_map_io,
-	.reserve = msm7x30_reserve,
-	.init_irq = msm7x30_init_irq,
-	.init_machine = msm7x30_init,
-	.timer = &msm_timer,
-	.init_early = msm7x30_init_early,
-	.handle_irq = vic_handle_irq,
 MACHINE_END
