@@ -2164,8 +2164,11 @@ void mgmt_inquiry_complete_evt(u16 index, u8 status)
 
 		mgmt_event(MGMT_EV_DISCOVERING, index, &cp, sizeof(cp), NULL);
 
-		if (hdev)
+		if (hdev) {
+			BT_DBG("Setting state to SCAN_IDLE\n");
+			hdev->disco_state = SCAN_IDLE;
 			goto done;
+		}
 		else
 			return;
 	}
