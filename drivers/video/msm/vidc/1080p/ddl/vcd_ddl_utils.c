@@ -112,10 +112,10 @@ void *ddl_pmem_alloc(struct ddl_buf_addr *addr, size_t sz, u32 alignment)
 					&iova,
 					&buffer_size,
 					UNCACHED, 0);
-			if (ret || !iova) {
+			if (ret) {
 				DDL_MSG_ERROR(
-				"%s():DDL ION ion map iommu failed, ret = %d iova = 0x%lx\n",
-					__func__, ret, iova);
+				"%s():DDL ION ion map iommu failed\n",
+				 __func__);
 				goto unmap_ion_alloc;
 			}
 			addr->alloced_phys_addr = (phys_addr_t) iova;
