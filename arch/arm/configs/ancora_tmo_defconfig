@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.59 Kernel Configuration
+# Linux/arm 3.0.61 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -429,7 +429,6 @@ CONFIG_MSM_SHOW_RESUME_IRQ=y
 # CONFIG_MSM_RPC_VIBRATOR is not set
 CONFIG_MSM_SPM_V1=y
 # CONFIG_MSM_SPM_V2 is not set
-CONFIG_MSM_MULTIMEDIA_USE_ION=y
 # CONFIG_MSM_RTB is not set
 # CONFIG_MSM_CACHE_DUMP is not set
 
@@ -1836,7 +1835,6 @@ CONFIG_VIDEO_HELPER_CHIPS_AUTO=y
 #
 # CONFIG_VIDEO_VIVI is not set
 # CONFIG_VIDEO_CPIA2 is not set
-# CONFIG_VIDEO_SR030PC30 is not set
 # CONFIG_VIDEO_NOON010PC30 is not set
 # CONFIG_SOC_CAMERA is not set
 # CONFIG_V4L_USB_DRIVERS is not set
@@ -1895,8 +1893,7 @@ CONFIG_QUP_EXCLUSIVE_TO_CAMERA=y
 # Graphics support
 #
 # CONFIG_DRM is not set
-CONFIG_ION=y
-CONFIG_ION_MSM=y
+# CONFIG_ION is not set
 CONFIG_MSM_KGSL=y
 # CONFIG_MSM_KGSL_CFF_DUMP is not set
 CONFIG_MSM_KGSL_PSTMRTMDMP_CP_STAT_NO_DETAIL=y
