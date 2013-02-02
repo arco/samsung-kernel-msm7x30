@@ -212,13 +212,13 @@ struct clk_ops clk_ops_pcom_ext_config = {
 };
 
 #ifdef CONFIG_MACH_ARIESVE
-static int pc_clk_set_rate2(struct clk *clk, unsigned rate)
+static int pc_clk_set_rate2(struct clk *clk, unsigned long rate)
 {
 	   int res = _pc_clk_set_min_rate(clk, rate / 2);
 	   return res;
 }
 
-static unsigned pc_clk_get_rate2(struct clk *clk)
+static unsigned long pc_clk_get_rate2(struct clk *clk)
 {
        return pc_clk_get_rate(clk) * 2;
 }
