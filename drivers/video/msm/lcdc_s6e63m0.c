@@ -934,7 +934,7 @@ static void lcdc_s6e63m0_set_backlight(struct msm_fb_data_type *mfd)
 #endif
 }
 
-static int __init lcdc_s6e63m0_probe(struct platform_device *pdev)
+static int __devinit lcdc_s6e63m0_probe(struct platform_device *pdev)
 {
     DPRINT("start %s\n", __func__);
 
