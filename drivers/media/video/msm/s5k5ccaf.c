@@ -178,7 +178,7 @@ static int16_t s5k5ccaf_effect = CAMERA_EFFECT_OFF;
 
 static int s5k5ccaf_regs_table_init_for_antibanding(void);
 static int s5k5ccaf_sensor_init_probe(void);
-static void s5k5ccaf_set_preview(void); //ESD
+static void s5k5ccaf_set_preview(void); //venkata
 
 #ifdef CONFIG_LOAD_FILE
 static int s5k5ccaf_regs_table_write(char *name);
@@ -355,16 +355,12 @@ I2C_RETRY:
           s5k5ccaf_buf_for_burstmode[idx++] = 0x0F;
           s5k5ccaf_buf_for_burstmode[idx++] = 0x12;
         }
-				if ( (s5k5ccaf_buf_for_burstmode[0]) != 0x0F )
-					printk("[S5K5CCAF]%s: Burst Write Error 1st Step.\n",__func__);
         s5k5ccaf_buf_for_burstmode[idx++] = value>> 8;
         s5k5ccaf_buf_for_burstmode[idx++] = value & 0xFF;
 
         //write in burstmode	
         if(next_subaddr != 0x0F12)
         {
-					if ( (s5k5ccaf_buf_for_burstmode[0]) != 0x0F )
-						printk("[S5K5CCAF]%s: Burst Write Error 2nd Step.\n",__func__);
           msg.len = idx;
           err = i2c_transfer(s5k5ccaf_client->adapter, &msg, 1) == 1 ? 0 : -EIO;
           //PCAM_DEBUG("s5k5ccaf_sensor_burst_write, idx = %d\n",idx);
@@ -421,33 +417,6 @@ I2C_RETRY:
   return 0;
 }
 #endif /* #ifdef S5K4ECGX_USE_BURSTMODE */
-
-void s5k5ccaf_preview_check(void)
-{
-	unsigned short rvalue = 0;
-	int idx=0;
-	for (idx = 0; idx < 10; idx++)
-	{
-		s5k5ccaf_sensor_write(0xFCFC, 0xD000);	  
-		s5k5ccaf_sensor_write(0x002C, 0x7000);
-		s5k5ccaf_sensor_write(0x002E, 0x0DB2);
-		s5k5ccaf_sensor_read(0x0F12, (unsigned short*)&rvalue  );
-		printk("<=PCAM=> Set Preview Error 1[Retry %d] ERR CODE = 0x%x\n",idx, rvalue );
-
-		if ( rvalue != 0x708C ){
-			printk("<=PCAM=> Set Preview Error 2[Retry %d] ERR CODE = 0x%x\n",idx, rvalue );
-			S5K5CCAF_WRITE_LIST(s5k5ccaf_reinit);    
-			msleep(10);
-		} else{
-			printk("<=PCAM=> Set Preview Error 3[Retry %d] ERR CODE = 0x%x\n",idx, rvalue );
-			break;
-		}
-	}
-}
-
-
-
-
 
 void sensor_effect_control(char value)
 {
@@ -1065,7 +1034,7 @@ void s5k5ccaf_set_preview_size(int preivewsize)
 }
 }
 
-int s5k5ccaf_sensor_esd_detected() //ESD
+int s5k5ccaf_sensor_esd_detected() //venkata
 {
     printk("[s5k5ccaf] ESD Detected!!\n");
     b_esd_detected=true;
@@ -1291,7 +1260,7 @@ int s5k5ccaf_sensor_ext_config(void __user *arg)
           if( af_current_lux <= 0x004C)s5k5ccaf_set_flash(MOVIE_FLASH);
         }
         else
-          s5k5ccaf_set_flash(MOVIE_FLASH);
+          s5k5ccaf_set_flash(FULL_FLASH);
       }
       else if(cfg_data.value_2 == EXT_CFG_FLASH_TURN_OFF) {
         s5k5ccaf_set_flash(FLASH_OFF);
@@ -1395,7 +1364,7 @@ int s5k5ccaf_sensor_ext_config(void __user *arg)
 	 if(camera_mode == EXT_CFG_CAM_MODE_CAMCORDER)
   	  S5K5CCAF_WRITE_LIST(s5k5ccaf_fps_30fix);
 	break;
-	case EXT_CFG_TEST_ESD: //TELECA_ESD 
+	case EXT_CFG_TEST_ESD: //TELECA_ESD venkata
 		printk("[S5K5CCAF] Reset the Sensor for the ESD case from HAL\n");
 
 		if(cfg_data.value_1 == 1)
@@ -1406,6 +1375,7 @@ int s5k5ccaf_sensor_ext_config(void __user *arg)
             }
         else
 	        {
+
 				printk(KERN_ERR "[S5K5CCAF]:EXT_CFG_TEST_ESD Sensor Reset\n");
 				s5k5ccaf_pw_enable(false);
 				msleep(50);
@@ -1414,6 +1384,8 @@ int s5k5ccaf_sensor_ext_config(void __user *arg)
 				msleep(5);
 				s5k5ccaf_sensor_init_probe();
 				s5k5ccaf_set_preview();
+			
+
 	        }
 	break;
 
@@ -1609,7 +1581,7 @@ static void s5k5ccaf_pw_enable_rev01(int enable)
 
   if(enable == 1) //POWER ON
   {
-     b_esd_detected=false; //ESD
+     b_esd_detected=false; //venkata
     vreg_set_level(vreg_cam_out17_af,  2800);	    // VDDAF 2.8V
     vreg_set_level(vreg_cam_out9_vdda,  2800);		// VDDA 2.8V
     vreg_set_level(vreg_cam_out10_vddreg, 1800);	// VGA Core 1.8V		
@@ -1863,7 +1835,6 @@ BEGIN_TIME_STAMP(s5k5ccaf_set_preview);
     s5k5ccaf_set_preview_size(preview_size);
     S5K5CCAF_WRITE_LIST(s5k5ccaf_preview);    
   }
-  s5k5ccaf_preview_check();  
 
   /* reset status*/
   afcanceled = false;

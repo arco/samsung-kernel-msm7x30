@@ -165,13 +165,6 @@ struct msm_camera_sensor_strobe_flash_data {
 	int state;
 };
 
-enum msm_camera_type {
-	BACK_CAMERA_2D,
-	FRONT_CAMERA_2D,
-	BACK_CAMERA_3D,
-	BACK_CAMERA_INT_3D,
-};
-
 enum camera_vreg_type {
 	REG_LDO,
 	REG_VS,
@@ -236,7 +229,6 @@ struct msm_camera_sensor_info {
 	struct msm_camera_csi_params csi_params;
 	struct msm_camera_sensor_strobe_flash_data *strobe_flash_data;
 	char *eeprom_data;
-	enum msm_camera_type camera_type;
 	struct msm_actuator_info *actuator_info;
 };
 

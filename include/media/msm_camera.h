@@ -1,15 +1,36 @@
-/* Copyright (c) 2009-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, and the entire permission notice in its entirety,
+ *    including the disclaimer of warranties.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior
+ *    written permission.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * ALTERNATIVELY, this product may be distributed under the terms of
+ * the GNU General Public License, version 2, in which case the provisions
+ * of the GPL version 2 are required INSTEAD OF the BSD license.
  *
+ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, ALL OF
+ * WHICH ARE HEREBY DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+ * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+ * USE OF THIS SOFTWARE, EVEN IF NOT ADVISED OF THE POSSIBILITY OF SUCH
+ * DAMAGE.
  */
+
 #ifndef __LINUX_MSM_CAMERA_H
 #define __LINUX_MSM_CAMERA_H
 
@@ -17,40 +38,13 @@
 #include <sys/types.h>
 #endif
 #include <linux/types.h>
+#include <asm/sizes.h>
 #include <linux/ioctl.h>
-#include <linux/cdev.h>
 #ifdef MSM_CAMERA_GCC
 #include <time.h>
 #else
 #include <linux/time.h>
 #endif
-
-#ifdef __KERNEL__
-#include <linux/ion.h>
-#endif
-
-#define VFE_FRAME_NUM_MAX	0x00FFFFFF
-#define ZERO_OUT_FRAME		0xFF000000
-#define CLEAR_FOCUS_BIT		0x7FFFFFFF
-#define get_focus_bit(x) ({ \
-	(x & 0x80000000) >> 31; \
-})
-#define get_frame_num(x) ({ \
-	x & VFE_FRAME_NUM_MAX; \
-})
-#define get_focus_in_position(x) ({ \
-	(x & 00000001) << 31; \
-})
-#define increment_frame_num(x) ({ \
-	uint32_t num = get_frame_num(x); \
-	num = num + 1; \
-	(x & ZERO_OUT_FRAME) | num; \
-})
-#define decrement_frame_num(x) ({ \
-	uint32_t num = get_frame_num(x); \
-	num = num - 1; \
-	(x & ZERO_OUT_FRAME) | num; \
-})
 
 #define MSM_CAM_IOCTL_MAGIC 'm'
 
@@ -103,7 +97,7 @@
 	_IOW(MSM_CAM_IOCTL_MAGIC, 16, struct msm_camera_vfe_cfg_cmd *)
 
 #define MSM_CAM_IOCTL_GET_PICTURE \
-	_IOW(MSM_CAM_IOCTL_MAGIC, 17, struct msm_frame *)
+	_IOW(MSM_CAM_IOCTL_MAGIC, 17, struct msm_camera_ctrl_cmd *)
 
 #define MSM_CAM_IOCTL_SET_CROP \
 	_IOW(MSM_CAM_IOCTL_MAGIC, 18, struct crop_info *)
@@ -162,76 +156,9 @@
 #define MSM_CAM_IOCTL_GET_CAMERA_INFO \
 	_IOR(MSM_CAM_IOCTL_MAGIC, 36, struct msm_camera_info *)
 
-#define MSM_CAM_IOCTL_UNBLOCK_POLL_PIC_FRAME \
-	_IO(MSM_CAM_IOCTL_MAGIC, 37)
-
-#define MSM_CAM_IOCTL_RELEASE_PIC_BUFFER \
-	_IOW(MSM_CAM_IOCTL_MAGIC, 38, struct camera_enable_cmd *)
-
-#define MSM_CAM_IOCTL_PUT_ST_FRAME \
-	_IOW(MSM_CAM_IOCTL_MAGIC, 39, struct msm_camera_st_frame *)
-
-#define MSM_CAM_IOCTL_GET_CONFIG_INFO \
-	_IOR(MSM_CAM_IOCTL_MAGIC, 40, struct msm_cam_config_dev_info *)
-
-#define MSM_CAM_IOCTL_V4L2_EVT_NOTIFY \
-	_IOR(MSM_CAM_IOCTL_MAGIC, 41, struct v4l2_event *)
-
-#define MSM_CAM_IOCTL_SET_MEM_MAP_INFO \
-	_IOR(MSM_CAM_IOCTL_MAGIC, 42, struct msm_mem_map_info *)
-
-#define MSM_CAM_IOCTL_ACTUATOR_IO_CFG \
-	_IOW(MSM_CAM_IOCTL_MAGIC, 43, struct msm_actuator_cfg_data *)
-
-#define MSM_CAM_IOCTL_MCTL_POST_PROC \
-	_IOW(MSM_CAM_IOCTL_MAGIC, 44, struct msm_mctl_post_proc_cmd *)
-
-#define MSM_CAM_IOCTL_RESERVE_FREE_FRAME \
-	_IOW(MSM_CAM_IOCTL_MAGIC, 45, struct msm_cam_evt_divert_frame *)
-
-#define MSM_CAM_IOCTL_RELEASE_FREE_FRAME \
-	_IOR(MSM_CAM_IOCTL_MAGIC, 46, struct msm_cam_evt_divert_frame *)
-
-#define MSM_CAM_IOCTL_PICT_PP_DIVERT_DONE \
-	_IOR(MSM_CAM_IOCTL_MAGIC, 47, struct msm_pp_frame *)
-
-#define MSM_CAM_IOCTL_SENSOR_V4l2_S_CTRL \
-	_IOR(MSM_CAM_IOCTL_MAGIC, 48, struct v4l2_control)
-
-#define MSM_CAM_IOCTL_SENSOR_V4l2_QUERY_CTRL \
-	_IOR(MSM_CAM_IOCTL_MAGIC, 49, struct v4l2_queryctrl)
-
-#define MSM_CAM_IOCTL_GET_KERNEL_SYSTEM_TIME \
-	_IOW(MSM_CAM_IOCTL_MAGIC, 50, struct timeval *)
-
-#define MSM_CAM_IOCTL_SET_VFE_OUTPUT_TYPE \
-	_IOW(MSM_CAM_IOCTL_MAGIC, 51, uint32_t *)
-
-#define MSM_CAM_IOCTL_GET_MCTL_INFO \
-	_IOR(MSM_CAM_IOCTL_MAGIC, 51, struct msm_mctl_node_info *)
-
-#define MSM_CAM_IOCTL_MCTL_DIVERT_DONE \
-	_IOR(MSM_CAM_IOCTL_MAGIC, 52, struct msm_cam_evt_divert_frame *)
-
-#define MCTL_CAM_IOCTL_SET_FOCUS \
-	_IOW(MSM_CAM_IOCTL_MAGIC, 53, uint32_t)
-
-struct msm_mctl_pp_cmd {
-	int32_t  id;
-	uint16_t length;
-	void     *value;
-};
-
-struct msm_mctl_post_proc_cmd {
-	int32_t type;
-	struct msm_mctl_pp_cmd cmd;
-};
-
 #define MSM_CAMERA_LED_OFF  0
 #define MSM_CAMERA_LED_LOW  1
 #define MSM_CAMERA_LED_HIGH 2
-#define MSM_CAMERA_LED_INIT 3
-#define MSM_CAMERA_LED_RELEASE 4
 
 #define MSM_CAMERA_STROBE_FLASH_NONE 0
 #define MSM_CAMERA_STROBE_FLASH_XENON 1
@@ -239,19 +166,13 @@ struct msm_mctl_post_proc_cmd {
 #define MSM_MAX_CAMERA_SENSORS  5
 #define MAX_SENSOR_NAME 32
 
-#define MSM_MAX_CAMERA_CONFIGS 2
-
 #define PP_SNAP  0x01
 #define PP_RAW_SNAP ((0x01)<<1)
 #define PP_PREV  ((0x01)<<2)
-#define PP_THUMB ((0x01)<<3)
-#define PP_MASK		(PP_SNAP|PP_RAW_SNAP|PP_PREV|PP_THUMB)
+#define PP_MASK		(PP_SNAP|PP_RAW_SNAP|PP_PREV)
 
 #define MSM_CAM_CTRL_CMD_DONE  0
 #define MSM_CAM_SENSOR_VFE_CMD 1
-
-/* Should be same as VIDEO_MAX_PLANES in videodev2.h */
-#define MAX_PLANES 8
 
 /*****************************************************
  *  structure
@@ -274,7 +195,7 @@ struct msm_ctrl_cmd {
 	int resp_fd; /* FIXME: to be used by the kernel, pass-through for now */
 };
 
-struct msm_cam_evt_msg {
+struct msm_vfe_evt_msg {
 	unsigned short type;	/* 1 == event (RPC), 0 == message (adsp) */
 	unsigned short msg_id;
 	unsigned int len;	/* size in, number of bytes out */
@@ -282,95 +203,36 @@ struct msm_cam_evt_msg {
 	void *data;
 };
 
-struct msm_pp_frame_sp {
-	/* phy addr of the buffer */
-	unsigned long  phy_addr;
-	uint32_t       y_off;
-	uint32_t       cbcr_off;
-	/* buffer length */
-	uint32_t       length;
-	int32_t        fd;
-	uint32_t       addr_offset;
-	/* mapped addr */
-	unsigned long  vaddr;
+struct msm_isp_evt_msg {
+	unsigned short type;	/* 1 == event (RPC), 0 == message (adsp) */
+	unsigned short msg_id;
+	unsigned int len;	/* size in, number of bytes out */
+	/* maximum possible data size that can be
+i	  sent to user space as v4l2 data structure
+	  is only of 64 bytes */
+	uint8_t data[48];
 };
-
-struct msm_pp_frame_mp {
-	/* phy addr of the plane */
-	unsigned long  phy_addr;
-	/* offset of plane data */
-	uint32_t       data_offset;
-	/* plane length */
-	uint32_t       length;
-	int32_t        fd;
-	uint32_t       addr_offset;
-	/* mapped addr */
-	unsigned long  vaddr;
+struct msm_vpe_evt_msg {
+	unsigned short type; /* 1 == event (RPC), 0 == message (adsp) */
+	unsigned short msg_id;
+	unsigned int len; /* size in, number of bytes out */
+	uint32_t frame_id;
+	void *data;
 };
-
-struct msm_pp_frame {
-	uint32_t       handle; /* stores vb cookie */
-	uint32_t       frame_id;
-	unsigned short buf_idx;
-	int            path;
-	unsigned short image_type;
-	unsigned short num_planes; /* 1 for sp */
-	struct timeval timestamp;
-	union {
-		struct msm_pp_frame_sp sp;
-		struct msm_pp_frame_mp mp[MAX_PLANES];
-	};
-	int node_type;
-};
-
-struct msm_cam_evt_divert_frame {
-	unsigned short image_mode;
-	unsigned short op_mode;
-	unsigned short inst_idx;
-	unsigned short node_idx;
-	struct msm_pp_frame frame;
-	int            do_pp;
-};
-
-struct msm_mctl_pp_cmd_ack_event {
-	uint32_t cmd;        /* VPE_CMD_ZOOM? */
-	int      status;     /* 0 done, < 0 err */
-	uint32_t cookie;     /* daemon's cookie */
-};
-
-struct msm_mctl_pp_event_info {
-	int32_t  event;
-	union {
-		struct msm_mctl_pp_cmd_ack_event ack;
-	};
-};
-
-struct msm_isp_event_ctrl {
+struct msm_isp_stats_event_ctrl {
 	unsigned short resptype;
 	union {
-		struct msm_cam_evt_msg isp_msg;
+		struct msm_isp_evt_msg isp_msg;
 		struct msm_ctrl_cmd ctrl;
-		struct msm_cam_evt_divert_frame div_frame;
-		struct msm_mctl_pp_event_info pp_event_info;
 	} isp_data;
-	uint32_t evt_id;
 };
 
-#define MSM_CAM_RESP_CTRL              0
-#define MSM_CAM_RESP_STAT_EVT_MSG      1
-#define MSM_CAM_RESP_STEREO_OP_1       2
-#define MSM_CAM_RESP_STEREO_OP_2       3
-#define MSM_CAM_RESP_V4L2              4
-#define MSM_CAM_RESP_DIV_FRAME_EVT_MSG 5
-#define MSM_CAM_RESP_DONE_EVENT        6
-#define MSM_CAM_RESP_MCTL_PP_EVENT     7
-#define MSM_CAM_RESP_MAX               8
-
-#define MSM_CAM_APP_NOTIFY_EVENT  0
-#define MSM_CAM_APP_NOTIFY_ERROR_EVENT  1
+#define MSM_CAM_RESP_CTRL         0
+#define MSM_CAM_RESP_STAT_EVT_MSG 1
+#define MSM_CAM_RESP_V4L2         2
+#define MSM_CAM_RESP_MAX          3
 
 /* this one is used to send ctrl/status up to config thread */
-
 struct msm_stats_event_ctrl {
 	/* 0 - ctrl_cmd from control thread,
 	 * 1 - stats/event kernel,
@@ -379,7 +241,7 @@ struct msm_stats_event_ctrl {
 	int timeout_ms;
 	struct msm_ctrl_cmd ctrl_cmd;
 	/* struct  vfe_event_t  stats_event; */
-	struct msm_cam_evt_msg stats_event;
+	struct msm_vfe_evt_msg stats_event;
 };
 
 /* 2. config command: config command(from config thread); */
@@ -443,20 +305,6 @@ struct msm_camera_cfg_cmd {
 #define CMD_STATS_CS_ENABLE 40
 #define CMD_VPE 41
 #define CMD_AXI_CFG_VPE 42
-#define CMD_AXI_CFG_ZSL 43
-#define CMD_AXI_CFG_SNAP_VPE 44
-#define CMD_AXI_CFG_SNAP_THUMB_VPE 45
-#define CMD_AXI_CFG_VIDEO_ALL_CHNLS  46
-#define CMD_AXI_CFG_ZSL_ALL_CHNLS  47
-#define CMD_CONFIG_PING_ADDR 48
-#define CMD_CONFIG_PONG_ADDR 49
-#define CMD_CONFIG_FREE_BUF_ADDR 50
-#define CMD_VFE_BUFFER_RELEASE 51
-
-#define CMD_AXI_CFG_PRIM		0xF1
-#define CMD_AXI_CFG_PRIM_ALL_CHNLS	0xF2
-#define CMD_AXI_CFG_SEC			0xF4
-#define CMD_AXI_CFG_SEC_ALL_CHNLS	0xF8
 
 /* vfe config command: config command(from config thread)*/
 struct msm_vfe_cfg_cmd {
@@ -486,17 +334,14 @@ struct camera_enable_cmd {
 #define MSM_PMEM_AF			7
 #define MSM_PMEM_AEC			8
 #define MSM_PMEM_AWB			9
-#define MSM_PMEM_RS			10
-#define MSM_PMEM_CS			11
+#define MSM_PMEM_RS		    	10
+#define MSM_PMEM_CS	    		11
 #define MSM_PMEM_IHIST			12
 #define MSM_PMEM_SKIN			13
 #define MSM_PMEM_VIDEO			14
 #define MSM_PMEM_PREVIEW		15
 #define MSM_PMEM_VIDEO_VPE		16
-#define MSM_PMEM_C2D			17
-#define MSM_PMEM_MAINIMG_VPE    18
-#define MSM_PMEM_THUMBNAIL_VPE  19
-#define MSM_PMEM_MAX            20
+#define MSM_PMEM_MAX			17
 
 #define STAT_AEAW			0
 #define STAT_AEC			1
@@ -534,9 +379,6 @@ struct outputCfg {
 	uint32_t window_height_lastline;
 };
 
-#define VIDEO_NODE 0
-#define MCTL_NODE 1
-
 #define OUTPUT_1	0
 #define OUTPUT_2	1
 #define OUTPUT_1_AND_2            2   /* snapshot only */
@@ -544,46 +386,22 @@ struct outputCfg {
 #define CAMIF_TO_AXI_VIA_OUTPUT_2 4
 #define OUTPUT_1_AND_CAMIF_TO_AXI_VIA_OUTPUT_2 5
 #define OUTPUT_2_AND_CAMIF_TO_AXI_VIA_OUTPUT_1 6
-#define OUTPUT_1_2_AND_3 7
-#define OUTPUT_ALL_CHNLS 8
-#define OUTPUT_ZSL_ALL_CHNLS 9
-#define LAST_AXI_OUTPUT_MODE_ENUM  OUTPUT_ZSL_ALL_CHNLS
-
-#define OUTPUT_PRIM		0xF1
-#define OUTPUT_PRIM_ALL_CHNLS	0xF2
-#define OUTPUT_SEC		0xF4
-#define OUTPUT_SEC_ALL_CHNLS	0xF8
-
+#define LAST_AXI_OUTPUT_MODE_ENUM = OUTPUT_2_AND_CAMIF_TO_AXI_VIA_OUTPUT_1 7
 
 #define MSM_FRAME_PREV_1	0
 #define MSM_FRAME_PREV_2	1
 #define MSM_FRAME_ENC		2
 
-#define OUTPUT_TYPE_P    (1<<0)
-#define OUTPUT_TYPE_T    (1<<1)
-#define OUTPUT_TYPE_S    (1<<2)
-#define OUTPUT_TYPE_V    (1<<3)
-#define OUTPUT_TYPE_L    (1<<4)
-#define OUTPUT_TYPE_ST_L (1<<5)
-#define OUTPUT_TYPE_ST_R (1<<6)
-#define OUTPUT_TYPE_ST_D (1<<7)
+#define OUTPUT_TYPE_P		(1<<0)
+#define OUTPUT_TYPE_T		(1<<1)
+#define OUTPUT_TYPE_S		(1<<2)
+#define OUTPUT_TYPE_V		(1<<3)
+#define OUTPUT_TYPE_L		(1<<4)
 
 struct fd_roi_info {
 	void *info;
 	int info_len;
 };
-
-struct msm_mem_map_info {
-	uint32_t cookie;
-	uint32_t length;
-	uint32_t mem_type;
-};
-
-#define MSM_MEM_MMAP		0
-#define MSM_MEM_USERPTR		1
-#define MSM_PLANE_MAX		8
-#define MSM_PLANE_Y			0
-#define MSM_PLANE_UV		1
 
 struct msm_frame {
 	struct timespec ts;
@@ -599,45 +417,7 @@ struct msm_frame {
 	struct fd_roi_info roi_info;
 };
 
-enum msm_st_frame_packing {
-	SIDE_BY_SIDE_HALF,
-	SIDE_BY_SIDE_FULL,
-	TOP_DOWN_HALF,
-	TOP_DOWN_FULL,
-};
-
-struct msm_st_crop {
-	uint32_t in_w;
-	uint32_t in_h;
-	uint32_t out_w;
-	uint32_t out_h;
-};
-
-struct msm_st_half {
-	uint32_t buf_y_off;
-	uint32_t buf_cbcr_off;
-	uint32_t buf_y_stride;
-	uint32_t buf_cbcr_stride;
-	uint32_t pix_x_off;
-	uint32_t pix_y_off;
-	struct msm_st_crop stCropInfo;
-};
-
-struct msm_st_frame {
-	struct msm_frame buf_info;
-	int type;
-	enum msm_st_frame_packing packing;
-	struct msm_st_half L;
-	struct msm_st_half R;
-	int frame_id;
-};
-
 #define MSM_CAMERA_ERR_MASK (0xFFFFFFFF & 1)
-
-struct stats_buff {
-	unsigned long buff;
-	int fd;
-};
 
 struct msm_stats_buf {
 	int type;
@@ -645,77 +425,19 @@ struct msm_stats_buf {
 	int fd;
 };
 
-#define MSM_V4L2_EXT_CAPTURE_MODE_DEFAULT 0
-/* video capture mode in VIDIOC_S_PARM */
-#define MSM_V4L2_EXT_CAPTURE_MODE_PREVIEW \
-	(MSM_V4L2_EXT_CAPTURE_MODE_DEFAULT+1)
-/* extendedmode for video recording in VIDIOC_S_PARM */
-#define MSM_V4L2_EXT_CAPTURE_MODE_VIDEO \
-	(MSM_V4L2_EXT_CAPTURE_MODE_DEFAULT+2)
-/* extendedmode for the full size main image in VIDIOC_S_PARM */
-#define MSM_V4L2_EXT_CAPTURE_MODE_MAIN (MSM_V4L2_EXT_CAPTURE_MODE_DEFAULT+3)
-/* extendedmode for the thumb nail image in VIDIOC_S_PARM */
-#define MSM_V4L2_EXT_CAPTURE_MODE_THUMBNAIL \
-	(MSM_V4L2_EXT_CAPTURE_MODE_DEFAULT+4)
-#define MSM_V4L2_EXT_CAPTURE_MODE_RAW \
-	(MSM_V4L2_EXT_CAPTURE_MODE_DEFAULT+5)
-#define MSM_V4L2_EXT_CAPTURE_MODE_MAX (MSM_V4L2_EXT_CAPTURE_MODE_DEFAULT+6)
-
-
-#define MSM_V4L2_PID_MOTION_ISO              V4L2_CID_PRIVATE_BASE
-#define MSM_V4L2_PID_EFFECT                 (V4L2_CID_PRIVATE_BASE+1)
-#define MSM_V4L2_PID_HJR                    (V4L2_CID_PRIVATE_BASE+2)
-#define MSM_V4L2_PID_LED_MODE               (V4L2_CID_PRIVATE_BASE+3)
-#define MSM_V4L2_PID_PREP_SNAPSHOT          (V4L2_CID_PRIVATE_BASE+4)
-#define MSM_V4L2_PID_EXP_METERING           (V4L2_CID_PRIVATE_BASE+5)
-#define MSM_V4L2_PID_ISO                    (V4L2_CID_PRIVATE_BASE+6)
-#define MSM_V4L2_PID_CAM_MODE               (V4L2_CID_PRIVATE_BASE+7)
-#define MSM_V4L2_PID_LUMA_ADAPTATION	    (V4L2_CID_PRIVATE_BASE+8)
-#define MSM_V4L2_PID_BEST_SHOT              (V4L2_CID_PRIVATE_BASE+9)
-#define MSM_V4L2_PID_FOCUS_MODE	            (V4L2_CID_PRIVATE_BASE+10)
-#define MSM_V4L2_PID_BL_DETECTION           (V4L2_CID_PRIVATE_BASE+11)
-#define MSM_V4L2_PID_SNOW_DETECTION         (V4L2_CID_PRIVATE_BASE+12)
-#define MSM_V4L2_PID_CTRL_CMD               (V4L2_CID_PRIVATE_BASE+13)
-#define MSM_V4L2_PID_EVT_SUB_INFO           (V4L2_CID_PRIVATE_BASE+14)
-#define MSM_V4L2_PID_STROBE_FLASH           (V4L2_CID_PRIVATE_BASE+15)
-#define MSM_V4L2_PID_MMAP_ENTRY             (V4L2_CID_PRIVATE_BASE+16)
-#define MSM_V4L2_PID_MMAP_INST              (V4L2_CID_PRIVATE_BASE+17)
-#define MSM_V4L2_PID_PP_PLANE_INFO          (V4L2_CID_PRIVATE_BASE+18)
-#define MSM_V4L2_PID_MAX                    MSM_V4L2_PID_PP_PLANE_INFO
-
-/* camera operation mode for video recording - two frame output queues */
-#define MSM_V4L2_CAM_OP_DEFAULT         0
-/* camera operation mode for video recording - two frame output queues */
-#define MSM_V4L2_CAM_OP_PREVIEW         (MSM_V4L2_CAM_OP_DEFAULT+1)
-/* camera operation mode for video recording - two frame output queues */
-#define MSM_V4L2_CAM_OP_VIDEO           (MSM_V4L2_CAM_OP_DEFAULT+2)
-/* camera operation mode for standard shapshot - two frame output queues */
-#define MSM_V4L2_CAM_OP_CAPTURE         (MSM_V4L2_CAM_OP_DEFAULT+3)
-/* camera operation mode for zsl shapshot - three output queues */
-#define MSM_V4L2_CAM_OP_ZSL             (MSM_V4L2_CAM_OP_DEFAULT+4)
-/* camera operation mode for raw snapshot - one frame output queue */
-#define MSM_V4L2_CAM_OP_RAW             (MSM_V4L2_CAM_OP_DEFAULT+5)
-/* camera operation mode for jpeg snapshot - one frame output queue */
-#define MSM_V4L2_CAM_OP_JPEG_CAPTURE    (MSM_V4L2_CAM_OP_DEFAULT+6)
-
-
 #define MSM_V4L2_VID_CAP_TYPE	0
-#define MSM_V4L2_STREAM_ON		1
-#define MSM_V4L2_STREAM_OFF		2
-#define MSM_V4L2_SNAPSHOT		3
-#define MSM_V4L2_QUERY_CTRL		4
-#define MSM_V4L2_GET_CTRL		5
-#define MSM_V4L2_SET_CTRL		6
-#define MSM_V4L2_QUERY			7
-#define MSM_V4L2_GET_CROP		8
-#define MSM_V4L2_SET_CROP		9
-#define MSM_V4L2_OPEN			10
-#define MSM_V4L2_CLOSE			11
-#define MSM_V4L2_SET_CTRL_CMD	12
-#define MSM_V4L2_EVT_SUB_MASK	13
-#define MSM_V4L2_MAX			14
-#define V4L2_CAMERA_EXIT		43
+#define MSM_V4L2_STREAM_ON	1
+#define MSM_V4L2_STREAM_OFF	2
+#define MSM_V4L2_SNAPSHOT	3
+#define MSM_V4L2_QUERY_CTRL	4
+#define MSM_V4L2_GET_CTRL	5
+#define MSM_V4L2_SET_CTRL	6
+#define MSM_V4L2_QUERY		7
+#define MSM_V4L2_GET_CROP	8
+#define MSM_V4L2_SET_CROP	9
+#define MSM_V4L2_MAX		10
 
+#define V4L2_CAMERA_EXIT 	43
 struct crop_info {
 	void *info;
 	int len;
@@ -761,18 +483,14 @@ struct msm_snapshot_pp_status {
 #define CFG_GET_AF_MAX_STEPS		26
 #define CFG_GET_PICT_MAX_EXP_LC		27
 #define CFG_SEND_WB_INFO    28
-#define CFG_SENSOR_INIT    29
-#define CFG_GET_3D_CALI_DATA 30
-#define CFG_GET_CALIB_DATA		31
-#define CFG_GET_OUTPUT_INFO		32
-#define CFG_GET_EEPROM_DATA		33
-#define CFG_SET_ACTUATOR_INFO		34
-#define CFG_GET_ACTUATOR_INFO		35
-#define CFG_MAX			36
+#define CFG_MAX 			29
 
-#define CFG_SET_EXPOSURE_VALUE	30
-#define CFG_SET_ROTATION	31
-#define CFG_SET_DATALINE_CHECK	32
+#ifndef CONFIG_MACH_ARIESVE
+//pault
+#define CFG_SET_EXPOSURE_VALUE 30
+#define CFG_SET_ROTATION 31
+#define CFG_SET_DATALINE_CHECK 32
+#endif
 
 #define MOVE_NEAR	0
 #define MOVE_FAR	1
@@ -780,7 +498,8 @@ struct msm_snapshot_pp_status {
 #define SENSOR_PREVIEW_MODE		0
 #define SENSOR_SNAPSHOT_MODE		1
 #define SENSOR_RAW_SNAPSHOT_MODE	2
-#define SENSOR_SNAPSHOT_TRANSFER 4
+#define SENSOR_VIDEO_120FPS_MODE	3
+#define SENSOR_SNAPSHOT_TRANSFER	4
 
 #define SENSOR_QTR_SIZE			0
 #define SENSOR_FULL_SIZE		1
@@ -796,162 +515,7 @@ struct msm_snapshot_pp_status {
 #define CAMERA_EFFECT_WHITEBOARD	6
 #define CAMERA_EFFECT_BLACKBOARD	7
 #define CAMERA_EFFECT_AQUA		8
-#define CAMERA_EFFECT_EMBOSS		9
-#define CAMERA_EFFECT_SKETCH		10
-#define CAMERA_EFFECT_NEON		11
-#define CAMERA_EFFECT_MAX		12
-
-/* QRD */
-#define CAMERA_EFFECT_BW		10
-#define CAMERA_EFFECT_BLUISH	12
-#define CAMERA_EFFECT_REDDISH	13
-#define CAMERA_EFFECT_GREENISH	14
-
-/* QRD */
-#define CAMERA_ANTIBANDING_OFF		0
-#define CAMERA_ANTIBANDING_50HZ		2
-#define CAMERA_ANTIBANDING_60HZ		1
-#define CAMERA_ANTIBANDING_AUTO		3
-
-#define CAMERA_CONTRAST_LV0			0
-#define CAMERA_CONTRAST_LV1			1
-#define CAMERA_CONTRAST_LV2			2
-#define CAMERA_CONTRAST_LV3			3
-#define CAMERA_CONTRAST_LV4			4
-#define CAMERA_CONTRAST_LV5			5
-#define CAMERA_CONTRAST_LV6			6
-#define CAMERA_CONTRAST_LV7			7
-#define CAMERA_CONTRAST_LV8			8
-#define CAMERA_CONTRAST_LV9			9
-
-#define CAMERA_BRIGHTNESS_LV0			0
-#define CAMERA_BRIGHTNESS_LV1			1
-#define CAMERA_BRIGHTNESS_LV2			2
-#define CAMERA_BRIGHTNESS_LV3			3
-#define CAMERA_BRIGHTNESS_LV4			4
-#define CAMERA_BRIGHTNESS_LV5			5
-#define CAMERA_BRIGHTNESS_LV6			6
-#define CAMERA_BRIGHTNESS_LV7			7
-#define CAMERA_BRIGHTNESS_LV8			8
-
-
-#define CAMERA_SATURATION_LV0			0
-#define CAMERA_SATURATION_LV1			1
-#define CAMERA_SATURATION_LV2			2
-#define CAMERA_SATURATION_LV3			3
-#define CAMERA_SATURATION_LV4			4
-#define CAMERA_SATURATION_LV5			5
-#define CAMERA_SATURATION_LV6			6
-#define CAMERA_SATURATION_LV7			7
-#define CAMERA_SATURATION_LV8			8
-
-#define CAMERA_SHARPNESS_LV0		0
-#define CAMERA_SHARPNESS_LV1		3
-#define CAMERA_SHARPNESS_LV2		6
-#define CAMERA_SHARPNESS_LV3		9
-#define CAMERA_SHARPNESS_LV4		12
-#define CAMERA_SHARPNESS_LV5		15
-#define CAMERA_SHARPNESS_LV6		18
-#define CAMERA_SHARPNESS_LV7		21
-#define CAMERA_SHARPNESS_LV8		24
-#define CAMERA_SHARPNESS_LV9		27
-#define CAMERA_SHARPNESS_LV10		30
-
-#define CAMERA_SETAE_AVERAGE		0
-#define CAMERA_SETAE_CENWEIGHT	1
-
-#define CFG_SET_SATURATION		30
-#define CFG_SET_SHARPNESS			31
-#define CFG_SET_TOUCHAEC            32
-#define CFG_SET_AUTO_FOCUS          33
-#define CFG_SET_AUTOFLASH 34
-/* QRD */
-#define CFG_SET_EXPOSURE_COMPENSATION 35
-
-#if 0
-#define  CAMERA_WB_AUTO               1 /* This list must match aeecamera.h */
-#define  CAMERA_WB_CUSTOM             2
-#define  CAMERA_WB_INCANDESCENT       3
-#define  CAMERA_WB_FLUORESCENT        4
-#define  CAMERA_WB_DAYLIGHT           5
-#define  CAMERA_WB_CLOUDY_DAYLIGHT    6
-#define  CAMERA_WB_TWILIGHT           7
-#define  CAMERA_WB_SHADE              8
-#endif
-
-#define CAMERA_EXPOSURE_COMPENSATION_LV0			12
-#define CAMERA_EXPOSURE_COMPENSATION_LV1			6
-#define CAMERA_EXPOSURE_COMPENSATION_LV2			0
-#define CAMERA_EXPOSURE_COMPENSATION_LV3			-6
-#define CAMERA_EXPOSURE_COMPENSATION_LV4			-12
-
-enum msm_v4l2_saturation_level {
-	MSM_V4L2_SATURATION_L0,
-	MSM_V4L2_SATURATION_L1,
-	MSM_V4L2_SATURATION_L2,
-	MSM_V4L2_SATURATION_L3,
-	MSM_V4L2_SATURATION_L4,
-	MSM_V4L2_SATURATION_L5,
-	MSM_V4L2_SATURATION_L6,
-	MSM_V4L2_SATURATION_L7,
-	MSM_V4L2_SATURATION_L8,
-	MSM_V4L2_SATURATION_L9,
-	MSM_V4L2_SATURATION_L10,
-};
-
-enum msm_v4l2_exposure_level {
-	MSM_V4L2_EXPOSURE_N2,
-	MSM_V4L2_EXPOSURE_N1,
-	MSM_V4L2_EXPOSURE_D,
-	MSM_V4L2_EXPOSURE_P1,
-	MSM_V4L2_EXPOSURE_P2,
-};
-
-enum msm_v4l2_sharpness_level {
-	MSM_V4L2_SHARPNESS_L0,
-	MSM_V4L2_SHARPNESS_L1,
-	MSM_V4L2_SHARPNESS_L2,
-	MSM_V4L2_SHARPNESS_L3,
-	MSM_V4L2_SHARPNESS_L4,
-	MSM_V4L2_SHARPNESS_L5,
-	MSM_V4L2_SHARPNESS_L6,
-};
-
-enum msm_v4l2_expo_metering_mode {
-	MSM_V4L2_EXP_FRAME_AVERAGE,
-	MSM_V4L2_EXP_CENTER_WEIGHTED,
-	MSM_V4L2_EXP_SPOT_METERING,
-};
-
-enum msm_v4l2_iso_mode {
-	MSM_V4L2_ISO_AUTO = 0,
-	MSM_V4L2_ISO_DEBLUR,
-	MSM_V4L2_ISO_100,
-	MSM_V4L2_ISO_200,
-	MSM_V4L2_ISO_400,
-	MSM_V4L2_ISO_800,
-	MSM_V4L2_ISO_1600,
-};
-
-enum msm_v4l2_wb_mode {
-	MSM_V4L2_WB_MIN_MINUS_1,
-	MSM_V4L2_WB_AUTO = 1,
-	MSM_V4L2_WB_CUSTOM,
-	MSM_V4L2_WB_INCANDESCENT,
-	MSM_V4L2_WB_FLUORESCENT,
-	MSM_V4L2_WB_DAYLIGHT,
-	MSM_V4L2_WB_CLOUDY_DAYLIGHT,
-	MSM_V4L2_WB_TWILIGHT,
-	MSM_V4L2_WB_SHADE,
-	MSM_V4L2_WB_OFF,
-};
-
-enum msm_v4l2_power_line_frequency {
-	MSM_V4L2_POWER_LINE_OFF,
-	MSM_V4L2_POWER_LINE_60HZ,
-	MSM_V4L2_POWER_LINE_50HZ,
-	MSM_V4L2_POWER_LINE_AUTO,
-};
+#define CAMERA_EFFECT_MAX		9
 
 struct sensor_pict_fps {
 	uint16_t prevfps;
@@ -978,101 +542,6 @@ struct wb_info_cfg {
 	uint16_t green_gain;
 	uint16_t blue_gain;
 };
-struct sensor_3d_exp_cfg {
-	uint16_t gain;
-	uint32_t line;
-	uint16_t r_gain;
-	uint16_t b_gain;
-	uint16_t gr_gain;
-	uint16_t gb_gain;
-	uint16_t gain_adjust;
-};
-struct sensor_3d_cali_data_t{
-	unsigned char left_p_matrix[3][4][8];
-	unsigned char right_p_matrix[3][4][8];
-	unsigned char square_len[8];
-	unsigned char focal_len[8];
-	unsigned char pixel_pitch[8];
-	uint16_t left_r;
-	uint16_t left_b;
-	uint16_t left_gb;
-	uint16_t left_af_far;
-	uint16_t left_af_mid;
-	uint16_t left_af_short;
-	uint16_t left_af_5um;
-	uint16_t left_af_50up;
-	uint16_t left_af_50down;
-	uint16_t right_r;
-	uint16_t right_b;
-	uint16_t right_gb;
-	uint16_t right_af_far;
-	uint16_t right_af_mid;
-	uint16_t right_af_short;
-	uint16_t right_af_5um;
-	uint16_t right_af_50up;
-	uint16_t right_af_50down;
-};
-struct sensor_init_cfg {
-	uint8_t prev_res;
-	uint8_t pict_res;
-};
-
-struct sensor_calib_data {
-	/* Color Related Measurements */
-	uint16_t r_over_g;
-	uint16_t b_over_g;
-	uint16_t gr_over_gb;
-
-	/* Lens Related Measurements */
-	uint16_t macro_2_inf;
-	uint16_t inf_2_macro;
-	uint16_t stroke_amt;
-	uint16_t af_pos_1m;
-	uint16_t af_pos_inf;
-};
-
-enum msm_sensor_resolution_t {
-	MSM_SENSOR_RES_FULL,
-	MSM_SENSOR_RES_QTR,
-	MSM_SENSOR_RES_2,
-	MSM_SENSOR_RES_3,
-	MSM_SENSOR_RES_4,
-	MSM_SENSOR_RES_5,
-	MSM_SENSOR_RES_6,
-	MSM_SENSOR_RES_7,
-	MSM_SENSOR_INVALID_RES,
-};
-
-struct msm_sensor_output_info_t {
-	uint16_t x_output;
-	uint16_t y_output;
-	uint16_t line_length_pclk;
-	uint16_t frame_length_lines;
-	uint32_t vt_pixel_clk;
-	uint32_t op_pixel_clk;
-	uint16_t binning_factor;
-};
-
-struct sensor_output_info_t {
-	struct msm_sensor_output_info_t *output_info;
-	uint16_t num_info;
-};
-
-struct sensor_eeprom_data_t {
-	void *eeprom_data;
-	uint16_t index;
-};
-
-struct mirror_flip {
-	int32_t x_mirror;
-	int32_t y_flip;
-};
-
-struct cord {
-	uint32_t x;
-	uint32_t y;
-};
-
 struct sensor_cfg_data {
 	int cfgtype;
 	int mode;
@@ -1088,82 +557,19 @@ struct sensor_cfg_data {
 		uint16_t pictp_pl;
 		uint32_t pict_max_exp_lc;
 		uint16_t p_fps;
+#ifndef CONFIG_MACH_ARIESVE
+//pault
 		int8_t ev;
 		int8_t wb;
 		int8_t rotation;
 		int8_t dataline;
-		struct sensor_init_cfg init_info;
+#endif
 		struct sensor_pict_fps gfps;
 		struct exp_gain_cfg exp_gain;
 		struct focus_cfg focus;
 		struct fps_cfg fps;
 		struct wb_info_cfg wb_info;
-		struct sensor_3d_exp_cfg sensor_3d_exp;
-		struct sensor_calib_data calib_info;
-		struct sensor_output_info_t output_info;
-		struct sensor_eeprom_data_t eeprom_data;
-		/* QRD */
-		uint16_t antibanding;
-		uint8_t contrast;
-		uint8_t saturation;
-		uint8_t sharpness;
-		int8_t brightness;
-		int ae_mode;
-		uint8_t wb_val;
-		int8_t exp_compensation;
-		struct cord aec_cord;
-		int is_autoflash;
-		struct mirror_flip mirror_flip;
 	} cfg;
-};
-
-struct msm_actuator_move_params_t {
-	int8_t dir;
-	int32_t num_steps;
-};
-
-struct msm_actuator_set_info_t {
-	uint32_t total_steps;
-	uint16_t gross_steps;
-	uint16_t fine_steps;
-};
-
-struct msm_actuator_get_info_t {
-	uint32_t focal_length_num;
-	uint32_t focal_length_den;
-	uint32_t f_number_num;
-	uint32_t f_number_den;
-	uint32_t f_pix_num;
-	uint32_t f_pix_den;
-	uint32_t total_f_dist_num;
-	uint32_t total_f_dist_den;
-	uint32_t hor_view_angle_num;
-	uint32_t hor_view_angle_den;
-	uint32_t ver_view_angle_num;
-	uint32_t ver_view_angle_den;
-};
-
-struct msm_actuator_cfg_data {
-	int cfgtype;
-	uint8_t is_af_supported;
-	union {
-		struct msm_actuator_move_params_t move;
-		struct msm_actuator_set_info_t set_info;
-		struct msm_actuator_get_info_t get_info;
-	} cfg;
-};
-
-struct sensor_large_data {
-	int cfgtype;
-	union {
-		struct sensor_3d_cali_data_t sensor_3d_cali_data;
-	} data;
-};
-
-enum sensor_type_t {
-	BAYER,
-	YUV,
-	JPEG_SOC,
 };
 
 enum flash_type {
@@ -1187,20 +593,6 @@ struct msm_camera_info {
 	uint8_t has_3d_support[MSM_MAX_CAMERA_SENSORS];
 	uint8_t is_internal_cam[MSM_MAX_CAMERA_SENSORS];
 	uint32_t s_mount_angle[MSM_MAX_CAMERA_SENSORS];
-	const char *video_dev_name[MSM_MAX_CAMERA_SENSORS];
-	enum sensor_type_t sensor_type[MSM_MAX_CAMERA_SENSORS];
-
-};
-
-struct msm_cam_config_dev_info {
-	int num_config_nodes;
-	const char *config_dev_name[MSM_MAX_CAMERA_CONFIGS];
-	int config_dev_id[MSM_MAX_CAMERA_CONFIGS];
-};
-
-struct msm_mctl_node_info {
-	int num_mctl_nodes;
-	const char *mctl_node_name[MSM_MAX_CAMERA_SENSORS];
 };
 
 struct flash_ctrl_data {
@@ -1223,32 +615,6 @@ struct msm_camsensor_info {
 	char name[MAX_SENSOR_NAME];
 	uint8_t flash_enabled;
 	int8_t total_steps;
-	uint8_t support_3d;
-};
-
-#define V4L2_SINGLE_PLANE	0
-#define V4L2_MULTI_PLANE_Y	0
-#define V4L2_MULTI_PLANE_CBCR	1
-#define V4L2_MULTI_PLANE_CB	1
-#define V4L2_MULTI_PLANE_CR	2
-
-struct plane_data {
-	int plane_id;
-	uint32_t offset;
-	unsigned long size;
-};
-
-struct img_plane_info {
-	uint32_t width;
-	uint32_t height;
-	uint32_t pixelformat;
-	uint8_t buffer_type; /*Single/Multi planar*/
-	uint8_t output_port;
-	uint32_t ext_mode;
-	uint8_t num_planes;
-	struct plane_data plane[MAX_PLANES];
-	uint32_t sp_y_offset;
-	uint8_t vpe_can_use;
 };
 
 #if defined (CONFIG_OEM_CAMERA)

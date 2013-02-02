@@ -1,13 +1,29 @@
 /* Copyright (c) 2010, 2012, Code Aurora Forum. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *     * Neither the name of Code Aurora Forum, Inc. nor the names of its
+ *		 contributors may be used to endorse or promote products derived
+ *		 from this software without specific prior written permission.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef _msm_vpe1_h_
@@ -122,9 +138,7 @@ struct vpe_isr_queue_cmd_type {
 };
 
 enum VPE_MESSAGE_ID {
-	MSG_ID_VPE_OUTPUT_V = 7, /* To match with that of VFE */
-	MSG_ID_VPE_OUTPUT_ST_L,
-	MSG_ID_VPE_OUTPUT_ST_R,
+    MSG_ID_VPE_OUTPUT_V = 7, /* To match with that of VFE */
 };
 
 struct vpe_device_type {
@@ -137,9 +151,9 @@ struct vpe_device_type {
 };
 
 struct dis_offset_type {
-	int32_t dis_offset_x;
-	int32_t dis_offset_y;
-	uint32_t frame_id;
+    int32_t  dis_offset_x;
+	int32_t  dis_offset_y;
+    uint32_t  frame_id;
 };
 
 struct vpe_ctrl_type {
@@ -152,7 +166,7 @@ struct vpe_ctrl_type {
 	void              *extdata;
 	uint32_t          extlen;
 	struct msm_vpe_callback *resp;
-	uint32_t          in_h_w;
+	uint32_t           in_h_w;
 	uint32_t          out_h;  /* this is BEFORE rotation. */
 	uint32_t          out_w;  /* this is BEFORE rotation. */
 	uint32_t          dis_en;
@@ -161,9 +175,6 @@ struct vpe_ctrl_type {
 	struct dis_offset_type   dis_offset;
 	uint32_t          pcbcr_before_dis;
 	uint32_t          pcbcr_dis_offset;
-	int               output_type;
-	int               frame_pack;
-	uint8_t           pad_2k_bool;
 };
 
 /*
@@ -223,17 +234,15 @@ struct phase_val_t {
 	int32_t phase_step_y;
 };
 
-extern struct vpe_ctrl_type *vpe_ctrl;
+extern struct vpe_ctrl_type    *vpe_ctrl;
 
 int msm_vpe_open(void);
 int msm_vpe_release(void);
 int msm_vpe_reg(struct msm_vpe_callback *presp);
 void msm_send_frame_to_vpe(uint32_t pyaddr, uint32_t pcbcraddr,
-	struct timespec *ts, int output_id);
+				struct timespec *ts);
 int msm_vpe_config(struct msm_vpe_cfg_cmd *cmd, void *data);
 int msm_vpe_cfg_update(void *pinfo);
-void msm_vpe_offset_update(int frame_pack, uint32_t pyaddr, uint32_t pcbcraddr,
-	struct timespec *ts, int output_id, struct msm_st_half st_half,
-	int frameid);
+
 #endif /*_msm_vpe1_h_*/
 

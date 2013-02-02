@@ -37,11 +37,6 @@ struct sr130pc10_regset_type {
 #define REG_DELAY	0xFF00	/* in ms */
 #define REG_CMD		0xFFFF	/* Followed by command */
 
-/* DTP */
-#define SR130PC10_DTP_OFF		0
-#define SR130PC10_DTP_ON		1
-#define SR130PC10_DTP_OFF_ACK		2
-#define SR130PC10_DTP_ON_ACK		3
 /* Following order should not be changed */
 enum image_size_sr130pc10 {
 	/* This SoC supports upto SXGA (1280*1024) */
@@ -1043,7 +1038,7 @@ sr130pc10_short_t sr130pc10_reg_init[] =
 //stable band
 {0x42, 0x22},	//csum2
 {0x50, 0x22},	//csum4
-{0x41, 0x42},	//cdiff
+{0x41, 0x43},	//cdiff
 {0x40, 0xf6},	//yth
 
 //unstable band
@@ -1114,7 +1109,7 @@ sr130pc10_short_t sr130pc10_reg_init[] =
 
 {0x83, 0x56},	//Normal R max 0x54->0x56  d65 margine
 {0x84, 0x20},	//Normal R min
-{0x85, 0x4e},	//Normal B max  
+{0x85, 0x52},	//Normal B max 4e->52  
 {0x86, 0x20},	//Normal B mim
 
 {0x87, 0x4e},	//middle R max
@@ -1132,11 +1127,11 @@ sr130pc10_short_t sr130pc10_reg_init[] =
 {0x90, 0x53},	//p2   51
 {0x91, 0x50},	//p3   4e
 {0x92, 0x4d},	//p4   48
-{0x93, 0x46},	//p5   42
-{0x94, 0x40},	//p6   3a
-{0x95, 0x37},	//p7   32
+{0x93, 0x44},	//p5   42
+{0x94, 0x3a},	//p6   3a
+{0x95, 0x32},	//p7   32
 {0x96, 0x26},	//p8   25
-{0x97, 0x20},	//p9   19
+{0x97, 0x1f},	//p9   19
 {0x98, 0x1d},	//p10  17
 {0x99, 0x19},	//p11  15
 {0x9a, 0x19},	//p12  13
@@ -2190,7 +2185,7 @@ sr130pc10_short_t  sr130pc10_init_vt_reg[] =
 //stable band
 {0x42, 0x22},	//csum2
 {0x50, 0x22},	//csum4
-{0x41, 0x42},	//cdiff
+{0x41, 0x43},	//cdiff
 {0x40, 0xf6},	//yth
 
 //unstable band
@@ -2279,11 +2274,11 @@ sr130pc10_short_t  sr130pc10_init_vt_reg[] =
 {0x90, 0x53},	//p2   51
 {0x91, 0x50},	//p3   4e
 {0x92, 0x4d},	//p4   48
-{0x93, 0x46},	//p5   42
-{0x94, 0x40},	//p6   3a
-{0x95, 0x37},	//p7   32
+{0x93, 0x44},	//p5   42
+{0x94, 0x3a},	//p6   3a
+{0x95, 0x32},	//p7   32
 {0x96, 0x26},	//p8   25
-{0x97, 0x20},	//p9   19
+{0x97, 0x1f},	//p9   19
 {0x98, 0x1d},	//p10  17
 {0x99, 0x19},	//p11  15
 {0x9a, 0x19},	//p12  13
@@ -2423,6 +2418,7 @@ sr130pc10_short_t  sr130pc10_preview_reg[] =
 {0x03, 0x22},
 {0x10, 0xeb},  //AWB ON
 
+{0x03, 0x00},
 {0x01, 0xf0},  //sleep off	
 
 {0x03, 0x00},
@@ -2436,7 +2432,7 @@ sr130pc10_short_t  sr130pc10_preview_reg[] =
 //static unsigned short sr130pc10_capture_reg[] = {
 sr130pc10_short_t  sr130pc10_capture_reg[] = 
 {
-#if 0
+
 {0x03, 0x00},
 {0x01, 0xf1},  //sleep
 	   
@@ -2486,7 +2482,7 @@ sr130pc10_short_t  sr130pc10_capture_reg[] =
 {0x01, 0xf0},  //sleep off
 
 {0xff, 0x05},
-#endif
+
 };
 
 /************** Exposure Value Setting ****************/
@@ -2594,7 +2590,7 @@ sr130pc10_short_t sr130pc10_wb_auto[] = {
 {0x82, 0x36},
 {0x83, 0x56},
 {0x84, 0x20},
-{0x85, 0x4e},
+{0x85, 0x52}, //4e->52
 {0x86, 0x20},
 };
 
@@ -2705,12 +2701,12 @@ sr130pc10_short_t sr130pc10_effect_aqua[] = {
 
 sr130pc10_short_t sr130pc10_dataline[] = {
 {0x03, 0x00},
-{0x50, 0x05}
+{0x50, 0x05},
 };
 
 sr130pc10_short_t sr130pc10_dataline_stop[] = {	
 {0x03, 0x00},
-{0x50, 0x00}
+{0x50, 0x00},
 };
 
 

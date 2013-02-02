@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -24,54 +24,27 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
-#ifndef MT9P012_KM_H
-#define MT9P012_KM_H
+#ifndef MSM_GEMINI_PLATFORM_H
+#define MSM_GEMINI_PLATFORM_H
 
-#include <linux/types.h>
+#include <linux/interrupt.h>
+#include <linux/platform_device.h>
 
-extern struct mt9p012_km_reg mt9p012_km_regs;	/* from mt9p012_km_reg.c */
+void msm_gemini_platform_p2v(struct file  *file);
+uint32_t msm_gemini_platform_v2p(int fd, uint32_t len, struct file **file);
 
-struct reg_struct {
-	uint16_t vt_pix_clk_div;     /* 0x0300 */
-	uint16_t vt_sys_clk_div;     /* 0x0302 */
-	uint16_t pre_pll_clk_div;    /* 0x0304 */
-	uint16_t pll_multiplier;     /* 0x0306 */
-	uint16_t op_pix_clk_div;     /* 0x0308 */
-	uint16_t op_sys_clk_div;     /* 0x030A */
-	uint16_t scale_m;            /* 0x0404 */
-	uint16_t row_speed;          /* 0x3016 */
-	uint16_t x_addr_start;       /* 0x3004 */
-	uint16_t x_addr_end;         /* 0x3008 */
-	uint16_t y_addr_start;       /* 0x3002 */
-	uint16_t y_addr_end;         /* 0x3006 */
-	uint16_t read_mode;          /* 0x3040 */
-	uint16_t x_output_size ;     /* 0x034C */
-	uint16_t y_output_size;      /* 0x034E */
-	uint16_t line_length_pck;    /* 0x300C */
-	uint16_t frame_length_lines; /* 0x300A */
-	uint16_t coarse_int_time;    /* 0x3012 */
-	uint16_t fine_int_time;      /* 0x3014 */
-};
+int msm_gemini_platform_clk_enable(void);
+int msm_gemini_platform_clk_disable(void);
 
+int msm_gemini_platform_init(struct platform_device *pdev,
+	struct resource **mem,
+	void **base,
+	int *irq,
+	irqreturn_t (*handler) (int, void *),
+	void *context);
+int msm_gemini_platform_release(struct resource *mem, void *base, int irq,
+	void *context);
 
-struct mt9p012_km_i2c_reg_conf {
-	unsigned short waddr;
-	unsigned short wdata;
-};
-
-
-struct mt9p012_km_reg {
-	struct reg_struct const *reg_pat;
-	uint16_t reg_pat_size;
-	struct mt9p012_km_i2c_reg_conf const *ttbl;
-	uint16_t ttbl_size;
-	struct mt9p012_km_i2c_reg_conf const *lctbl;
-	uint16_t lctbl_size;
-	struct mt9p012_km_i2c_reg_conf const *rftbl;
-	uint16_t rftbl_size;
-};
-
-#endif /* MT9P012_KM_H */
+#endif /* MSM_GEMINI_PLATFORM_H */
