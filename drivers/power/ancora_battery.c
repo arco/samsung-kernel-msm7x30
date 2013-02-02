@@ -208,7 +208,7 @@ int batt_temp_adc_info = -1;
 #define BATT_TEMP_LOW_BLOCK			1708	// 	-3`C   +- 2
 #define BATT_TEMP_LOW_RECOVER		1670	//	0`C    +- 2
  
-#define BATT_FULL_CHARGING_VOLTAGE	4185
+#define BATT_FULL_CHARGING_VOLTAGE	4190
 #define BATT_FULL_CHARGING_CURRENT	180
 #define BATT_FULL_CHARGING_CURRENT_REV_5	360
 
@@ -301,7 +301,6 @@ enum chg_battery_status_type {
 
 /*
  *This enum contains defintions of the battery voltage level
-
  */
 enum chg_battery_level_type {
     /* The battery voltage is dead/very low (less than 3.2V)        */
@@ -1713,19 +1712,33 @@ static void msm_batt_update_psy_status(void)
 		
 #ifdef BATTERY_CHECK_OVP
 	    /* resume charging scenario */
+
 	    if (msm_batt_resume_ovp_chg() == 1){
+
 	        msm_batt_info.batt_ovp_chg_block = 0;
+
 	        msm_batt_info.batt_status = POWER_SUPPLY_STATUS_CHARGING;
+
 	        msm_batt_chg_en(START_CHARGING);
+
 	        return;
+
 	    }
+
 	    /* block charging scenario */
+
 	    if (msm_batt_block_ovp_chg() == 1) {
+
 	        msm_batt_info.batt_ovp_chg_block = 1;
+
 	        msm_batt_info.batt_status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+
 		    msm_batt_chg_en(STOP_CHARGING);
+
 	        return;
+
 	    }
+
 #endif
 	}
 	/**************************/

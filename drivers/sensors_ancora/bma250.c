@@ -288,15 +288,16 @@ static struct bma250_data acc_data;
 
 /* Output data rate */
 static const struct bma250_odr bma250_odr_tbl[] = {
-    {1,   BMA250_BANDWIDTH_500HZ},
-    {2,   BMA250_BANDWIDTH_250HZ},
-    {4,   BMA250_BANDWIDTH_63HZ},
-    {8,   BMA250_BANDWIDTH_32HZ},
-    {16,  BMA250_BANDWIDTH_16HZ},
-    {32,  BMA250_BANDWIDTH_8HZ},
-    {64,  BMA250_BANDWIDTH_8HZ},
+    {1,   BMA250_BANDWIDTH_1000HZ},
+    {2,   BMA250_BANDWIDTH_500HZ},
+    {4,   BMA250_BANDWIDTH_250HZ},
+    {8,   BMA250_BANDWIDTH_125HZ},
+    {16,  BMA250_BANDWIDTH_63HZ},
+    {32,  BMA250_BANDWIDTH_32HZ},
+    {64,  BMA250_BANDWIDTH_16HZ},
     {128, BMA250_BANDWIDTH_8HZ},
 };
+
 /* Sleep duration */
 static const struct bma250_sd bma250_sd_table[] = {
     {BMA250_BANDWIDTH_8HZ    /* 128ms */, BMA250_SLEEP_DUR_100},
