@@ -5116,6 +5116,21 @@ s5k4ecgx_short_t s5k4ecgx_4K_WIDE_Capture[] = {
 // Enable
 
 s5k4ecgx_short_t s5k4ecgx_1280_Preview_E[] = {	
+
+{0x0028D000},
+{0x002AE410},
+{0x0F123E01},
+{0x00287000},
+{0x002A18AC},
+{0x0F120060},	//	#senHal_uAddColsBin		//
+{0x0F120060},	//	#senHal_uAddColsNoBin	//
+{0x0F1207DC},	//05C0	//	#senHal_uMinColsBin  	//
+{0x0F1205C0},	//	#senHal_uMinColsNoBin	//
+
+{0x002A02A6},
+{0x0F120500},	//	#REG_0TC_PCFG_usWidth  //Hsize   : 800			//
+{0x0F1202D0}, //	#REG_0TC_PCFG_usHeight//Vsize   : 480       //
+	
 {0xFCFCD000},
 {0x00287000},
 
@@ -5263,25 +5278,7 @@ s5k4ecgx_short_t s5k4ecgx_1280_Preview_E[] = {
 {0x0F1207DC},	//senHal_uMinColsBin
 {0x0F1205C0},	//senHal_uMinColsNoBin
 	
-	// Size
-{0x002A0250},
-{0x0F120A00},	//REG_TC_GP_PrevReqInputWidth //2560
-{0x0F1205A0},	//REG_TC_GP_PrevReqInputHeight //1440
-{0x0F120010},	//REG_TC_GP_PrevInputWidthOfs //(2592-2560)/2
-{0x0F1200FC},	//REG_TC_GP_PrevInputHeightOfs //(1944-1440)/2
-	
-{0x002A0262},
-{0x0F120001},	//REG_TC_GP_bUseReqInputInPre
-	
-{0x002A0494},
-{0x0F120A00},	//REG_TC_PZOOM_PrevZoomReqInputWidth //2560
-{0x0F1205A0},	//REG_TC_PZOOM_PrevZoomReqInputHeight //1440
-{0x0F120000},	//REG_TC_PZOOM_PrevZoomReqInputWidthOfs
-{0x0F120000},	//REG_TC_PZOOM_PrevZoomReqInputHeightOfs
-	
-{0x002A02A6},
-{0x0F120500},	//REG_0TC_PCFG_usWidth //1280
-{0x0F1202D0},	//REG_0TC_PCFG_usHeight //720
+
 	
 	// Frame Rate
 {0x002A02BE},
@@ -5289,6 +5286,70 @@ s5k4ecgx_short_t s5k4ecgx_1280_Preview_E[] = {
 {0x0F120001},	//REG_0TC_PCFG_FrRateQualityType
 {0x0F12014A},	//REG_0TC_PCFG_usMaxFrTimeMsecMult10 //014Ah:30fps
 {0x0F12014A},	//REG_0TC_PCFG_usMinFrTimeMsecMult10 //014Ah:30fps
+
+{0x002A0734},	//R
+{0x0F120000},
+{0x0F120005},
+{0x0F12000F},
+{0x0F120026},
+{0x0F120066},
+{0x0F1200D5},
+{0x0F120138},
+{0x0F120163},
+{0x0F120189},
+{0x0F1201C6},
+{0x0F1201F8},
+{0x0F120222},
+{0x0F120247},
+{0x0F120282},
+{0x0F1202B5},
+{0x0F12030F},
+{0x0F12035F},
+{0x0F1203A2},
+{0x0F1203D8},
+{0x0F1203FF},
+
+{0x0F120000},	//G
+{0x0F120005},
+{0x0F12000F},
+{0x0F120026},
+{0x0F120066},
+{0x0F1200D5},
+{0x0F120138},
+{0x0F120163},
+{0x0F120189},
+{0x0F1201C6},
+{0x0F1201F8},
+{0x0F120222},
+{0x0F120247},
+{0x0F120282},
+{0x0F1202B5},
+{0x0F12030F},
+{0x0F12035F},
+{0x0F1203A2},
+{0x0F1203D8},
+{0x0F1203FF},
+
+{0x0F120000},	//B
+{0x0F120005},
+{0x0F12000F},
+{0x0F120026},
+{0x0F120066},
+{0x0F1200D5},
+{0x0F120138},
+{0x0F120163},
+{0x0F120189},
+{0x0F1201C6},
+{0x0F1201F8},
+{0x0F120222},
+{0x0F120247},
+{0x0F120282},
+{0x0F1202B5},
+{0x0F12030F},
+{0x0F12035F},
+{0x0F1203A2},
+{0x0F1203D8},
+{0x0F1203FF},
 	
 	// AE Target
 {0x002A1484},
@@ -5362,75 +5423,14 @@ s5k4ecgx_short_t s5k4ecgx_1280_Preview_E[] = {
 {0x0F120001},	//0000 //lt_uInitPostToleranceCnt
 	
 {0x002A0582},
-{0x0F1200E0},	//0000 //lt_uSlowFilterCoef
-	
-{0x002A0734},	//R
-{0x0F120000},
-{0x0F120005},
-{0x0F12000F},
-{0x0F120026},
-{0x0F120066},
-{0x0F1200D5},
-{0x0F120138},
-{0x0F120163},
-{0x0F120189},
-{0x0F1201C6},
-{0x0F1201F8},
-{0x0F120222},
-{0x0F120247},
-{0x0F120282},
-{0x0F1202B5},
-{0x0F12030F},
-{0x0F12035F},
-{0x0F1203A2},
-{0x0F1203D8},
-{0x0F1203FF},
+{0x0F1200D0},	//0000 //lt_uSlowFilterCoef
 
-{0x0F120000},	//G
-{0x0F120005},
-{0x0F12000F},
-{0x0F120026},
-{0x0F120066},
-{0x0F1200D5},
-{0x0F120138},
-{0x0F120163},
-{0x0F120189},
-{0x0F1201C6},
-{0x0F1201F8},
-{0x0F120222},
-{0x0F120247},
-{0x0F120282},
-{0x0F1202B5},
-{0x0F12030F},
-{0x0F12035F},
-{0x0F1203A2},
-{0x0F1203D8},
-{0x0F1203FF},
-
-{0x0F120000},	//B
-{0x0F120005},
-{0x0F12000F},
-{0x0F120026},
-{0x0F120066},
-{0x0F1200D5},
-{0x0F120138},
-{0x0F120163},
-{0x0F120189},
-{0x0F1201C6},
-{0x0F1201F8},
-{0x0F120222},
-{0x0F120247},
-{0x0F120282},
-{0x0F1202B5},
-{0x0F12030F},
-{0x0F12035F},
-{0x0F1203A2},
-{0x0F1203D8},
-{0x0F1203FF},
+{0x002A47C4},
+{0x0F120001},	//TNP_Regs_BUse1FrameAE	(0: off, 1: on)				
 	
 	// Slow AWB
 {0x002A139A},
-{0x0F120158},	//0258 //awbb_GainsMaxMove
+{0x0F120258},	//0258 //awbb_GainsMaxMove
 	
 	// AWB Convergence Speed
 {0x002A1464},
@@ -5438,25 +5438,17 @@ s5k4ecgx_short_t s5k4ecgx_1280_Preview_E[] = {
 {0x0F12FFFF},	//0190 //awbb_WpFilterMaxThr
 {0x0F120010},	//00A0 //awbb_WpFilterCoef
 {0x0F120020},	//0004 //awbb_WpFilterSize
-
-                //AFIT
-{0x002A0944},
-{0x0F120060},   //afit_uNoiseIndInDoor_0_
-{0x0F1200B0},   //afit_uNoiseIndInDoor_1_
-{0x0F120196},   //afit_uNoiseIndInDoor_2_
-{0x0F120245},   //afit_uNoiseIndInDoor_3_
-{0x0F120300},   //afit_uNoiseIndInDoor_4_
 	
 {0x002A0938},	
 {0x0F120001},	//0000	// on/off AFIT by NB option
-{0x0F120014},	//0014	//SARR_uNormBrInDoor
-{0x0F1200D2},	//00D2	//SARR_uNormBrInDoor
-{0x0F120784},	//0384	//SARR_uNormBrInDoor
-{0x0F1210D0},	//07D0	//SARR_uNormBrInDoor
+{0x0F120004},	//0014	//SARR_uNormBrInDoor
+{0x0F120006},	//00D2	//SARR_uNormBrInDoor
+{0x0F120384},	//0384	//SARR_uNormBrInDoor
+{0x0F120AD0},	//07D0	//SARR_uNormBrInDoor
 {0x0F121388},	//1388	//SARR_uNormBrInDoor
 
 {0x002A098C},
-{0x0F120000},	//0000	//7000098C	//_BRIGHTNESS	AFIT 0                                  
+{0x0F12000A},	//0000	//7000098C	//_BRIGHTNESS	AFIT 0                                  
 {0x0F120000},	//0000	//7000098E	//_CONTRAST                                           
 {0x0F120000},	//0000	//70000990	//_SATURATION                                         
 {0x0F120000},	//0000	//70000992	//_SHARP_BLUR                                         
@@ -5527,9 +5519,9 @@ s5k4ecgx_short_t s5k4ecgx_1280_Preview_E[] = {
 {0x0F121102},	//1010	//70000A14	//_yuviirnr_iMaxThreshH_Y   [7:0] AFIT8_yuviirnr_iMaxThreshL_UV  
 {0x0F120611},	//0C10	//70000A16	//_yuviirnr_iMaxThreshH_UV   [7:0] AFIT8_yuviirnr_iYNRStrengthL  
 {0x0F121A02},	//1A0C	//70000A18	//_yuviirnr_iYNRStrengthH   [7:0] AFIT8_yuviirnr_iUVNRStrengthL  
-{0x0F129000},	//4A18	//70000A1A	//_yuviirnr_iUVNRStrengthH   [7:0] AFIT8_byr_gras_iShadingPower  
-{0x0F1200A0},	//0080	//70000A1C	//_RGBGamma2_iLinearity   [7:0] AFIT8_RGBGamma2_iDarkReduce      
-{0x0F121080},	//0350	//70000A1E	//_ccm_oscar_iSaturation   [7:0] AFIT8_RGB2YUV_iYOffset
+{0x0F125500},	//4A18	//70000A1A	//_yuviirnr_iUVNRStrengthH   [7:0] AFIT8_byr_gras_iShadingPower  
+{0x0F120070},	//0080	//70000A1C	//_RGBGamma2_iLinearity   [7:0] AFIT8_RGBGamma2_iDarkReduce      
+{0x0F121070},	//0350	//70000A1E	//_ccm_oscar_iSaturation   [7:0] AFIT8_RGB2YUV_iYOffset
 {0x0F120188},	//0180	//70000A20	//_RGB2YUV_iRGBGain   [7:0] AFIT8_bnr_nClustLevel_H   
 {0x0F120A0A},	//0A0A	//70000A22	//_bnr_iClustMulT_H   [7:0] AFIT8_bnr_iClustMulT_C    
 {0x0F120101},	//0101	//70000A24	//_bnr_iClustThresh_H   [7:0] AFIT8_bnr_iClustThresh_C
@@ -5549,7 +5541,7 @@ s5k4ecgx_short_t s5k4ecgx_1280_Preview_E[] = {
 {0x0F120001},	//0001	//70000A40	//_bnr_nClustLevel_C      [0] 
 
 {0x002A0A42},                        
-{0x0F120000},	//0000	//70000A42	//_BRIGHTNESS	AFIT 1                                  
+{0x0F120010},	//0000	//70000A42	//_BRIGHTNESS	AFIT 1                                  
 {0x0F120000},	//0000	//70000A44	//_CONTRAST                                           
 {0x0F120000},	//0000	//70000A46	//_SATURATION                                         
 {0x0F120000},	//0000	//70000A48	//_SHARP_BLUR                                         
@@ -5620,9 +5612,9 @@ s5k4ecgx_short_t s5k4ecgx_1280_Preview_E[] = {
 {0x0F121402},	//1102	//70000ACA	//_yuviirnr_iMaxThreshH_Y   [7:0] AFIT8_yuviirnr_iMaxThreshL_UV  
 {0x0F120618},	//0611	//70000ACC	//_yuviirnr_iMaxThreshH_UV   [7:0] AFIT8_yuviirnr_iYNRStrengthL  
 {0x0F121A02},	//1A02	//70000ACE	//_yuviirnr_iYNRStrengthH   [7:0] AFIT8_yuviirnr_iUVNRStrengthL  
-{0x0F128000},	//8018	//70000AD0	//_yuviirnr_iUVNRStrengthH   [7:0] AFIT8_byr_gras_iShadingPower  
-{0x0F1200A0},	//0080	//70000AD2	//_RGBGamma2_iLinearity   [7:0] AFIT8_RGBGamma2_iDarkReduce      
-{0x0F121080},	//0374	//70000AD4	//_ccm_oscar_iSaturation   [7:0] AFIT8_RGB2YUV_iYOffset//
+{0x0F125500},	//8018	//70000AD0	//_yuviirnr_iUVNRStrengthH   [7:0] AFIT8_byr_gras_iShadingPower  
+{0x0F1200B8},	//0080	//70000AD2	//_RGBGamma2_iLinearity   [7:0] AFIT8_RGBGamma2_iDarkReduce      
+{0x0F121088},	//0374	//70000AD4	//_ccm_oscar_iSaturation   [7:0] AFIT8_RGB2YUV_iYOffset//
 {0x0F120180},	//0180	//70000AD6	//_RGB2YUV_iRGBGain   [7:0] AFIT8_bnr_nClustLevel_H   
 {0x0F120A0A},	//0A0A	//70000AD8	//_bnr_iClustMulT_H   [7:0] AFIT8_bnr_iClustMulT_C    
 {0x0F120101},	//0101	//70000ADA	//_bnr_iClustThresh_H   [7:0] AFIT8_bnr_iClustThresh_C
@@ -5920,6 +5912,31 @@ s5k4ecgx_short_t s5k4ecgx_1280_Preview_E[] = {
 {0x0F120008},	//0009	//70000D16	//_ee_iReduceEdgeSlope_Bin [7:0]							        
 {0x0F120001},	//0001	//70000D18	//_bnr_nClustLevel_C      [0]   bWideWide[1]  
 
+	// FOR HD CAMCORDER
+
+{0x002A0250},
+{0x0F120A00},	//#REG_TC_GP_PrevReqInputWidth						//Sensor Crop Width	2560             
+{0x0F1205A0},	//#REG_TC_GP_PrevReqInputHeight						//Sensor Crop Height	1536           
+{0x0F120010},	//#REG_TC_GP_PrevInputWidthOfs						//Sensor HOffset	16 = (2592-2560)/2 
+{0x0F1200F0},	//#REG_TC_GP_PrevInputHeightOfs						//Sensor VOffset	204 = (1944-1536)/2 
+{0x0F120A00},	//#REG_TC_GP_CapReqInputWidth							//Sensor Crop Width	2560             
+{0x0F1205A0},	//#REG_TC_GP_CapReqInputHeight						//Sensor Crop Height	1536           
+{0x0F120010},	//#REG_TC_GP_CapInputWidthOfs							//Sensor HOffset	16 = (2592-2560)/2 
+{0x0F1200F0},	//#REG_TC_GP_CapInputHeightOfs						//Sensor VOffset	204 = (1944-1536)/2 
+{0x002A0494},                                                                                
+{0x0F120A00},	//#REG_TC_PZOOM_PrevZoomReqInputWidth			//ISP	Input Width	2560               
+{0x0F1205A0},	//#REG_TC_PZOOM_PrevZoomReqInputHeight		//ISP	Input Height	1536             
+{0x0F120000},	//#REG_TC_PZOOM_PrevZoomReqInputWidthOfs	//ISP	Input HOffset	0                
+{0x0F120000},	//#REG_TC_PZOOM_PrevZoomReqInputHeightOfs	//ISP	Input VOffset	0                
+{0x0F120A00},	//#REG_TC_PZOOM_CapZoomReqInputWidth			//ISP	Input Width	2560               
+{0x0F1205A0},	//#REG_TC_PZOOM_CapZoomReqInputHeight			//ISP	Input Height	1536             
+{0x0F120000},	//#REG_TC_PZOOM_CapZoomReqInputWidthOfs		//ISP	Input HOffset	0                
+{0x0F120000},	//#REG_TC_PZOOM_CapZoomReqInputHeightOfs	//ISP	Input VOffset	0                
+
+{0x002A0262},
+{0x0F120001},	//	#REG_TC_GP_bUseReqInputInPre   	//
+{0x0F120001},	//	#REG_TC_GP_bUseReqInputInCap   	//
+
 {0x002A0266},
 {0x0F120000},	//REG_TC_GP_ActivePrevConfig
 {0x002A026A},
@@ -5928,10 +5945,29 @@ s5k4ecgx_short_t s5k4ecgx_1280_Preview_E[] = {
 {0x0F120001},	//REG_TC_GP_NewConfigSync
 {0x002A0268},
 {0x0F120001},	//REG_TC_GP_PrevConfigChanged
+{0x002A0270},
+{0x0F120001},	//	#REG_TC_GP_CapConfigChanged    	//
+{0x002A023E},
+{0x0F120001},	//	#REG_TC_GP_EnablePreview       	//
+{0x0F120001},	//	#REG_TC_GP_EnablePreviewChanged	//
 
 };
 
 s5k4ecgx_short_t s5k4ecgx_1280_Preview_D[] = {	
+{0x0028D000},
+{0x002AE410},
+{0x0F123804},
+{0x00287000},
+{0x002A18AC},
+{0x0F120060},	//	#senHal_uAddColsBin		//
+{0x0F120060},	//	#senHal_uAddColsNoBin	//
+{0x0F1205CC},	//	#senHal_uMinColsBin  	//
+{0x0F1205C0},	//	#senHal_uMinColsNoBin	//
+
+{0x002A02A6},
+{0x0F120280},	//	#REG_0TC_PCFG_usWidth  //Hsize   : 640			//
+{0x0F1201E0}, //	#REG_0TC_PCFG_usHeight//Vsize   : 480       //	
+	
 {0xFCFCD000},
 {0x00287000},
 
@@ -6134,7 +6170,10 @@ s5k4ecgx_short_t s5k4ecgx_1280_Preview_D[] = {
 {0x0F120000}, //lt_uInitPostToleranceCnt
 
 {0x002A0582},
-{0x0F120000}, //lt_uSlowFilterCoef
+{0x0F1200D0}, //lt_uSlowFilterCoef
+
+{0x002A47C4},
+{0x0F120000},	//TNP_Regs_BUse1FrameAE	(0: off, 1: on)		
 
 {0x002A0734},	//R
 {0x0F120000},
@@ -6692,6 +6731,31 @@ s5k4ecgx_short_t s5k4ecgx_1280_Preview_D[] = {
 {0x0F120009},	//70000D16	//_ee_iReduceEdgeSlope_Bin [7:0]							        
 {0x0F120001},	//70000D18	//_bnr_nClustLevel_C      [0]   bWideWide[1]  
 
+	// FOR HD CAMCORDER
+
+{0x002A0250},
+{0x0F120A00},	//#REG_TC_GP_PrevReqInputWidth						//Sensor Crop Width	2560             
+{0x0F120780},	//#REG_TC_GP_PrevReqInputHeight						//Sensor Crop Height	1536           
+{0x0F120010},	//#REG_TC_GP_PrevInputWidthOfs						//Sensor HOffset	16 = (2592-2560)/2 
+{0x0F12000C},	//#REG_TC_GP_PrevInputHeightOfs						//Sensor VOffset	204 = (1944-1536)/2 
+{0x0F120A00},	//#REG_TC_GP_CapReqInputWidth							//Sensor Crop Width	2560             
+{0x0F120780},	//#REG_TC_GP_CapReqInputHeight						//Sensor Crop Height	1536           
+{0x0F120000},	//#REG_TC_GP_CapInputWidthOfs							//Sensor HOffset	16 = (2592-2560)/2 
+{0x0F120000},	//#REG_TC_GP_CapInputHeightOfs						//Sensor VOffset	204 = (1944-1536)/2 
+{0x002A0494},                                                                                
+{0x0F120A00},	//#REG_TC_PZOOM_PrevZoomReqInputWidth			//ISP	Input Width	2560               
+{0x0F120780},	//#REG_TC_PZOOM_PrevZoomReqInputHeight		//ISP	Input Height	1536             
+{0x0F120000},	//#REG_TC_PZOOM_PrevZoomReqInputWidthOfs	//ISP	Input HOffset	0                
+{0x0F120000},	//#REG_TC_PZOOM_PrevZoomReqInputHeightOfs	//ISP	Input VOffset	0                
+{0x0F120A00},	//#REG_TC_PZOOM_CapZoomReqInputWidth			//ISP	Input Width	2560               
+{0x0F120780},	//#REG_TC_PZOOM_CapZoomReqInputHeight			//ISP	Input Height	1536             
+{0x0F120000},	//#REG_TC_PZOOM_CapZoomReqInputWidthOfs		//ISP	Input HOffset	0                
+{0x0F120000},	//#REG_TC_PZOOM_CapZoomReqInputHeightOfs	//ISP	Input VOffset	0                
+
+{0x002A0262},
+{0x0F120001},	//	#REG_TC_GP_bUseReqInputInPre   	//
+{0x0F120001},	//	#REG_TC_GP_bUseReqInputInCap   	//
+
 {0x002A0266},
 {0x0F120000},	//REG_TC_GP_ActivePrevConfig
 {0x002A026A},
@@ -6700,6 +6764,11 @@ s5k4ecgx_short_t s5k4ecgx_1280_Preview_D[] = {
 {0x0F120001},	//REG_TC_GP_NewConfigSync
 {0x002A0268},
 {0x0F120001},	//REG_TC_GP_PrevConfigChanged
+{0x002A0270},
+{0x0F120001},	//	#REG_TC_GP_CapConfigChanged    	//
+{0x002A023E},
+{0x0F120001},	//	#REG_TC_GP_EnablePreview       	//
+{0x0F120001},	//	#REG_TC_GP_EnablePreviewChanged	//
 
 };
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -8,6 +8,11 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
  *
  */
 
@@ -608,12 +613,11 @@ static void vfe_addr_convert(struct msm_vfe_phy_info *pinfo,
 	switch (type) {
 	case VFE_MSG_OUTPUT_P:
 	case VFE_MSG_OUTPUT_V:{
-		pinfo->planar0_off =
+		pinfo->y_phy =
 			((struct vfe_message *)data)->_u.msgOutput2.yBuffer;
-		pinfo->planar1_off =
+		pinfo->cbcr_phy =
 			((struct vfe_message *)data)->_u.msgOutput2.
 			cbcrBuffer;
-		pinfo->planar2_off = pinfo->planar0_off;
 		ctrl->extdata.bpcInfo =
 			((struct vfe_message *)data)->_u.msgOutput2.bpcInfo;
 		ctrl->extdata.asfInfo =
@@ -756,7 +760,7 @@ static void vfe_proc_ops(enum VFE_MESSAGE_ID id, void *data)
 		rp->evt_msg.len = sizeof(*msg);
 		msg->_d = id;
 		if (vfe_funcs[id].fn(rp, msg, data) == FALSE) {
-			pr_warning("%s: freeing memory: handler for %d "
+			pr_info("%s: freeing memory: handler for %d "
 				"returned false\n", __func__, id);
 			ctrl->resp->vfe_free(rp);
 			return;
@@ -1772,7 +1776,7 @@ static void vfe_do_tasklet(unsigned long data)
 	}
 
 	if (cnt > ARRAY_SIZE(ctrl->irqs)/2)
-		CDBG("%s: serviced %d vfe interrupts\n", __func__, cnt);
+		pr_info("%s: serviced %d vfe interrupts\n", __func__, cnt);
 
 	spin_unlock_irqrestore(&msm_vfe_ctrl_lock, flags);
 }

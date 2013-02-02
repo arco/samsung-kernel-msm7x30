@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -24,54 +24,70 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
-#ifndef MT9P012_KM_H
-#define MT9P012_KM_H
+#ifndef MSM_GEMINI_SYNC_H
+#define MSM_GEMINI_SYNC_H
 
-#include <linux/types.h>
+#include <linux/fs.h>
+#include <linux/list.h>
+#include <linux/cdev.h>
+#include <linux/platform_device.h>
+#include "msm_gemini_core.h"
 
-extern struct mt9p012_km_reg mt9p012_km_regs;	/* from mt9p012_km_reg.c */
-
-struct reg_struct {
-	uint16_t vt_pix_clk_div;     /* 0x0300 */
-	uint16_t vt_sys_clk_div;     /* 0x0302 */
-	uint16_t pre_pll_clk_div;    /* 0x0304 */
-	uint16_t pll_multiplier;     /* 0x0306 */
-	uint16_t op_pix_clk_div;     /* 0x0308 */
-	uint16_t op_sys_clk_div;     /* 0x030A */
-	uint16_t scale_m;            /* 0x0404 */
-	uint16_t row_speed;          /* 0x3016 */
-	uint16_t x_addr_start;       /* 0x3004 */
-	uint16_t x_addr_end;         /* 0x3008 */
-	uint16_t y_addr_start;       /* 0x3002 */
-	uint16_t y_addr_end;         /* 0x3006 */
-	uint16_t read_mode;          /* 0x3040 */
-	uint16_t x_output_size ;     /* 0x034C */
-	uint16_t y_output_size;      /* 0x034E */
-	uint16_t line_length_pck;    /* 0x300C */
-	uint16_t frame_length_lines; /* 0x300A */
-	uint16_t coarse_int_time;    /* 0x3012 */
-	uint16_t fine_int_time;      /* 0x3014 */
+struct msm_gemini_q {
+	char const	*name;
+	struct list_head  q;
+	spinlock_t	lck;
+	wait_queue_head_t wait;
+	int	       unblck;
 };
 
-
-struct mt9p012_km_i2c_reg_conf {
-	unsigned short waddr;
-	unsigned short wdata;
+struct msm_gemini_q_entry {
+	struct list_head list;
+	void   *data;
 };
 
+struct msm_gemini_device {
+	struct platform_device *pdev;
+	struct resource        *mem;
+	int                     irq;
+	void                   *base;
 
-struct mt9p012_km_reg {
-	struct reg_struct const *reg_pat;
-	uint16_t reg_pat_size;
-	struct mt9p012_km_i2c_reg_conf const *ttbl;
-	uint16_t ttbl_size;
-	struct mt9p012_km_i2c_reg_conf const *lctbl;
-	uint16_t lctbl_size;
-	struct mt9p012_km_i2c_reg_conf const *rftbl;
-	uint16_t rftbl_size;
+	struct device *device;
+	struct cdev   cdev;
+	struct mutex  lock;
+	char	  open_count;
+	uint8_t       op_mode;
+
+	/* event queue including frame done & err indications
+	 */
+	struct msm_gemini_q evt_q;
+
+	/* output return queue
+	 */
+	struct msm_gemini_q output_rtn_q;
+
+	/* output buf queue
+	 */
+	struct msm_gemini_q output_buf_q;
+
+	/* input return queue
+	 */
+	struct msm_gemini_q input_rtn_q;
+
+	/* input buf queue
+	 */
+	struct msm_gemini_q input_buf_q;
 };
 
-#endif /* MT9P012_KM_H */
+int __msm_gemini_open(struct msm_gemini_device *pgmn_dev);
+int __msm_gemini_release(struct msm_gemini_device *pgmn_dev);
+
+long __msm_gemini_ioctl(struct msm_gemini_device *pgmn_dev,
+	unsigned int cmd, unsigned long arg);
+
+struct msm_gemini_device *__msm_gemini_init(struct platform_device *pdev);
+int __msm_gemini_exit(struct msm_gemini_device *pgmn_dev);
+
+#endif /* MSM_GEMINI_SYNC_H */
