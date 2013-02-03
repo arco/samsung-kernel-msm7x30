@@ -487,7 +487,7 @@ static int msm_pmem_frame_ptov_lookup(struct msm_sync *sync,
 }
 
 static int msm_pmem_frame_ptov_lookup2(struct msm_sync *sync,
-		unsigned long p0_phy,
+		unsigned long pyaddr,
 		struct msm_pmem_info *pmem_info,
 		int clear_active)
 {
@@ -497,7 +497,7 @@ static int msm_pmem_frame_ptov_lookup2(struct msm_sync *sync,
 
 	spin_lock_irqsave(&sync->pmem_frame_spinlock, flags);
 	hlist_for_each_entry_safe(region, node, n, &sync->pmem_frames, list) {
-		if (p0_phy == (region->paddr + region->info.y_off) &&
+		if (pyaddr == (region->paddr + region->info.y_off) &&
 				region->info.active) {
 			/* offset since we could pass vaddr inside
 			 * a registerd pmem buffer
@@ -548,7 +548,8 @@ static unsigned long msm_pmem_stats_ptov_lookup(struct msm_sync *sync,
 }
 
 static unsigned long msm_pmem_frame_vtop_lookup(struct msm_sync *sync,
-		unsigned long buffer, uint32_t yoff, uint32_t cbcroff, int fd, int change_flag)
+		unsigned long buffer,
+		uint32_t yoff, uint32_t cbcroff, int fd, int change_flag)
 {
 	struct msm_pmem_region *region;
 	struct hlist_node *node, *n;
@@ -626,10 +627,12 @@ static int __msm_pmem_table_del(struct msm_sync *sync,
 	unsigned long flags = 0;
 
 	switch (pinfo->type) {
+	case MSM_PMEM_VIDEO:
 	case MSM_PMEM_PREVIEW:
 	case MSM_PMEM_THUMBNAIL:
 	case MSM_PMEM_MAINIMG:
 	case MSM_PMEM_RAW_MAINIMG:
+	case MSM_PMEM_VIDEO_VPE:
 	case MSM_PMEM_C2D:
 	case MSM_PMEM_MAINIMG_VPE:
 	case MSM_PMEM_THUMBNAIL_VPE:
@@ -640,30 +643,6 @@ static int __msm_pmem_table_del(struct msm_sync *sync,
 			if (pinfo->type == region->info.type &&
 					pinfo->vaddr == region->info.vaddr &&
 					pinfo->fd == region->info.fd) {
-				hlist_del(node);
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-				ion_free(client_for_ion, region->handle);
-#else
-				put_pmem_file(region->file);
-#endif
-				kfree(region);
-				CDBG("%s: type %d, vaddr  0x%p\n",
-					__func__, pinfo->type, pinfo->vaddr);
-			}
-		}
-		spin_unlock_irqrestore(&sync->pmem_frame_spinlock, flags);
-		break;
-
-	case MSM_PMEM_VIDEO:
-	case MSM_PMEM_VIDEO_VPE:
-		spin_lock_irqsave(&sync->pmem_frame_spinlock, flags);
-		hlist_for_each_entry_safe(region, node, n,
-			&sync->pmem_frames, list) {
-
-			if (((region->info.type == MSM_PMEM_VIDEO) ||
-				(region->info.type == MSM_PMEM_VIDEO_VPE)) &&
-				pinfo->vaddr == region->info.vaddr &&
-				pinfo->fd == region->info.fd) {
 				hlist_del(node);
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
 				ion_free(client_for_ion, region->handle);
@@ -755,11 +734,9 @@ static int __msm_get_frame(struct msm_sync *sync,
 			1); /* mark frame in use */
 
 	if (rc < 0) {
-		pr_err("%s: cannot get frame, invalid lookup address "
-			"y %x cbcr %x\n",
-			__func__,
-			pphy->y_phy,
-			pphy->cbcr_phy);
+		pr_err("%s: cannot get pic frame, invalid lookup"
+			" address y %x cbcr %x\n",
+			__func__, pphy->y_phy, pphy->cbcr_phy);
 		goto err;
 	}
 
@@ -769,9 +746,10 @@ static int __msm_get_frame(struct msm_sync *sync,
 	frame->cbcr_off = pmem_info.cbcr_off;
 	frame->fd = pmem_info.fd;
 	frame->path = vdata->phy.output_id;
-	CDBG("%s: y %x, cbcr %x,qcmd %x, virt_addr %x\n",
-		__func__, pphy->y_phy, pphy->cbcr_phy,
-		(int) qcmd, (int) frame->buffer);
+
+	CDBG("%s: y %x, cbcr %x, qcmd %x, virt_addr %x\n",
+		__func__,
+		pphy->y_phy, pphy->cbcr_phy, (int) qcmd, (int) frame->buffer);
 
 err:
 	free_qcmd(qcmd);
@@ -989,6 +967,7 @@ static int msm_control(struct msm_control_device *ctrl_pmsm,
 #ifdef CONFIG_OEM_CAMERA
 	if (udata->type == CAMERA_STOP_SNAPSHOT)sync->get_pic_abort = 1;
 #endif
+	atomic_set(&(qcmd->on_heap), 1);
 	qcmd->type = MSM_CAM_Q_CTRL;
 	qcmd->command = udata;
 
@@ -1121,13 +1100,13 @@ static int msm_divert_st_frame(struct msm_sync *sync,
 	} else {
 		if (se->resptype == MSM_CAM_RESP_STEREO_OP_1) {
 			rc = msm_pmem_frame_ptov_lookup(sync, data->phy.y_phy,
-			data->phy.cbcr_phy, &pinfo,
-				1);  /* do clear the active flag */
+					data->phy.cbcr_phy, &pinfo,
+					1);  /* do clear the active flag */
 			buf.buf_info.path = path;
 		} else if (se->resptype == MSM_CAM_RESP_STEREO_OP_2) {
 			rc = msm_pmem_frame_ptov_lookup(sync, data->phy.y_phy,
-			data->phy.cbcr_phy, &pinfo,
-				0); /* do not clear the active flag */
+					data->phy.cbcr_phy, &pinfo,
+					0); /* do not clear the active flag */
 			buf.buf_info.path = path;
 		} else
 			CDBG("%s: Invalid resptype = %d\n", __func__,
@@ -1718,7 +1697,6 @@ static int msm_frame_axi_cfg(struct msm_sync *sync,
 		}
 		break;
 
-	case CMD_AXI_CFG_VIDEO_ALL_CHNLS:
 	case CMD_AXI_CFG_VIDEO:
 		pmem_type = MSM_PMEM_PREVIEW;
 		axi_data.bufnum1 =
@@ -1771,7 +1749,6 @@ static int msm_frame_axi_cfg(struct msm_sync *sync,
 		}
 		break;
 
-	case CMD_AXI_CFG_ZSL_ALL_CHNLS:
 	case CMD_AXI_CFG_ZSL:
 		CDBG("%s, CMD_AXI_CFG_ZSL, type = %d\n", __func__,
 			cfgcmd->cmd_type);
@@ -1894,7 +1871,7 @@ static int msm_get_camera_info(void __user *arg)
 
 	for (i = 0; i < camera_node; i++) {
 		info.has_3d_support[i] = 0;
-		info.is_internal_cam[i] = 0;
+		info.is_internal_cam[i] = 1;
 		info.s_mount_angle[i] = sensor_mount_angle[i];
 		switch (camera_type[i]) {
 		case FRONT_CAMERA_2D:
@@ -1904,6 +1881,7 @@ static int msm_get_camera_info(void __user *arg)
 			info.has_3d_support[i] = 1;
 			break;
 		case BACK_CAMERA_2D:
+		info.is_internal_cam[i] = 0;
 		default:
 			break;
 		}
@@ -2178,8 +2156,6 @@ static int msm_axi_config(struct msm_sync *sync, void __user *arg)
 	case CMD_AXI_CFG_SNAP:
 	case CMD_RAW_PICT_AXI_CFG:
 	case CMD_AXI_CFG_ZSL:
-	case CMD_AXI_CFG_VIDEO_ALL_CHNLS:
-	case CMD_AXI_CFG_ZSL_ALL_CHNLS:
 		CDBG("%s, cfgcmd.cmd_type = %d\n", __func__, cfgcmd.cmd_type);
 		return msm_frame_axi_cfg(sync, &cfgcmd);
 
@@ -2482,12 +2458,12 @@ static int msm_put_st_frame(struct msm_sync *sync, void __user *arg)
 
 			CDBG("%s: Left Py = 0x%x y_off = %d cbcr_off = %d\n",
 				__func__, vfe_rp->phy.y_phy,
-				stereo_frame_half.L.buf_p0_off,
-				stereo_frame_half.L.buf_p1_off);
+				stereo_frame_half.L.buf_y_off,
+				stereo_frame_half.L.buf_cbcr_off);
 
 			sync->vpefn.vpe_cfg_offset(stereo_frame_half.packing,
-			vfe_rp->phy.y_phy + stereo_frame_half.L.buf_p0_off,
-			vfe_rp->phy.cbcr_phy + stereo_frame_half.L.buf_p1_off,
+			vfe_rp->phy.y_phy + stereo_frame_half.L.buf_y_off,
+			vfe_rp->phy.y_phy + stereo_frame_half.L.buf_cbcr_off,
 			&(qcmd->ts), OUTPUT_TYPE_ST_L, stereo_frame_half.L,
 			stereo_frame_half.frame_id);
 
@@ -2504,8 +2480,8 @@ static int msm_put_st_frame(struct msm_sync *sync, void __user *arg)
 				0); /* Do not change the active flag. */
 
 			sync->vpefn.vpe_cfg_offset(stereo_frame_half.packing,
-				st_pphy + stereo_frame_half.R.buf_p0_off,
-				st_pphy + stereo_frame_half.R.buf_p1_off,
+				st_pphy + stereo_frame_half.R.buf_y_off,
+				st_pphy + stereo_frame_half.R.buf_cbcr_off,
 				NULL, OUTPUT_TYPE_ST_R, stereo_frame_half.R,
 				stereo_frame_half.frame_id);
 
@@ -2763,7 +2739,7 @@ static long msm_ioctl_config(struct file *filep, unsigned int cmd,
 
 	case MSM_CAM_IOCTL_ERROR_CONFIG:
 #if defined (CONFIG_MACH_ANCORA)
-        rc = s5k4ecgx_sensor_esd_detected();
+		rc = s5k4ecgx_sensor_esd_detected();
 #else
 		rc = msm_error_config(pmsm->sync, argp);
 #endif
@@ -3290,7 +3266,7 @@ static void msm_vfe_sync(struct msm_vfe_resp *vdata,
 	switch (vdata->type) {
 	case VFE_MSG_OUTPUT_P:
 		if (sync->pp_mask & PP_PREV) {
-			CDBG("%s: PP_PREV in progress: p0_add %x p1_add %x\n",
+			CDBG("%s: PP_PREV in progress: phy_y %x phy_cbcr %x\n",
 				__func__,
 				vdata->phy.y_phy,
 				vdata->phy.cbcr_phy);

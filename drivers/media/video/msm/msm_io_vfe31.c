@@ -332,7 +332,7 @@ int msm_camio_clk_enable(enum msm_camio_clk_type clktype)
 	case CAMIO_VPE_CLK:
 		camio_vpe_clk =
 		clk = clk_get(NULL, "vpe_clk");
-		vpe_clk_rate = clk_round_rate(clk, vpe_clk_rate);
+		vpe_clk_rate = clk_round_rate(clk, 150000000);
 		clk_set_rate(clk, vpe_clk_rate);
 		break;
 	default:
@@ -464,7 +464,7 @@ int msm_camio_vpe_clk_disable(void)
 	return 0;
 }
 
-int msm_camio_vpe_clk_enable(uint32_t clk_rate)
+int msm_camio_vpe_clk_enable(void)
 {
 	fs_vpe = regulator_get(NULL, "fs_vpe");
 	if (IS_ERR(fs_vpe)) {
@@ -476,7 +476,6 @@ int msm_camio_vpe_clk_enable(uint32_t clk_rate)
 		regulator_put(fs_vpe);
 	}
 
-	vpe_clk_rate = clk_rate;
 	msm_camio_clk_enable(CAMIO_VPE_CLK);
 	return 0;
 }

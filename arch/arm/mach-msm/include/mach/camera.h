@@ -304,7 +304,7 @@ struct msm_mctl_pp_params {
 struct msm_camvpe_fn {
 	int (*vpe_reg)(struct msm_vpe_callback *);
 	int (*vpe_cfg_update) (void *);
-	void (*send_frame_to_vpe) (uint32_t planar0_off, uint32_t planar1_off,
+	void (*send_frame_to_vpe) (uint32_t y_phy, uint32_t cbcr_phy,
 		struct timespec *ts, int output_id);
 	int (*vpe_config)(struct msm_vpe_cfg_cmd *, void *);
 	void (*vpe_cfg_offset)(int frame_pack, uint32_t pyaddr,
@@ -628,7 +628,7 @@ struct msm_cam_clk_info {
 int msm_camio_enable(struct platform_device *dev);
 int msm_camio_jpeg_clk_enable(void);
 int msm_camio_jpeg_clk_disable(void);
-int msm_camio_vpe_clk_enable(uint32_t);
+int msm_camio_vpe_clk_enable(void);
 int msm_camio_vpe_clk_disable(void);
 
 void msm_camio_mode_config(enum msm_cam_mode mode);
