@@ -1318,6 +1318,11 @@ static struct i2c_board_info msm_camera_boardinfo[] __initdata = {
 		I2C_BOARD_INFO("sr030pc30_i2c", 0x60>>1),
 	},
 #endif
+#ifdef CONFIG_SENSOR_S5K5CCAF
+	{
+		I2C_BOARD_INFO("s5k5ccaf", 0x78>>1),
+	},
+#endif
 };
 
 static struct i2c_board_info msm_camera_rev01_boardinfo[] __initdata = {    //[diony] rear camera slave adress change (rev0.1)
@@ -1367,6 +1372,11 @@ static struct i2c_board_info msm_camera_rev01_boardinfo[] __initdata = {    //[d
 		I2C_BOARD_INFO("sr030pc30_i2c", 0x60>>1),
 	},
 #endif
+#ifdef CONFIG_SENSOR_S5K5CCAF
+	{
+		I2C_BOARD_INFO("s5k5ccaf", 0x78>>1),
+	},
+#endif
 };
 
 #ifdef CONFIG_SAMSUNG_FM_SI4709
@@ -1384,7 +1394,7 @@ GPIO_CFG(1, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* VCM */
 };
 
 static uint32_t camera_off_gpio_table[] = {
-#if defined(CONFIG_SENSOR_S5K4ECGX)
+#if defined(CONFIG_SENSOR_S5K5CCAF)
 #if !defined(CONFIG_USE_QUP_I2C)
 	GPIO_CFG(0, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA),	/* CAM_SCL */
 	GPIO_CFG(1, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA),	/* CAM_SDA */
@@ -1436,7 +1446,7 @@ GPIO_CFG(1, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA), /* VCM */
 };
 
 static uint32_t camera_on_gpio_table[] = {
-#if defined(CONFIG_SENSOR_S5K4ECGX)
+#if defined(CONFIG_SENSOR_S5K5CCAF)
 #if !defined(CONFIG_USE_QUP_I2C)
 	GPIO_CFG(0, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA),	/* CAM_SCL */
 	GPIO_CFG(1, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_16MA),	/* CAM_SDA */
@@ -1862,6 +1872,33 @@ static struct platform_device msm_camera_sensor_sr030pc30 = {
 	.name  	= "msm_camera_sr030pc30",
 	.dev   	= {
 		.platform_data = &msm_camera_sensor_sr030pc30_data,
+	},
+};
+#endif
+
+#ifdef CONFIG_SENSOR_S5K5CCAF
+static struct msm_camera_sensor_flash_data flash_s5k5ccaf = {
+	.flash_type = MSM_CAMERA_FLASH_NONE,
+	.flash_src  = &msm_flash_src_pwm
+};
+
+static struct msm_camera_sensor_info msm_camera_sensor_s5k5ccaf_data = {
+	.sensor_name	= "s5k5ccaf",
+	.sensor_reset	= 175,
+	.sensor_pwd	= 174,
+	.vcm_pwd	= 0,
+	.vcm_enable	= 2,
+	.pdata		= &msm_camera_device_data,
+	.resource	= msm_camera_resources,
+	.num_resources	= ARRAY_SIZE(msm_camera_resources),
+	.flash_data	= &flash_s5k5ccaf,
+	.csi_if		= 0
+};
+
+static struct platform_device msm_camera_sensor_s5k5ccaf = {
+	.name	= "msm_camera_s5k5ccaf",
+	.dev	= {
+		.platform_data = &msm_camera_sensor_s5k5ccaf_data,
 	},
 };
 #endif
@@ -3761,7 +3798,7 @@ static struct platform_device mcs8000_ts_device = {
 
 #endif
 
-#if defined(CONFIG_SENSOR_S5K4ECGX)
+#if defined(CONFIG_SENSOR_S5K5CCAF)
 static struct i2c_board_info msm_cam_pm_lp8720_info[] = {
 	{
 		I2C_BOARD_INFO("cam_pm_lp8720", 0x7D),
@@ -5571,7 +5608,7 @@ static struct platform_device *devices[] __initdata = {
 #if 1
 	&micro_usb_i2c_gpio_device,
 #endif
-#if defined(CONFIG_SENSOR_S5K4ECGX)
+#if defined(CONFIG_SENSOR_S5K5CCAF)
 	&cam_pm_lp8720_i2c_device,
 #if !defined (CONFIG_USE_QUP_I2C)
 	&camera_i2c_gpio_device,
@@ -5632,6 +5669,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_SN12M0PZ
 	&msm_camera_sensor_sn12m0pz,
+#endif
+#ifdef CONFIG_SENSOR_S5K5CCAF
+	&msm_camera_sensor_s5k5ccaf,
 #endif
 	&msm_device_vidc_720p,
 #ifdef CONFIG_MSM_GEMINI
@@ -7577,7 +7617,7 @@ else
 	}
 #endif
 
-#if defined(CONFIG_SENSOR_S5K4ECGX)
+#if defined(CONFIG_SENSOR_S5K5CCAF)
 	i2c_register_board_info(13, msm_cam_pm_lp8720_info,
 			ARRAY_SIZE(msm_cam_pm_lp8720_info));
 #endif
