@@ -964,6 +964,12 @@ void mdp4_dmap_done_lcdc(int cndx)
 
 	spin_lock(&vctrl->spin_lock);
 	vsync_irq_disable(INTR_DMA_P_DONE, MDP_DMAP_TERM);
+
+	if (pipe == NULL) {
+		spin_unlock(&vctrl->spin_lock);
+		return;
+	}
+
 	if (vctrl->blt_change) {
 		mdp4_overlayproc_cfg(pipe);
 		mdp4_overlay_dmap_xy(pipe);
@@ -1004,6 +1010,12 @@ void mdp4_overlay0_done_lcdc(int cndx)
 	vsync_irq_disable(INTR_OVERLAY0_DONE, MDP_OVERLAY0_TERM);
 	vctrl->ov_done++;
 	complete_all(&vctrl->ov_comp);
+
+	if (pipe == NULL) {
+		spin_unlock(&vctrl->spin_lock);
+		return;
+	}
+
 	if (pipe->ov_blt_addr == 0) {
 		spin_unlock(&vctrl->spin_lock);
 		return;
