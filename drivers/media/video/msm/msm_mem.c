@@ -76,16 +76,16 @@ static int check_pmem_info(struct msm_pmem_info *info, int len)
 {
 	if (info->offset < len &&
 		info->offset + info->len <= len &&
-		info->planar0_off < len &&
-		info->planar1_off < len)
+		info->y_off < len &&
+		info->cbcr_off < len)
 		return 0;
 
 	pr_err("%s: check failed: off %d len %d y %d cbcr %d (total len %d)\n",
 						__func__,
 						info->offset,
 						info->len,
-						info->planar0_off,
-						info->planar1_off,
+						info->y_off,
+						info->cbcr_off,
 						len);
 	return -EINVAL;
 }

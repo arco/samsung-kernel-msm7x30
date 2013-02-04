@@ -641,7 +641,9 @@ static int vfe31_config_axi(int mode, struct axidata *ad, uint32_t *ao)
 			return -EINVAL;
 		/* at least one frame for snapshot.  */
 		*p++ = 0x1;    /* xbar cfg0 */
+#ifdef CONFIG_MACH_ARIESVE
 		*p = 0x203;    /* xbar cfg1 */
+#endif
 		vfe31_ctrl->outpath.out0.ch0 = 0; /* thumbnail luma   */
 		vfe31_ctrl->outpath.out0.ch1 = 4; /* thumbnail chroma */
 		vfe31_ctrl->outpath.out1.ch0 = 1; /* main image luma   */
@@ -2354,10 +2356,12 @@ static void vfe31_process_error_irq(uint32_t errStatus)
 
 	if (errStatus & VFE31_IMASK_CAMIF_ERROR) {
 		pr_err("vfe31_irq: camif errors\n");
+#if !defined(CONFIG_MACH_ANCORA) && !defined(CONFIG_MACH_ANCORA_TMO) && !defined(CONFIG_MACH_APACHE)
 		temp = (uint32_t *)(vfe31_ctrl->vfebase + VFE_CAMIF_STATUS);
 		camifStatus = msm_io_r(temp);
 		pr_info("camifStatus  = 0x%x\n", camifStatus);
 		vfe31_send_msg_no_payload(MSG_ID_CAMIF_ERROR);
+#endif
 	}
 
 	if (errStatus & VFE31_IMASK_STATS_CS_OVWR)
@@ -2376,7 +2380,15 @@ static void vfe31_process_error_irq(uint32_t errStatus)
 		pr_err("vfe31_irq: realign bug CR overflow\n");
 
 	if (errStatus & VFE31_IMASK_VIOLATION)
+	{
 		pr_err("vfe31_irq: violation interrupt\n");
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+		temp = (uint32_t *)(vfe31_ctrl->vfebase + VFE_CAMIF_STATUS);
+		camifStatus = msm_io_r(temp);
+		pr_info("camifStatus  = 0x%x\n", camifStatus);
+		vfe31_send_msg_no_payload(MSG_ID_CAMIF_ERROR);
+#endif
+	}
 
 	if (errStatus & VFE31_IMASK_IMG_MAST_0_BUS_OVFL)
 		pr_err("vfe31_irq: image master 0 bus overflow\n");
