@@ -20,6 +20,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/pm_qos_params.h>
+#include <linux/regulator/consumer.h>
 #include <mach/gpio.h>
 #include <mach/board.h>
 #include <mach/camera.h>
@@ -115,14 +116,24 @@ static struct clk *camio_csi_vfe_clk;
 static struct clk *camio_jpeg_clk;
 static struct clk *camio_jpeg_pclk;
 static struct clk *camio_vpe_clk;
-static struct vreg *vreg_gp2;
-static struct vreg *vreg_lvsw1;
-static struct vreg *vreg_gp6;
-static struct vreg *vreg_gp16;
+static struct regulator *fs_vpe;
 static struct msm_camera_io_ext camio_ext;
 static struct msm_camera_io_clk camio_clk;
 static struct resource *camifpadio, *csiio;
 void __iomem *camifpadbase, *csibase;
+static uint32_t vpe_clk_rate;
+static uint32_t jpeg_clk_rate;
+
+static struct regulator_bulk_data regs[] = {
+//	{ .supply = "gp2",  .min_uV = 2600000, .max_uV = 2600000 },
+	{ .supply = "lvsw1" },
+	{ .supply = "fs_vfe" },
+	/* sn12m0pz regulators */
+	{ .supply = "gp6",  .min_uV = 3050000, .max_uV = 3100000 },
+	{ .supply = "gp16", .min_uV = 1200000, .max_uV = 1200000 },
+};
+
+static int reg_count;
 
 void msm_io_w(u32 data, void __iomem *addr)
 {
@@ -202,121 +213,53 @@ void msm_io_memcpy(void __iomem *dest_addr, void __iomem *src_addr, u32 len)
 
 static void msm_camera_vreg_enable(struct platform_device *pdev)
 {
-/*
-	vreg_gp2 = vreg_get(NULL, "gp2");
-	if (IS_ERR(vreg_gp2)) {
-		pr_err("%s: VREG GP2 get failed %ld\n", __func__,
-			PTR_ERR(vreg_gp2));
-		vreg_gp2 = NULL;
+	int count, rc;
+
+	struct device *dev = &pdev->dev;
+
+	/* Use gp6 and gp16 if and only if dev name matches. */
+	if (!strncmp(pdev->name, "msm_camera_sn12m0pz", 20))
+		count = ARRAY_SIZE(regs);
+	else
+		count = ARRAY_SIZE(regs) - 2;
+
+	rc = regulator_bulk_get(dev, count, regs);
+
+	if (rc) {
+		dev_err(dev, "%s: could not get regulators: %d\n",
+				__func__, rc);
 		return;
 	}
 
-	if (vreg_set_level(vreg_gp2, 2600)) {
-		pr_err("%s: VREG GP2 set failed\n", __func__);
-		goto gp2_put;
+	rc = regulator_bulk_set_voltage(count, regs);
+
+	if (rc) {
+		dev_err(dev, "%s: could not set voltages: %d\n",
+				__func__, rc);
+		goto reg_free;
 	}
 
-	if (vreg_enable(vreg_gp2)) {
-		pr_err("%s: VREG GP2 enable failed\n", __func__);
-		goto gp2_put;
-	}
-*/
-	vreg_lvsw1 = vreg_get(NULL, "lvsw1");
-	if (IS_ERR(vreg_lvsw1)) {
-		pr_err("%s: VREG LVSW1 get failed %ld\n", __func__,
-			PTR_ERR(vreg_lvsw1));
-		vreg_lvsw1 = NULL;
-		goto gp2_disable;
-		}
-	if (vreg_set_level(vreg_lvsw1, 1800)) {
-		pr_err("%s: VREG LVSW1 set failed\n", __func__);
-		goto lvsw1_put;
-	}
-	if (vreg_enable(vreg_lvsw1)) {
-		pr_err("%s: VREG LVSW1 enable failed\n", __func__);
-		goto lvsw1_put;
+	rc = regulator_bulk_enable(count, regs);
+
+	if (rc) {
+		dev_err(dev, "%s: could not enable regulators: %d\n",
+				__func__, rc);
+		goto reg_free;
 	}
 
-	if (!strcmp(pdev->name, "msm_camera_sn12m0pz")) {
-		vreg_gp6 = vreg_get(NULL, "gp6");
-		if (IS_ERR(vreg_gp6)) {
-			pr_err("%s: VREG GP6 get failed %ld\n", __func__,
-				PTR_ERR(vreg_gp6));
-			vreg_gp6 = NULL;
-			goto lvsw1_disable;
-		}
-
-		if (vreg_set_level(vreg_gp6, 3050)) {
-			pr_err("%s: VREG GP6 set failed\n", __func__);
-			goto gp6_put;
-		}
-
-		if (vreg_enable(vreg_gp6)) {
-			pr_err("%s: VREG GP6 enable failed\n", __func__);
-			goto gp6_put;
-		}
-		vreg_gp16 = vreg_get(NULL, "gp16");
-		if (IS_ERR(vreg_gp16)) {
-			pr_err("%s: VREG GP16 get failed %ld\n", __func__,
-				PTR_ERR(vreg_gp16));
-			vreg_gp16 = NULL;
-			goto gp6_disable;
-		}
-
-		if (vreg_set_level(vreg_gp16, 1200)) {
-			pr_err("%s: VREG GP16 set failed\n", __func__);
-			goto gp16_put;
-		}
-
-		if (vreg_enable(vreg_gp16)) {
-			pr_err("%s: VREG GP16 enable failed\n", __func__);
-			goto gp16_put;
-		}
-	}
+	reg_count = count;
 	return;
 
-gp16_put:
-	vreg_put(vreg_gp16);
-	vreg_gp16 = NULL;
-gp6_disable:
-	 vreg_disable(vreg_gp6);
-gp6_put:
-	vreg_put(vreg_gp6);
-	vreg_gp6 = NULL;
-lvsw1_disable:
-	vreg_disable(vreg_lvsw1);
-lvsw1_put:
-	vreg_put(vreg_lvsw1);
-	vreg_lvsw1 = NULL;
-gp2_disable:
-	vreg_disable(vreg_gp2);
-gp2_put:
-	vreg_put(vreg_gp2);
-	vreg_gp2 = NULL;
+reg_free:
+	regulator_bulk_free(count, regs);
+	return;
 }
 
 static void msm_camera_vreg_disable(void)
 {
-	if (vreg_gp2) {
-		vreg_disable(vreg_gp2);
-		vreg_put(vreg_gp2);
-		vreg_gp2 = NULL;
-	}
-	if (vreg_lvsw1) {
-		vreg_disable(vreg_lvsw1);
-		vreg_put(vreg_lvsw1);
-		vreg_lvsw1 = NULL;
-	}
-	if (vreg_gp6) {
-		vreg_disable(vreg_gp6);
-		vreg_put(vreg_gp6);
-		vreg_gp6 = NULL;
-	}
-	if (vreg_gp16) {
-		vreg_disable(vreg_gp16);
-		vreg_put(vreg_gp16);
-		vreg_gp16 = NULL;
-	}
+	regulator_bulk_disable(reg_count, regs);
+	regulator_bulk_free(reg_count, regs);
+	reg_count = 0;
 }
 
 int msm_camio_clk_enable(enum msm_camio_clk_type clktype)
@@ -383,7 +326,8 @@ int msm_camio_clk_enable(enum msm_camio_clk_type clktype)
 	case CAMIO_JPEG_CLK:
 		camio_jpeg_clk =
 		clk = clk_get(NULL, "jpeg_clk");
-		clk_set_min_rate(clk, 144000000);
+		jpeg_clk_rate = clk_round_rate(clk, 144000000);
+		clk_set_rate(clk, jpeg_clk_rate);
 		break;
 	case CAMIO_JPEG_PCLK:
 		camio_jpeg_pclk =
@@ -392,7 +336,8 @@ int msm_camio_clk_enable(enum msm_camio_clk_type clktype)
 	case CAMIO_VPE_CLK:
 		camio_vpe_clk =
 		clk = clk_get(NULL, "vpe_clk");
-		msm_camio_clk_set_min_rate(clk, 150000000);
+		vpe_clk_rate = clk_round_rate(clk, 150000000);
+		clk_set_rate(clk, vpe_clk_rate);
 		break;
 	default:
 		break;
@@ -486,11 +431,6 @@ void msm_camio_clk_rate_set_2(struct clk *clk, int rate)
 	clk_set_rate(clk, rate);
 }
 
-void msm_camio_clk_set_min_rate(struct clk *clk, int rate)
-{
-	clk_set_min_rate(clk, rate);
-}
-
 static irqreturn_t msm_io_csi_irq(int irq_num, void *data)
 {
 	uint32_t irq;
@@ -519,11 +459,27 @@ int msm_camio_jpeg_clk_enable(void)
 int msm_camio_vpe_clk_disable(void)
 {
 	msm_camio_clk_disable(CAMIO_VPE_CLK);
+
+	if (fs_vpe) {
+		regulator_disable(fs_vpe);
+		regulator_put(fs_vpe);
+	}
+
 	return 0;
 }
 
 int msm_camio_vpe_clk_enable(void)
 {
+	fs_vpe = regulator_get(NULL, "fs_vpe");
+	if (IS_ERR(fs_vpe)) {
+		pr_err("%s: Regulator FS_VPE get failed %ld\n", __func__,
+			PTR_ERR(fs_vpe));
+		fs_vpe = NULL;
+	} else if (regulator_enable(fs_vpe)) {
+		pr_err("%s: Regulator FS_VPE enable failed\n", __func__);
+		regulator_put(fs_vpe);
+	}
+
 	msm_camio_clk_enable(CAMIO_VPE_CLK);
 	return 0;
 }
