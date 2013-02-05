@@ -989,7 +989,7 @@ static void vfe31_start_common(void){
 	unsigned long flags;
 
 	vfe31_ctrl->start_ack_pending = TRUE;
-	pr_info("VFE opertaion mode = 0x%x, output mode = 0x%x\n",
+	CDBG("VFE opertaion mode = 0x%x, output mode = 0x%x\n",
 		vfe31_ctrl->operation_mode, vfe31_ctrl->outpath.output_mode);
 	msm_io_w(0x00EFE021, vfe31_ctrl->vfebase + VFE_IRQ_MASK_0);
 	msm_io_w(VFE_IMASK_WHILE_STOPPING_1,
@@ -1636,8 +1636,6 @@ static int vfe31_proc_general(struct msm_vfe31_cmd *cmd)
 		break;
 
 	case V31_LIVESHOT:
-		pr_info("vfe31_proc_general: cmdID = %s\n",
-			vfe31_general_cmd[cmd->id]);
 		vfe31_liveshot();
 		break;
 
@@ -2160,7 +2158,7 @@ static void vfe31_process_reg_update_irq(void)
 			msm_io_w(old_val,
 				vfe31_ctrl->vfebase + VFE_MODULE_CFG);
 		}
-		pr_info("start video triggered .\n");
+		CDBG("start video triggered .\n");
 	} else if (vfe31_ctrl->req_stop_video_rec) {
 		if (vfe31_ctrl->outpath.output_mode & VFE31_OUTPUT_MODE_V) {
 			msm_io_w(0, vfe31_ctrl->vfebase + V31_AXI_OUT_OFF + 20 +
@@ -2193,7 +2191,7 @@ static void vfe31_process_reg_update_irq(void)
 		msm_io_w(old_val,
 				vfe31_ctrl->vfebase + VFE_MODULE_CFG);
 
-		pr_info("stop video triggered .\n");
+		CDBG("stop video triggered .\n");
 	}
 	if (vfe31_ctrl->start_ack_pending == TRUE) {
 		vfe31_send_msg_no_payload(MSG_ID_START_ACK);
@@ -2358,7 +2356,7 @@ static void vfe31_process_error_irq(uint32_t errStatus)
 #if !defined(CONFIG_MACH_ANCORA) && !defined(CONFIG_MACH_ANCORA_TMO) && !defined(CONFIG_MACH_APACHE)
 		temp = (uint32_t *)(vfe31_ctrl->vfebase + VFE_CAMIF_STATUS);
 		camifStatus = msm_io_r(temp);
-		pr_info("camifStatus  = 0x%x\n", camifStatus);
+		pr_err("camifStatus  = 0x%x\n", camifStatus);
 		vfe31_send_msg_no_payload(MSG_ID_CAMIF_ERROR);
 #endif
 	}
@@ -2513,7 +2511,7 @@ static void vfe31_process_output_path_irq_0(void)
 
 		} else {
 			vfe31_ctrl->outpath.out0.frame_drop_cnt++;
-			pr_info("path_irq_0 - no free buffer!\n");
+			pr_warning("path_irq_0 - no free buffer!\n");
 #ifdef CONFIG_MSM_CAMERA_V4L2
 			pr_info("Swapping ping and pong\n");
 
@@ -2580,7 +2578,7 @@ static void vfe31_process_output_path_irq_1(void)
 			pcbcraddr = vfe31_get_ch_addr(ping_pong,
 				vfe31_ctrl->outpath.out1.ch1);
 
-			pr_info("snapshot main, pyaddr = 0x%x, pcbcraddr = 0x%x\n",
+			CDBG("snapshot main, pyaddr = 0x%x, pcbcraddr = 0x%x\n",
 				pyaddr, pcbcraddr);
 			if (vfe31_ctrl->outpath.out1.free_buf.available) {
 				/* Y channel */
@@ -2602,7 +2600,7 @@ static void vfe31_process_output_path_irq_1(void)
 			}
 		} else {
 			vfe31_ctrl->outpath.out1.frame_drop_cnt++;
-			pr_info("path_irq_1 - no free buffer!\n");
+			pr_warning("path_irq_1 - no free buffer!\n");
 	}
 }
 
@@ -2657,7 +2655,7 @@ static void vfe31_process_output_path_irq_2(void)
 			vfe_send_outmsg(MSG_ID_OUTPUT_V, pyaddr, pcbcraddr);
 		} else {
 			vfe31_ctrl->outpath.out2.frame_drop_cnt++;
-			pr_info("path_irq_2 - no free buffer!\n");
+			pr_warning("path_irq_2 - no free buffer!\n");
 		}
 }
 
@@ -2876,7 +2874,7 @@ static void vfe31_do_tasklet(unsigned long data)
 
 		if (qcmd->vfeInterruptStatus1 &
 				VFE_IMASK_WHILE_STOPPING_1) {
-			pr_info("irq	resetAckIrq\n");
+			CDBG("irq	resetAckIrq\n");
 			vfe31_process_reset_irq();
 		}
 
@@ -3011,7 +3009,7 @@ static irqreturn_t vfe31_parse_irq(int irq_num, void *data)
 	vfe31_read_irq_status(&irq);
 
 	if ((irq.vfeIrqStatus0 == 0) && (irq.vfeIrqStatus1 == 0)) {
-		pr_info("vfe_parse_irq: vfeIrqStatus0 & 1 are both 0!\n");
+		CDBG("vfe_parse_irq: vfeIrqStatus0 & 1 are both 0!\n");
 		return IRQ_HANDLED;
 	}
 
@@ -3048,12 +3046,12 @@ static void vfe31_release(struct platform_device *pdev)
 {
 	struct resource	*vfemem, *vfeio;
 
-	pr_info("%s, free_irq\n", __func__);
+	CDBG("%s, free_irq\n", __func__);
 	free_irq(vfe31_ctrl->vfeirq, 0);
 	tasklet_kill(&vfe31_tasklet);
 
 	if (atomic_read(&irq_cnt))
-		pr_info("%s, Warning IRQ Count not ZERO\n", __func__);
+		pr_warning("%s, Warning IRQ Count not ZERO\n", __func__);
 
 	vfemem = vfe31_ctrl->vfemem;
 	vfeio  = vfe31_ctrl->vfeio;
@@ -3065,7 +3063,7 @@ static void vfe31_release(struct platform_device *pdev)
 	kfree(vfe31_ctrl);
 	vfe31_ctrl = NULL;
 	release_mem_region(vfemem->start, (vfemem->end - vfemem->start) + 1);
-	pr_info("%s, msm_camio_disable\n", __func__);
+	CDBG("%s, msm_camio_disable\n", __func__);
 	msm_camio_disable(pdev);
 	msm_camio_set_perf_lvl(S_EXIT);
 
