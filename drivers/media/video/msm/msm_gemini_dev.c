@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -141,7 +141,7 @@ static int msm_gemini_init(struct platform_device *pdev)
 		goto fail_4;
 	}
 
-	printk(KERN_INFO "%s %s: success\n", __func__, MSM_GEMINI_NAME);
+	GMN_DBG("%s %s: success\n", __func__, MSM_GEMINI_NAME);
 
 	return rc;
 

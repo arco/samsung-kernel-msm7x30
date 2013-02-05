@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -760,7 +760,7 @@ static void vfe_proc_ops(enum VFE_MESSAGE_ID id, void *data)
 		rp->evt_msg.len = sizeof(*msg);
 		msg->_d = id;
 		if (vfe_funcs[id].fn(rp, msg, data) == FALSE) {
-			pr_info("%s: freeing memory: handler for %d "
+			pr_warning("%s: freeing memory: handler for %d "
 				"returned false\n", __func__, id);
 			ctrl->resp->vfe_free(rp);
 			return;
@@ -1776,7 +1776,7 @@ static void vfe_do_tasklet(unsigned long data)
 	}
 
 	if (cnt > ARRAY_SIZE(ctrl->irqs)/2)
-		pr_info("%s: serviced %d vfe interrupts\n", __func__, cnt);
+		CDBG("%s: serviced %d vfe interrupts\n", __func__, cnt);
 
 	spin_unlock_irqrestore(&msm_vfe_ctrl_lock, flags);
 }

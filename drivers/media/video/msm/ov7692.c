@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -396,7 +396,7 @@ static int ov7692_probe_init_sensor(const struct msm_camera_sensor_info *data)
 init_probe_fail:
 	pr_warning(" ov7692_probe_init_sensor fails\n");
 init_probe_done:
-	printk(KERN_INFO " ov7692_probe_init_sensor finishes\n");
+	CDBG(" ov7692_probe_init_sensor finishes\n");
 	return rc;
 }
 

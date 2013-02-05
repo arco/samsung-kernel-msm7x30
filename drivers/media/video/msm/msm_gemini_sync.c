@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -56,7 +56,7 @@ inline void *msm_gemini_q_out(struct msm_gemini_q *q_p)
 		data = q_entry_p->data;
 		kfree(q_entry_p);
 	} else {
-		GMN_PR_ERR("%s:%d] %s no entry\n", __func__, __LINE__,
+		GMN_DBG("%s:%d] %s no entry\n", __func__, __LINE__,
 			q_p->name);
 	}
 
@@ -216,7 +216,7 @@ int msm_gemini_evt_get(struct msm_gemini_device *pgmn_dev,
 	buf_p = msm_gemini_q_out(&pgmn_dev->evt_q);
 
 	if (!buf_p) {
-		GMN_PR_ERR("%s:%d] no buffer\n", __func__, __LINE__);
+		GMN_DBG("%s:%d] no buffer\n", __func__, __LINE__);
 		return -EAGAIN;
 	}
 
@@ -279,7 +279,7 @@ int msm_gemini_we_pingpong_irq(struct msm_gemini_device *pgmn_dev,
 			(int) buf_in->y_buffer_addr, buf_in->y_len);
 		rc = msm_gemini_q_in_buf(&pgmn_dev->output_rtn_q, buf_in);
 	} else {
-		GMN_PR_ERR("%s:%d] no output return buffer\n", __func__,
+		GMN_DBG("%s:%d] no output return buffer\n", __func__,
 			__LINE__);
 		rc = -1;
 	}
@@ -290,7 +290,7 @@ int msm_gemini_we_pingpong_irq(struct msm_gemini_device *pgmn_dev,
 		rc = msm_gemini_core_we_buf_update(buf_out);
 		kfree(buf_out);
 	} else {
-		GMN_PR_ERR("%s:%d] no output buffer\n", __func__, __LINE__);
+		GMN_DBG("%s:%d] no output buffer\n", __func__, __LINE__);
 		rc = -2;
 	}
 
@@ -311,7 +311,7 @@ int msm_gemini_output_get(struct msm_gemini_device *pgmn_dev, void __user *to)
 	buf_p = msm_gemini_q_out(&pgmn_dev->output_rtn_q);
 
 	if (!buf_p) {
-		GMN_PR_ERR("%s:%d] no output buffer return\n",
+		GMN_DBG("%s:%d] no output buffer return\n",
 			__func__, __LINE__);
 		return -EAGAIN;
 	}
@@ -387,7 +387,7 @@ int msm_gemini_fe_pingpong_irq(struct msm_gemini_device *pgmn_dev,
 			(int) buf_in->y_buffer_addr, buf_in->y_len);
 		rc = msm_gemini_q_in_buf(&pgmn_dev->input_rtn_q, buf_in);
 	} else {
-		GMN_PR_ERR("%s:%d] no input return buffer\n", __func__,
+		GMN_DBG("%s:%d] no input return buffer\n", __func__,
 			__LINE__);
 		rc = -1;
 	}
@@ -399,7 +399,7 @@ int msm_gemini_fe_pingpong_irq(struct msm_gemini_device *pgmn_dev,
 		kfree(buf_out);
 		msm_gemini_core_fe_start();
 	} else {
-		GMN_PR_ERR("%s:%d] no input buffer\n", __func__, __LINE__);
+		GMN_DBG("%s:%d] no input buffer\n", __func__, __LINE__);
 		rc = -2;
 	}
 
@@ -419,7 +419,7 @@ int msm_gemini_input_get(struct msm_gemini_device *pgmn_dev, void __user * to)
 	buf_p = msm_gemini_q_out(&pgmn_dev->input_rtn_q);
 
 	if (!buf_p) {
-		GMN_PR_ERR("%s:%d] no input buffer return\n",
+		GMN_DBG("%s:%d] no input buffer return\n",
 			__func__, __LINE__);
 		return -EAGAIN;
 	}
@@ -681,7 +681,7 @@ int msm_gemini_start(struct msm_gemini_device *pgmn_dev, void * __user arg)
 			msm_gemini_core_we_buf_update(buf_out);
 			kfree(buf_out);
 		} else {
-			GMN_PR_ERR("%s:%d] no output buffer\n",
+			GMN_DBG("%s:%d] no output buffer\n",
 			__func__, __LINE__);
 			break;
 		}
