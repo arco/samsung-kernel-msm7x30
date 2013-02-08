@@ -1756,22 +1756,57 @@ static int ce147_set_jpeg_quality(void)
     unsigned int minimumCompressionRatio = 0;
     int err;
 
-    if(quality == 1) { // 91 ~ 100
-        CAMDRV_DEBUG("%s: SUPERFINE \n", __func__);
-        compressionRatio = 17; // 17%
-    } else if(quality==2) {    // 81 ~ 90
-        CAMDRV_DEBUG("%s: FINE \n", __func__);
-        compressionRatio = 14; // 16%
-    } else {
-        CAMDRV_DEBUG("%s: NORMAL \n", __func__);
-        compressionRatio = 8; // 15%
-    }
-    
-    minimumCompressionRatio = compressionRatio - 3; // ex) if compression ratio is 17%, minimum compression ratio is 14%
-    ce147_regbuf_jpeg_comp_level[1] = (compressionRatio * 100) & 0xFF;
-    ce147_regbuf_jpeg_comp_level[2] = ((compressionRatio * 100) & 0xFF00) >> 8;
-    ce147_regbuf_jpeg_comp_level[3] = (minimumCompressionRatio * 100) & 0xFF;
-    ce147_regbuf_jpeg_comp_level[4] = ((minimumCompressionRatio * 100) & 0xFF00) >> 8;
+
+	if(quality >= 91 && quality <= 100) { // 91 ~ 100
+		compressionRatio = 17; // 17%
+	}
+
+	else if(quality >= 81 && quality <= 90) {	// 81 ~ 90
+		compressionRatio = 16; // 16%
+	}
+
+	else if(quality >= 71 && quality <= 80) { // 71 ~ 80
+		compressionRatio = 15; // 15%
+	}
+
+	else if(quality >= 61 && quality <= 70) { // 61 ~ 70
+		compressionRatio = 14; // 14%
+	}
+
+	else if(quality >= 51 && quality <= 60) { // 51 ~ 60
+		compressionRatio = 13; // 13%
+	}
+	
+	else if(quality >= 41 && quality <= 50) { // 41 ~ 50
+		compressionRatio = 12; // 12%
+	}
+
+	else if(quality >= 31 && quality <= 40) { // 31 ~ 40
+		compressionRatio = 11; // 11%
+	}
+
+	else if(quality >= 21 && quality <= 30) { // 21 ~ 30
+		compressionRatio = 10; // 10%
+	}
+
+	else if(quality >= 11 && quality <= 20) { // 11 ~ 20
+		compressionRatio = 9; // 9%
+	}
+	
+	else if(quality >= 1 && quality <= 10) { // 1 ~ 10
+		compressionRatio = 8; // 8%
+	}
+
+	else {		
+		printk(KERN_ERR "[CAMDRV/CE147] CE147 :%s: Invalid Quality(%d)\n", __func__, quality);
+		compressionRatio = 8; // 8%
+	}
+
+	minimumCompressionRatio = compressionRatio - 3; // ex) if compression ratio is 17%, minimum compression ratio is 14%
+	ce147_regbuf_jpeg_comp_level[1] = (compressionRatio * 100) & 0xFF;
+	ce147_regbuf_jpeg_comp_level[2] = ((compressionRatio * 100) & 0xFF00) >> 8;
+	ce147_regbuf_jpeg_comp_level[3] = (minimumCompressionRatio * 100) & 0xFF;
+	ce147_regbuf_jpeg_comp_level[4] = ((minimumCompressionRatio * 100) & 0xFF00) >> 8;
     
     //printk(KERN_ERR "[CAMDRV/CE147] CE147 :%s: compression ratio low byte: 0x%x, high byte: 0x%x\n", __func__, ce147_regbuf_jpeg_comp_level[1], ce147_regbuf_jpeg_comp_level[2]);
     //printk(KERN_ERR "[CAMDRV/CE147] CE147 :%s: minimum compression ratio low byte: 0x%x, high byte: 0x%x\n", __func__, ce147_regbuf_jpeg_comp_level[3], ce147_regbuf_jpeg_comp_level[4]);
@@ -4456,4 +4491,3 @@ static int __init ce147_init(void)
 module_init(ce147_init);
 MODULE_DESCRIPTION("NEC CE147-NEC 5MP camera driver");
 MODULE_LICENSE("GPL v2");
-
