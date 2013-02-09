@@ -503,17 +503,4 @@ struct audpreproc_cmd_cfg_lvnv_param {
 	unsigned short lvnv_ext_buf_start_msw;
 };
 
-#define AUDPREPROC_CMD_FEAT_QUERY_PARAMS 0x0005
-
-struct rtc_audpreproc_read_data {
-	unsigned short	cmd_id;
-	unsigned short	stream_id;
-	unsigned short  feature_id;
-	unsigned short  extbufsizemsw;
-	unsigned short  extbufsizelsw;
-	unsigned short  extpart;
-	unsigned short  extbufstartmsw;
-	unsigned short	extbufstartlsw;
-} __attribute__((packed)) ;
-
 #endif /* QDSP5AUDPREPROCCMDI_H */
