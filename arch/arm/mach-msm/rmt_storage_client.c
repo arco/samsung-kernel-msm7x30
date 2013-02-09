@@ -178,15 +178,6 @@ static struct dentry *stats_dentry;
 #define RAMFS_SHARED_SSD_RAM_BASE	0x42E00000
 #define RAMFS_SHARED_SSD_RAM_SIZE	0x2000
 
-static int force_sync_status;
-
-enum {
-	RMT_STORAGE_FORCE_SYNC_NONE = 0,
-	RMT_STORAGE_FORCE_SYNC_REQ_DONE,
-	RMT_STORAGE_FORCE_SYNC_WRITING,
-	RMT_STORAGE_FORCE_SYNC_WRITING_DONE,
-} rmt_storage_force_sync_ststus;
-
 static struct rmt_storage_client *rmt_storage_get_client(uint32_t handle)
 {
 	struct rmt_storage_client *rs_client;
@@ -660,9 +651,6 @@ static int rmt_storage_event_write_iovec_cb(
 
 	pr_debug("iovec transfer count = %d\n\n", event_args->xfer_cnt);
 
-	if (force_sync_status == RMT_STORAGE_FORCE_SYNC_REQ_DONE)
-		force_sync_status = RMT_STORAGE_FORCE_SYNC_WRITING;
-
 	return RMT_STORAGE_NO_ERROR;
 }
 
@@ -1049,11 +1037,6 @@ static long rmt_storage_ioctl(struct file *fp, unsigned int cmd,
 				__func__, ret);
 		if (atomic_dec_return(&rmc->wcount) == 0)
 			wake_unlock(&rmc->wlock);
-
-		if ((force_sync_status == RMT_STORAGE_FORCE_SYNC_WRITING)
-			&& (ret >= 0))
-			force_sync_status
-				= RMT_STORAGE_FORCE_SYNC_WRITING_DONE;
 		break;
 
 	default:
@@ -1079,9 +1062,6 @@ static int rmt_storage_receive_sync_arg(struct msm_rpc_client *client,
 		return -EINVAL;
 	xdr_recv_int32(xdr, &args->data);
 	srv->sync_token = args->data;
-
-	pr_info("%s : Received token(%x)\n", __func__, srv->sync_token);
-
 	return 0;
 }
 
@@ -1089,22 +1069,13 @@ static int rmt_storage_force_sync(struct msm_rpc_client *client)
 {
 	struct rmt_storage_sync_recv_arg args;
 	int rc;
-/* This is available only once */
-/* because MODEM handles */
-/* RMT_STORAGE_FORCE_SYNC_PROC message only once */
-	if (force_sync_status == RMT_STORAGE_FORCE_SYNC_NONE) {
-		rc = msm_rpc_client_req2(client,
-				RMT_STORAGE_FORCE_SYNC_PROC, NULL, NULL,
-				rmt_storage_receive_sync_arg, &args, -1);
-		if (rc) {
-			pr_err("%s: force sync RPC req failed: %d\n",
-				__func__, rc);
-			return rc;
-		}
-
-		force_sync_status = RMT_STORAGE_FORCE_SYNC_REQ_DONE;
+	rc = msm_rpc_client_req2(client,
+			RMT_STORAGE_FORCE_SYNC_PROC, NULL, NULL,
+			rmt_storage_receive_sync_arg, &args, -1);
+	if (rc) {
+		pr_err("%s: force sync RPC req failed: %d\n", __func__, rc);
+		return rc;
 	}
-
 	return 0;
 }
 
@@ -1141,8 +1112,6 @@ static int rmt_storage_get_sync_status(struct msm_rpc_client *client)
 	if (!srv)
 		return -EINVAL;
 
-	pr_info("%s : Token (%x)\n", __func__, srv->sync_token);
-
 	if (srv->sync_token < 0)
 		return -EINVAL;
 
@@ -1155,9 +1124,6 @@ static int rmt_storage_get_sync_status(struct msm_rpc_client *client)
 		pr_err("%s: sync status RPC req failed: %d\n", __func__, rc);
 		return rc;
 	}
-
-	pr_info("%s : result(%d)\n", __func__, recv_args.data);
-
 	return recv_args.data;
 }
 
@@ -1371,19 +1337,13 @@ show_sync_sts(struct device *dev, struct device_attribute *attr, char *buf)
 	struct rpcsvr_platform_device *rpc_pdev;
 	struct rmt_storage_srv *srv;
 
-	if (force_sync_status != RMT_STORAGE_FORCE_SYNC_WRITING_DONE) {
-		pr_err("rmt_storage - %s: force_sync_status==%d\n",
-			__func__, force_sync_status);
-		return snprintf(buf, PAGE_SIZE, "%d\n", -EPERM);
-	}
-
 	pdev = container_of(dev, struct platform_device, dev);
 	rpc_pdev = container_of(pdev, struct rpcsvr_platform_device, base);
 	srv = rmt_storage_get_srv(rpc_pdev->prog);
 	if (!srv) {
 		pr_err("%s: Unable to find prog=0x%x\n", __func__,
 		       rpc_pdev->prog);
-		return snprintf(buf, PAGE_SIZE, "%d\n", -EINVAL);
+		return -EINVAL;
 	}
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			rmt_storage_get_sync_status(srv->rpc_client));
