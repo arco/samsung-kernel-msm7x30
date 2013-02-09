@@ -23,7 +23,6 @@
 #include <mach/qdsp5v2/qdsp5audppmsg.h>
 #include <mach/qdsp5v2/audpp.h>
 #include <linux/slab.h>
-#include <linux/debugfs.h>
 
 #ifndef MAX
 #define  MAX(x, y) (((x) > (y)) ? (x) : (y))
@@ -71,89 +70,6 @@ struct audio_routing_info {
 
 static struct audio_routing_info routing_info;
 
-#ifdef CONFIG_DEBUG_FS
-
-static struct dentry *dentry;
-static int rtc_getdevice_dbg_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	MM_INFO("debug intf %s\n", (char *) file->private_data);
-	return 0;
-}
-bool is_dev_opened(u32 adb_id)
-{
-
-	int dev_id = 0;
-	struct msm_snddev_info *dev_info = NULL;
-
-	for (dev_id = 0; dev_id < audio_dev_ctrl.num_dev; dev_id++) {
-		dev_info = audio_dev_ctrl_find_dev(dev_id);
-	      if (IS_ERR(dev_info)) {
-		MM_ERR("pass invalid dev_id %d\n", dev_id);
-			  return false;
-		}
-		if (dev_info->opened && (dev_info->acdb_id == adb_id))
-			return true;
-	}
-
-  return false;
-}
-static ssize_t rtc_getdevice_dbg_read(struct file *file, char __user *buf,
-			  size_t count, loff_t *ppos)
-{
-	static char buffer[1024];
-	static char swap_buf[1024];
-	const int debug_bufmax = sizeof(buffer);
-	int n = 0;
-	int swap_count = 0;
-	int rc = 0;
-    int dev_count = 0;
-	int dev_id = 0;
-	struct msm_snddev_info *dev_info = NULL;
-
-
-	if (audio_dev_ctrl.num_dev <= 0) {
-		MM_ERR("Invalid no Device present\n");
-		dev_count = 0;
-		n = scnprintf(buffer, debug_bufmax, "DEV_NO:0x%x\n", dev_count);
-	} else {
-	for (dev_id = 0; dev_id < audio_dev_ctrl.num_dev; dev_id++) {
-		dev_info = audio_dev_ctrl_find_dev(dev_id);
-		if (IS_ERR(dev_info)) {
-			MM_ERR("pass invalid dev_id %d\n", dev_id);
-			rc = PTR_ERR(dev_info);
-			return rc;
-		}
-		if (dev_info->opened) {
-			n += scnprintf(swap_buf + n, debug_bufmax - n,
-					"ACDB_ID:0x%x;CAPB:0x%x\n",
-					dev_info->acdb_id,
-					dev_info->capability);
-		      dev_count++;
-		      MM_DBG("RTC Get Device %x COPP %x Session Mask \
-			      %x Capb %x Dev Count %x\n",
-			     dev_id , dev_info->copp_id, dev_info->sessions,
-			     dev_info->capability, dev_count);
-
-		}
-	}
-
-	swap_count = scnprintf(buffer, debug_bufmax, \
-			"DEV_NO:0x%x\n", dev_count);
-
-	memcpy(buffer+swap_count, swap_buf, n*sizeof(char));
-	n = n+swap_count;
-
-	buffer[n] = 0;
-    }
-	return simple_read_from_buffer(buf, count, ppos, buffer, n);
-}
-
-static const struct file_operations rtc_acdb_debug_fops = {
-	.open = rtc_getdevice_dbg_open,
-	.read = rtc_getdevice_dbg_read
-};
-#endif
 int msm_reset_all_device(void)
 {
 	int rc = 0;
@@ -1289,10 +1205,6 @@ EXPORT_SYMBOL(mixer_post_event);
 
 static int __init audio_dev_ctrl_init(void)
 {
-#ifdef CONFIG_DEBUG_FS
-	char name[sizeof "rtc_get_device"+1];
-#endif
-
 	init_waitqueue_head(&audio_dev_ctrl.wait);
 
 	event.cb = NULL;
@@ -1302,24 +1214,11 @@ static int __init audio_dev_ctrl_init(void)
 	audio_dev_ctrl.voice_tx_dev = NULL;
 	audio_dev_ctrl.voice_rx_dev = NULL;
 	routing_info.voice_state = VOICE_STATE_INVALID;
-#ifdef CONFIG_DEBUG_FS
-	snprintf(name, sizeof name, "rtc_get_device");
-	dentry = debugfs_create_file(name, S_IFREG | S_IRUGO | S_IWUGO,
-			NULL, NULL, &rtc_acdb_debug_fops);
-	if (IS_ERR(dentry))
-		MM_DBG("debugfs_create_file failed\n");
-#endif
-
 	return misc_register(&audio_dev_ctrl_misc);
 }
 
 static void __exit audio_dev_ctrl_exit(void)
 {
-#ifdef CONFIG_DEBUG_FS
-	if (dentry)
-		debugfs_remove(dentry);
-#endif
-
 }
 module_init(audio_dev_ctrl_init);
 module_exit(audio_dev_ctrl_exit);

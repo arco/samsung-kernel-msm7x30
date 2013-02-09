@@ -203,8 +203,4 @@ int msm_snddev_get_enc_freq(int session_id);
 int msm_set_voice_vol(int dir, s32 volume);
 int msm_set_voice_mute(int dir, int mute);
 int msm_get_voice_state(void);
-#ifdef CONFIG_DEBUG_FS
-bool is_dev_opened(u32 acdb_id);
-#endif
-
 #endif

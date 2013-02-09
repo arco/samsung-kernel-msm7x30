@@ -15,11 +15,6 @@
 
 #define DBOR_SIGNATURE	0x524F4244
 
-#ifdef CONFIG_DEBUG_FS
-void acdb_rtc_set_err(u32 ErrCode);
-#endif
-
-
 struct header {
 	u32 dbor_signature;
 	u32 abid;
