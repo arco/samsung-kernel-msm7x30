@@ -4310,13 +4310,7 @@ static int __init sdio_al_init(void)
 		goto exit;
 	}
 
-	ret = sdio_register_driver(&sdio_al_sdiofn_driver);
-	if (ret) {
-		pr_err(MODULE_NAME ": failed to register sdio driver: %d\n",
-				ret);
-		platform_driver_unregister(&msm_sdio_al_driver);
-		goto exit;
-	}
+	sdio_register_driver(&sdio_al_sdiofn_driver);
 
 	spin_lock_init(&sdio_al->gen_log.log_lock);
 

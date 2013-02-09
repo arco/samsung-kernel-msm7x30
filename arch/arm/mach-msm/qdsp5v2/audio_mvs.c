@@ -292,7 +292,7 @@ struct audio_mvs_buf_node {
 };
 
 /* Each buffer is 20 ms, queue holds 200 ms of data. */
-#define MVS_MAX_Q_LEN 4
+#define MVS_MAX_Q_LEN 10
 
 struct audio_mvs_info_type {
 	enum audio_mvs_state_type state;
@@ -839,7 +839,7 @@ static void audio_mvs_process_rpc_request(uint32_t procedure,
 				pr_debug("%s: MVS CB mode status %d\n",
 					 __func__, mode_status);
 
-				if (mode_status != AUDIO_MVS_MODE_NOT_AVAIL) {
+				if (mode_status == AUDIO_MVS_MODE_READY) {
 					audio->rpc_status = RPC_STATUS_SUCCESS;
 					wake_up(&audio->mode_wait);
 				}
