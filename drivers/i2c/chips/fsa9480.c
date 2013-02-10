@@ -53,6 +53,10 @@ static int usb_state = 0;
 
 extern int android_usb_get_current_mode(void);
 extern void android_usb_switch(int mode);
+#ifdef CONFIG_USB_EHCI_MSM_72K
+#include <mach/msm72k_otg.h>
+extern struct msm_otg *the_msm_otg;
+#endif
 
 #include <linux/pm.h>
 #include <linux/mfd/pmic8058.h>
@@ -92,7 +96,6 @@ u8 MicroUSBStatus=0;
 static u8 MicroJigUSBOnStatus=0;
 static u8 MicroJigUSBOffStatus=0;
 bool MicroJigUARTOffStatus=0;
-int askonstatus;
 EXPORT_SYMBOL(MicroUSBStatus);
 EXPORT_SYMBOL(UsbIndicator);
 u8 FSA9480_Get_USB_Status(void)
@@ -193,43 +196,6 @@ static ssize_t usb_state_store(
 
 /*sysfs for usb cable's state.*/
 static DEVICE_ATTR(usb_state, 0664, usb_state_show, usb_state_store);
-
-#ifdef _SUPPORT_SAMSUNG_AUTOINSTALLER_
-static int kies_status = 0;
-static ssize_t KiesStatus_switch_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	if(kies_status == 1)
-		return sprintf(buf, "%s\n", "START");
-	else if( kies_status == 2)
-		return sprintf(buf, "%s\n", "STOP");
-	else
-		return sprintf(buf, "%s\n", "INIT");
-}
-
-static ssize_t KiesStatus_switch_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
-{
-	dmsg("buf=%s\n", buf);
-
-	if (strncmp(buf, "START", 5) == 0)
-	{
-		kies_status = 1;
-  	}
-	else if (strncmp(buf, "STOP", 4) == 0)
-	{
-		kies_status = 2;
-		UsbIndicator(2);
-	}
-	else if (strncmp(buf, "INIT", 4) == 0 )
-	{
-		kies_status = 0;
-	}
-
-	return size;
-}
-
-static DEVICE_ATTR(KiesStatus, S_IRUGO |S_IWUGO | S_IRUSR | S_IWUSR, KiesStatus_switch_show, KiesStatus_switch_store);
-#endif /* _SUPPORT_SAMSUNG_AUTOINSTALLER_ */
-
 
 struct switch_dev switch_dock_detection = {
 		.name = "dock",	
@@ -822,8 +788,7 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 					} 					
 					curr_usb_status = 1;                    
 					MicroUSBStatus=1;
-					if((!askonstatus))
-						UsbIndicator(1);
+					UsbIndicator(1);
 				}
 				else if(attach & DETACH){
 					DEBUG_FSA9480("USB --- DETACH\n");
@@ -907,7 +872,15 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 #endif
 				break;                
 			case CRA_USB_OTG:
-				DEBUG_FSA9480("USB_OTG \n");                
+				DEBUG_FSA9480("USB_OTG \n"); 
+#ifdef CONFIG_USB_EHCI_MSM_72K
+				if(attach & ATTACH){
+                    the_msm_otg->start_host(the_msm_otg->otg.host,1);
+				}
+				else if(attach & DETACH){
+                    the_msm_otg->start_host(the_msm_otg->otg.host,0);
+                }
+#endif
 				break;                	
 			default:
 				break;
