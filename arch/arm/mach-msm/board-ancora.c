@@ -5540,7 +5540,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_camera_sensor_s5k4ecgx,
 #endif
 #ifdef CONFIG_SENSOR_SR030PC30
-//	&msm_camera_sensor_sr030pc30,
+	&msm_camera_sensor_sr030pc30,
 #endif
 #ifdef CONFIG_MT9T013
 	&msm_camera_sensor_mt9t013,
