@@ -318,7 +318,6 @@ struct audio_mvs_info_type {
 
 	struct task_struct *task;
 
-	wait_queue_head_t in_wait;
 	wait_queue_head_t wait;
 	wait_queue_head_t mode_wait;
 	wait_queue_head_t in_wait;
