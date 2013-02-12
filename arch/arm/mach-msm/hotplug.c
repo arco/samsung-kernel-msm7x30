@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 2002 ARM Ltd.
- *  Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+ *  Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *  All Rights Reserved
  *
  * This program is free software; you can redistribute it and/or modify

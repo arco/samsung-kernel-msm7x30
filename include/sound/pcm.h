@@ -5,7 +5,7 @@
  *  Digital Audio (PCM) abstract layer
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *                   Abramo Bagnara <abramo@alsa-project.org>
- *  Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+ *  Copyright (c) 2011, The Linux Foundation. All rights reserved.
  *
  *
  *   This program is free software; you can redistribute it and/or modify

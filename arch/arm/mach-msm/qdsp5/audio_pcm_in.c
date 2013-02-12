@@ -2,7 +2,7 @@
  *
  * pcm audio input device
  *
- * Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2011, The Linux Foundation. All rights reserved.
  *
  * This code is based in part on arch/arm/mach-msm/qdsp5v2/audio_pcm_in.c,
  * Copyright (C) 2008 Google, Inc.
