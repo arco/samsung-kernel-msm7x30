@@ -159,11 +159,6 @@ EXPORT_SYMBOL(switch_dev);
 
 #define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE, 4096)
 
-/*
- * Reserve space for double buffered full screen
- * res V4L2 video overlay - i.e. 1280x720x1.5x2
- */
-#define MSM_V4L2_VIDEO_OVERLAY_BUF_SIZE 2764800
 #define MSM_PMEM_ADSP_SIZE		0x2D00000
 #define MSM_FLUID_PMEM_ADSP_SIZE	0x2800000
 #define PMEM_KERNEL_EBI0_SIZE		0x600000
@@ -4088,14 +4083,6 @@ static struct resource msm_fb_resources[] = {
 	}
 };
 
-#ifdef CONFIG_MSM_V4L2_VIDEO_OVERLAY_DEVICE
-static struct resource msm_v4l2_video_overlay_resources[] = {
-	{
-	   .flags = IORESOURCE_DMA,
-	}
-};
-#endif
-
 static int msm_fb_detect_panel(const char *name)
 {
 #if defined (CONFIG_FB_MSM_LCDC_S6E63M0_WVGA_PANEL)
@@ -5280,9 +5267,6 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&android_pmem_device,
 	&msm_fb_device,
-#ifdef CONFIG_MSM_V4L2_VIDEO_OVERLAY_DEVICE
-	&msm_v4l2_video_overlay_device,
-#endif
 	&msm_migrate_pages_device,
 #ifdef CONFIG_MSM_ROTATOR
 	&msm_rotator_device,
@@ -7514,16 +7498,6 @@ static void __init msm7x30_allocate_memory_regions(void)
 	msm_fb_resources[0].end = msm_fb_resources[0].start + size - 1;
 	pr_info("allocating %lu bytes at %p (%lx physical) for fb\n",
 		size, addr, __pa(addr));
-
-#ifdef CONFIG_MSM_V4L2_VIDEO_OVERLAY_DEVICE
-	size = MSM_V4L2_VIDEO_OVERLAY_BUF_SIZE;
-	addr = alloc_bootmem_align(size, 0x1000);
-	msm_v4l2_video_overlay_resources[0].start = __pa(addr);
-	msm_v4l2_video_overlay_resources[0].end =
-		msm_v4l2_video_overlay_resources[0].start + size - 1;
-	pr_debug("allocating %lu bytes at %p (%lx physical) for v4l2\n",
-		size, addr, __pa(addr));
-#endif
 }
 
 static void __init msm7x30_map_io(void)
