@@ -1545,10 +1545,8 @@ int sr030pc30_sensor_probe(const struct msm_camera_sensor_info *info,    struct 
     s->s_init        = sr030pc30_sensor_init;
     s->s_release    = sr030pc30_sensor_release;
     s->s_config    = sr030pc30_sensor_config;
-#ifdef CONFIG_SENSOR_SR030PC30_T679
-//pault    s->s_mount_angle = 90;
-    s->s_camera_type = FRONT_CAMERA_2D;//TELECA
-#endif    
+    s->s_camera_type = FRONT_CAMERA_2D;
+    s->s_mount_angle = 180;
     printk(KERN_ERR "[CAMDRV/SR030PC300] sr030pc30 sensor probe successful\n");
     return rc;
 
