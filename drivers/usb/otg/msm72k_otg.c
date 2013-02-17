@@ -2444,6 +2444,30 @@ static int otg_open(struct inode *inode, struct file *file)
 	file->private_data = inode->i_private;
 	return 0;
 }
+
+void otg_set_mode(int host)
+{
+	struct msm_otg *dev = the_msm_otg;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->lock, flags);
+	if (host) {
+		clear_bit(B_SESS_VLD, &dev->inputs);
+		clear_bit(ID, &dev->inputs);
+		set_bit(A_BUS_REQ, &dev->inputs);
+        set_bit(ID_A, &dev->inputs);
+    }
+    else {
+		clear_bit(B_SESS_VLD, &dev->inputs);
+        clear_bit(ID_A, &dev->inputs);
+		set_bit(ID, &dev->inputs);
+    }
+	spin_unlock_irqrestore(&dev->lock, flags);
+
+	wake_lock(&dev->wlock);
+	queue_work(dev->wq, &dev->sm_work);
+}
+
 static ssize_t otg_mode_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
