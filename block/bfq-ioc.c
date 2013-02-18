@@ -123,6 +123,13 @@ static void __bfq_exit_single_io_context(struct bfq_data *bfqd,
 	}
 
 	if (cic->cfqq[BLK_RW_SYNC] != NULL) {
+		/*
+		 * If the bic is using a shared queue, put the reference
+		 * taken on the io_context when the bic started using a
+		 * shared bfq_queue.
+		 */
+		if (bfq_bfqq_coop(cic->cfqq[BLK_RW_SYNC]))
+			put_io_context(ioc);
 		bfq_exit_bfqq(bfqd, cic->cfqq[BLK_RW_SYNC]);
 		cic->cfqq[BLK_RW_SYNC] = NULL;
 	}
@@ -172,6 +179,7 @@ static struct cfq_io_context *bfq_alloc_io_context(struct bfq_data *bfqd,
 							bfqd->queue->node);
 	if (cic != NULL) {
 		cic->last_end_request = jiffies;
+		cic->raising_time_left = 0;
 		INIT_LIST_HEAD(&cic->queue_list);
 		INIT_HLIST_NODE(&cic->cic_list);
 		cic->dtor = bfq_free_io_context;
