@@ -54,6 +54,9 @@
 
 #define MAX_AXI_KHZ 192000
 
+extern int charging_boot;
+#define LPM_LOW_CPU_CLK 245760
+
 struct clock_state {
 	struct clkctl_acpu_speed	*current_speed;
 	struct mutex			lock;
@@ -132,6 +135,14 @@ static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 0 }
 };
 
+#define MAX_CLK 1401600
+unsigned long acpuclk_usr_set_max(void)
+{
+	int ret = acpuclk_get_rate(smp_processor_id());
+	acpuclk_set_rate(smp_processor_id(), MAX_CLK, SETRATE_CPUFREQ);
+	return ret;
+}
+
 static int acpuclk_set_acpu_vdd(struct clkctl_acpu_speed *s)
 {
 	int ret = msm_spm_set_vdd(0, s->vdd_raw);
@@ -195,6 +206,11 @@ static int acpuclk_7x30_set_rate(int cpu, unsigned long rate,
 {
 	struct clkctl_acpu_speed *tgt_s, *strt_s;
 	int res, rc = 0;
+
+	if(charging_boot)
+	{
+		rate = LPM_LOW_CPU_CLK;
+	}
 
 	if (reason == SETRATE_CPUFREQ)
 		mutex_lock(&drv_state.lock);

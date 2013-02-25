@@ -15,6 +15,7 @@
 #ifndef __MSM_BATTERY_H__
 #define __MSM_BATTERY_H__
 
+#define NO_CHG     0x00000000
 #define AC_CHG     0x00000001
 #define USB_CHG    0x00000002
 

@@ -387,6 +387,8 @@ int msm_chg_usb_charger_connected(uint32_t device)
 		uint32_t otg_dev;
 	} req;
 
+	return 0;	// (battery/charging)
+
 	if (!chg_ep || IS_ERR(chg_ep))
 		return -EAGAIN;
 	req.otg_dev = cpu_to_be32(device);
@@ -411,6 +413,8 @@ int msm_chg_usb_i_is_available(uint32_t sample)
 		uint32_t i_ma;
 	} req;
 
+	return 0;	// (battery/charging)
+
 	if (!chg_ep || IS_ERR(chg_ep))
 		return -EAGAIN;
 	req.i_ma = cpu_to_be32(sample);
@@ -434,6 +438,8 @@ int msm_chg_usb_i_is_not_available(void)
 		struct rpc_request_hdr hdr;
 	} req;
 
+	return 0;	// (battery/charging)
+
 	if (!chg_ep || IS_ERR(chg_ep))
 		return -EAGAIN;
 	rc = msm_rpc_call(chg_ep, chg_rpc_ids.chg_usb_i_is_not_available_proc,
@@ -456,6 +462,101 @@ int msm_chg_usb_charger_disconnected(void)
 		struct rpc_request_hdr hdr;
 	} req;
 
+	return 0;	// (battery/charging)
+
+	if (!chg_ep || IS_ERR(chg_ep))
+		return -EAGAIN;
+	rc = msm_rpc_call(chg_ep, chg_rpc_ids.chg_usb_charger_disconnected_proc,
+			&req, sizeof(req), 5 * HZ);
+
+	if (rc < 0) {
+		pr_err("%s: charger_disconnected failed! rc = %d (rpc failed)\n",
+			__func__, rc);
+	} else
+		pr_debug("msm_chg_usb_charger_disconnected (rpc success)\n");
+
+	return rc;
+}
+EXPORT_SYMBOL(msm_chg_usb_charger_disconnected);
+
+#if 1	// (battery/charging)
+int msm_chg_usb_charger_connected_ext(uint32_t device)
+{
+	int rc = 0;
+	struct hsusb_start_req {
+		struct rpc_request_hdr hdr;
+		uint32_t otg_dev;
+	} req;
+
+	if (!chg_ep || IS_ERR(chg_ep))
+		return -EAGAIN;
+	req.otg_dev = cpu_to_be32(device);
+	rc = msm_rpc_call(chg_ep, chg_rpc_ids.chg_usb_charger_connected_proc,
+			&req, sizeof(req), 5 * HZ);
+
+	if (rc < 0) {
+		pr_err("%s: charger_connected failed! rc = %d (rpc failed)\n",
+			__func__, rc);
+	} else
+		pr_debug("msm_chg_usb_charger_connected (rpc success)\n");
+
+	return rc;
+}
+EXPORT_SYMBOL(msm_chg_usb_charger_connected_ext);
+
+int msm_chg_usb_i_is_available_ext(uint32_t sample)
+{
+	int rc = 0;
+	struct hsusb_start_req {
+		struct rpc_request_hdr hdr;
+		uint32_t i_ma;
+	} req;
+
+	if (!chg_ep || IS_ERR(chg_ep))
+		return -EAGAIN;
+	req.i_ma = cpu_to_be32(sample);
+	rc = msm_rpc_call(chg_ep, chg_rpc_ids.chg_usb_i_is_available_proc,
+			&req, sizeof(req), 5 * HZ);
+
+	if (rc < 0) {
+		pr_err("%s: charger_i_available failed! rc = %d\n",
+			__func__, rc);
+	} else
+		pr_debug("msm_chg_usb_i_is_available(%u)\n", sample);
+
+	return rc;
+}
+EXPORT_SYMBOL(msm_chg_usb_i_is_available_ext);
+
+int msm_chg_usb_i_is_not_available_ext(void)
+{
+	int rc = 0;
+	struct hsusb_start_req {
+		struct rpc_request_hdr hdr;
+	} req;
+
+	if (!chg_ep || IS_ERR(chg_ep))
+		return -EAGAIN;
+	rc = msm_rpc_call(chg_ep, chg_rpc_ids.chg_usb_i_is_not_available_proc,
+			&req, sizeof(req), 5 * HZ);
+
+	if (rc < 0) {
+		pr_err("%s: charger_i_not_available failed! rc ="
+			"%d \n", __func__, rc);
+	} else
+		pr_debug("msm_chg_usb_i_is_not_available\n");
+
+	return rc;
+}
+EXPORT_SYMBOL(msm_chg_usb_i_is_not_available_ext);
+
+int msm_chg_usb_charger_disconnected_ext(void)
+{
+	int rc = 0;
+	struct hsusb_start_req {
+		struct rpc_request_hdr hdr;
+	} req;
+
 	if (!chg_ep || IS_ERR(chg_ep))
 		return -EAGAIN;
 	rc = msm_rpc_call(chg_ep, chg_rpc_ids.chg_usb_charger_disconnected_proc,
@@ -469,7 +570,8 @@ int msm_chg_usb_charger_disconnected(void)
 
 	return rc;
 }
-EXPORT_SYMBOL(msm_chg_usb_charger_disconnected);
+EXPORT_SYMBOL(msm_chg_usb_charger_disconnected_ext);
+#endif // (battery/charging)
 
 /* rpc call to close connection */
 int msm_hsusb_rpc_close(void)
@@ -657,4 +759,30 @@ void hsusb_chg_connected(enum chg_type chgtype)
 	msm_chg_usb_charger_connected(chgtype);
 }
 EXPORT_SYMBOL(hsusb_chg_connected);
+#endif
+#if 1	// (battery/charging)
+void hsusb_chg_vbus_draw_ext(unsigned mA)
+{
+	msm_chg_usb_i_is_available_ext(mA);
+}
+EXPORT_SYMBOL(hsusb_chg_vbus_draw_ext);
+
+void hsusb_chg_connected_ext(enum chg_type chgtype)
+{
+	char *chg_types[] = {"STD DOWNSTREAM PORT",
+			"CARKIT",
+			"DEDICATED CHARGER",
+			"INVALID"};
+
+	if (chgtype == USB_CHG_TYPE__INVALID) {
+		msm_chg_usb_i_is_not_available_ext();
+		msm_chg_usb_charger_disconnected_ext();
+		return;
+	}
+
+	pr_info("\nCharger Type: %s\n", chg_types[chgtype]);
+
+	msm_chg_usb_charger_connected_ext(chgtype);
+}
+EXPORT_SYMBOL(hsusb_chg_connected_ext);
 #endif

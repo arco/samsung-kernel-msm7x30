@@ -386,10 +386,77 @@ static noinline void __init_refok rest_init(void)
 	cpu_idle();
 }
 
+unsigned int charging_boot=0;
+unsigned int board_hw_revision;
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+unsigned int board_lcd_hw_revision;
+#endif
+int no_console = 0;
+unsigned int boot_check_wrong_battery = 0;
+
 /* Check for early params. */
 static int __init do_early_param(char *param, char *val)
 {
 	const struct obs_kernel_param *p;
+
+	if ( (strcmp(param, "console") == 0 )
+		&& (( strcmp(val, "NULL") == 0 )
+			|| (strcmp(val, "null") == 0))
+		)
+		no_console = 1;
+
+	if ( (strcmp(param, "androidboot.battchg_pause") == 0 ) )
+	{
+		charging_boot = 1;
+		printk("AriesVE charging_boot %d\n",charging_boot);
+	}
+
+	if ( (strcmp(param, "hw") == 0 ) )
+	{
+		if (strcmp(val, "1") == 0)
+			board_hw_revision = 1;
+		else if (strcmp(val, "2") == 0)
+			board_hw_revision = 2;
+		else if (strcmp(val, "3") == 0)
+			board_hw_revision = 3;
+		else if (strcmp(val, "4") == 0)
+			board_hw_revision = 4;
+		else if (strcmp(val, "5") == 0)
+			board_hw_revision = 5;
+		else if (strcmp(val, "6") == 0)
+			board_hw_revision = 6;
+		else if (strcmp(val, "7") == 0)
+			board_hw_revision = 7;
+		else if (strcmp(val, "8") == 0)
+			board_hw_revision = 8;
+		else if (strcmp(val, "9") == 0)
+			board_hw_revision = 9;
+		else
+			board_hw_revision = 0;
+		printk("AriesVE H/W revision : 0x0%d\n",board_hw_revision);
+	}
+
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+        if ( (strcmp(param, "lcd_hw") == 0 ) )
+	{
+		if (strcmp(val, "1") == 0)
+			board_lcd_hw_revision = 1;
+		else if (strcmp(val, "2") == 0)
+			board_lcd_hw_revision = 2;
+		else if (strcmp(val, "3") == 0)
+			board_lcd_hw_revision = 3;
+		else
+			board_lcd_hw_revision = 0;
+		printk("Ancora LCD revision : 0x0%d\n",board_lcd_hw_revision);
+	}
+#endif
+
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+	if ( (strcmp(param, "WBAT") == 0) ) {
+		boot_check_wrong_battery = 1;
+		printk("Ancora wrong battery detected!\n");
+	}
+#endif
 
 	for (p = __setup_start; p < __setup_end; p++) {
 		if ((p->early && parameq(param, p->str)) ||

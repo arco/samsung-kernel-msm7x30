@@ -181,7 +181,7 @@ struct hs_cmd_data_type {
 };
 
 static const uint32_t hs_key_map[] = {
-	KEY(HS_PWR_K, KEY_POWER),
+	KEY(HS_PWR_K, KEY_END),
 	KEY(HS_END_K, KEY_END),
 	KEY(HS_STEREO_HEADSET_K, SW_HEADPHONE_INSERT_W_MIC),
 	KEY(HS_HEADSET_HEADPHONE_K, SW_HEADPHONE_INSERT),
@@ -222,6 +222,7 @@ struct msm_handset {
 
 static struct msm_rpc_client *rpc_client;
 static struct msm_handset *hs;
+extern int key_pressed;
 
 static int hs_find_key(uint32_t hscode)
 {
@@ -284,6 +285,7 @@ static void report_hs_key(uint32_t key_code, uint32_t key_parm)
 	case KEY_VOLUMEUP:
 	case KEY_VOLUMEDOWN:
 		input_report_key(hs->ipdev, key, (key_code != HS_REL_K));
+		key_pressed=(key_code != HS_REL_K);
 		break;
 	case SW_HEADPHONE_INSERT_W_MIC:
 		hs->mic_on = hs->hs_on = (key_code != HS_REL_K) ? 1 : 0;
@@ -606,7 +608,7 @@ static int __devinit hs_probe(struct platform_device *pdev)
 	if (!hs)
 		return -ENOMEM;
 
-	hs->sdev.name	= "h2w";
+	hs->sdev.name	= "pwr";
 	hs->sdev.print_name = msm_headset_print_name;
 
 	rc = switch_dev_register(&hs->sdev);

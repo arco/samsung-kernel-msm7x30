@@ -112,6 +112,7 @@ module_param_named(
 				msm_pm_smem_data->pending_irqs); \
 	} while (0)
 
+extern bool MicroJigUARTOffStatus;
 
 /******************************************************************************
  * Sleep Modes and Parameters
@@ -1529,6 +1530,14 @@ static int msm_pm_enter(suspend_state_t state)
 		for (i = 0; i < 30 && msm_pm_modem_busy(); i++)
 			udelay(500);
 
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+		if(MicroJigUARTOffStatus)
+		{
+			printk("############ CONNECT MicroJigUARTOffStatus = %d########### \n",MicroJigUARTOffStatus);
+			msm_pm_max_sleep_time = 0x0;
+		}
+#endif
+
 		ret = msm_pm_power_collapse(
 			false, msm_pm_max_sleep_time, sleep_limit);
 
@@ -1710,6 +1719,11 @@ static int __init msm_pm_init(void)
 
 	msm_pm_mode_sysfs_add();
 	msm_pm_add_stats(enable_stats, ARRAY_SIZE(enable_stats));
+
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+	reset_base = ioremap(RESET_ALL, PAGE_SIZE);
+	msm_m_gpio2_owner_base = ioremap(MSM_M_GPIO2_OWNER, PAGE_SIZE);
+#endif
 
 	atomic_set(&msm_pm_init_done, 1);
 	return 0;

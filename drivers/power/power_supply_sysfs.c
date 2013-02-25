@@ -33,7 +33,7 @@
 
 #define POWER_SUPPLY_ATTR(_name)					\
 {									\
-	.attr = { .name = #_name },					\
+	.attr = { .name = #_name, .mode = 0444 },					\
 	.show = power_supply_show_property,				\
 	.store = power_supply_store_property,				\
 }
@@ -103,6 +103,10 @@ static ssize_t power_supply_show_property(struct device *dev,
 		return sprintf(buf, "%s\n", scope_text[value.intval]);
 	else if (off >= POWER_SUPPLY_PROP_MODEL_NAME)
 		return sprintf(buf, "%s\n", value.strval);
+	else if (off >= POWER_SUPPLY_PROP_BATT_FULL)
+		return sprintf(buf, "%d\n", value.intval);
+	else if (off >= POWER_SUPPLY_PROP_BATT_TYPE)
+		return sprintf(buf, "SDI_SDI\n");
 
 	return sprintf(buf, "%d\n", value.intval);
 }
@@ -139,7 +143,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(present),
 	POWER_SUPPLY_ATTR(online),
 	POWER_SUPPLY_ATTR(technology),
-	POWER_SUPPLY_ATTR(cycle_count),
+	//POWER_SUPPLY_ATTR(cycle_count),
 	POWER_SUPPLY_ATTR(voltage_max),
 	POWER_SUPPLY_ATTR(voltage_min),
 	POWER_SUPPLY_ATTR(voltage_max_design),
@@ -168,6 +172,17 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(capacity_level),
 	POWER_SUPPLY_ATTR(temp),
 	POWER_SUPPLY_ATTR(temp_ambient),
+	POWER_SUPPLY_ATTR(batt_temp),
+	POWER_SUPPLY_ATTR(batt_temp_adc),
+	POWER_SUPPLY_ATTR(batt_vol),
+	POWER_SUPPLY_ATTR(batt_vol_adc),
+	POWER_SUPPLY_ATTR(batt_vf_adc),
+	POWER_SUPPLY_ATTR(batt_vol_adc_aver),
+	POWER_SUPPLY_ATTR(batt_temp_adc_aver),
+	POWER_SUPPLY_ATTR(batt_vol_aver),
+	POWER_SUPPLY_ATTR(batt_temp_aver),
+	POWER_SUPPLY_ATTR(batt_type),
+	POWER_SUPPLY_ATTR(batt_full_check),
 	POWER_SUPPLY_ATTR(time_to_empty_now),
 	POWER_SUPPLY_ATTR(time_to_empty_avg),
 	POWER_SUPPLY_ATTR(time_to_full_now),
