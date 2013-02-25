@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/mm.h>
+#include <linux/sched.h>
 
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -42,10 +43,14 @@
 
 #include "dpram.h"
 #include "../../arch/arm/mach-msm/smd_private.h"
-#include "../../arch/arm/mach-msm/proc_comm.h"
+#include "../../arch/arm/mach-msm/include/mach/proc_comm.h"
 
 #define DRIVER_NAME 		"DPRAM"
 #define DRIVER_MAJOR_NUM	255
+
+#define MSM_GCC_BASE          IOMEM(0xF8009000)
+#define MSM_GCC_PHYS          0xC0182000
+#define MSM_GCC_SIZE          SZ_4K
 
 #undef _DEBUG
 #ifdef _DEBUG
@@ -108,7 +113,7 @@ static dpram_device_t dpram_table[MAX_INDEX] = {
 
 static struct tty_struct *dpram_tty[MAX_INDEX];
 static struct ktermios *dpram_termios[MAX_INDEX];
-static struct ktermios *dpram_termios_locked[MAX_INDEX];
+//static struct ktermios *dpram_termios_locked[MAX_INDEX];
 
 extern void *smem_alloc(unsigned, unsigned);
 
@@ -1639,7 +1644,7 @@ static int register_dpram_driver(void)
 
 	dpram_tty_driver->ttys = dpram_tty;
 	dpram_tty_driver->termios = dpram_termios;
-	dpram_tty_driver->termios_locked = dpram_termios_locked;
+//	dpram_tty_driver->termios_locked = dpram_termios_locked;
 
 	/* @LDK@ register tty driver */
 	retval = tty_register_driver(dpram_tty_driver);

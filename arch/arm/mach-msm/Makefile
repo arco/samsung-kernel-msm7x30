@@ -263,7 +263,7 @@ obj-$(CONFIG_MACH_MSM8625_QRD7) +=  board-qrd7627a.o board-7627a-all.o
 obj-$(CONFIG_MACH_MSM8625_FFA) += board-msm7x27a.o board-7627a-all.o
 obj-$(CONFIG_MACH_MSM8625_EVT) += board-msm7x27a.o board-7627a-all.o
 ifdef CONFIG_MACH_ANCORA
-obj-$(CONFIG_ARCH_MSM7X30) += board-ancora.o devices-msm7x30.o memory_topology.o samsung_vibrator.o
+obj-$(CONFIG_ARCH_MSM7X30) += board-ancora.o devices-msm7x30.o memory_topology.o #samsung_vibrator.o
 else
 obj-$(CONFIG_ARCH_MSM7X30) += board-msm7x30.o devices-msm7x30.o memory_topology.o
 endif

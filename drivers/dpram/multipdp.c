@@ -312,7 +312,7 @@ struct pdp_info {
 			int			refcount;
 			struct tty_struct	*tty_table[1];
 			struct ktermios		*termios[1];
-			struct ktermios		*termios_locked[1];
+//			struct ktermios		*termios_locked[1];
 			char			tty_name[16];
 			struct tty_struct	*tty;
 			struct semaphore	write_lock;
@@ -1423,7 +1423,7 @@ static int vs_add_dev(struct pdp_info *dev)
 	// tty_driver->refcount	= dev->vs_dev.refcount;
 	tty_driver->ttys	= dev->vs_dev.tty_table; // 2.6 kernel porting
 	tty_driver->termios	= dev->vs_dev.termios;
-	tty_driver->termios_locked	= dev->vs_dev.termios_locked;
+//	tty_driver->termios_locked	= dev->vs_dev.termios_locked;
 
 	tty_set_operations(tty_driver, &multipdp_tty_ops);
 	return tty_register_driver(tty_driver);

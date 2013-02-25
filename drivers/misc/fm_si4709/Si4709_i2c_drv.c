@@ -1,6 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include "Si4709_dev.h"
 #include "Si4709_common.h"
