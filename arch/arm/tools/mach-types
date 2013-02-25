@@ -20,6 +20,7 @@
 #
 # machine_is_xxx	CONFIG_xxxx		MACH_TYPE_xxx		number
 #
+ancora			MACH_ANCORA		ANCORA			2
 ebsa110			ARCH_EBSA110		EBSA110			0
 riscpc			ARCH_RPC		RISCPC			1
 ebsa285			ARCH_EBSA285		EBSA285			4
