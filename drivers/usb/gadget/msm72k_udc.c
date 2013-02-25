@@ -2618,6 +2618,20 @@ static struct attribute_group otg_attr_grp = {
 };
 #endif
 
+void usb_force_reset(void)
+{
+	struct usb_info *ui = the_usb_info;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ui->lock, flags);
+	ui->flags |= USB_FLAG_RESET;
+	schedule_work(&ui->work);
+	spin_unlock_irqrestore(&ui->lock, flags);
+
+	return;
+}
+EXPORT_SYMBOL(usb_force_reset);
+
 static int msm72k_probe(struct platform_device *pdev)
 {
 	struct usb_info *ui;
