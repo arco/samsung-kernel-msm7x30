@@ -134,6 +134,9 @@ if (smd_rpcrouter_debug_mask & NTFY_MSG) \
 #define NTFY(x...) do { } while (0)
 #endif
 
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+extern int power_off_done;
+#endif
 
 static LIST_HEAD(local_endpoints);
 static LIST_HEAD(remote_endpoints);
@@ -1549,6 +1552,12 @@ int msm_rpc_write(struct msm_rpc_endpoint *ept, void *buffer, int count)
 	/* snoop the RPC packet and enforce permissions */
 
 	/* has to have at least the xid and type fields */
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+	if(power_off_done) {
+		return 0;
+	}
+#endif
+
 	if (count < (sizeof(uint32_t) * 2)) {
 		printk(KERN_ERR "rr_write: rejecting runt packet\n");
 		return -EINVAL;
@@ -1673,6 +1682,12 @@ int msm_rpc_read(struct msm_rpc_endpoint *ept, void **buffer,
 	struct rr_fragment *frag, *next;
 	char *buf;
 	int rc;
+
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+	if(power_off_done) {
+		return 0;
+	}
+#endif
 
 	rc = __msm_rpc_read(ept, &frag, user_len, timeout);
 	if (rc <= 0)
