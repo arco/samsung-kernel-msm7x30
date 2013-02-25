@@ -264,4 +264,13 @@ struct interrupt_stat {
 };
 extern struct interrupt_stat interrupt_stats[NUM_SMD_SUBSYSTEMS];
 
+#if (defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_GODART)) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+#define SMEM_VENDOR1_CAPTURE_BUF_SIZE (128*1024)
+
+typedef struct SMEM_VENDOR1_ID_TYPE
+{
+	unsigned char capture_buffer[SMEM_VENDOR1_CAPTURE_BUF_SIZE];
+
+}__attribute__((aligned(8))) __attribute__((packed))samsung_vendor1_id;
+#endif
 #endif

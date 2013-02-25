@@ -604,7 +604,7 @@ static ssize_t usb_switch_show(struct device *dev, struct device_attribute *attr
 	set_fs(fs);
 
 	if(!power_down)
-       	printk("[FSA9480] usb_sel.bin = %s, deb_dev1=0x%x, deb_dev2=0x%x, deb_intr1=0x%x, deb_intr2=0x%x, deb_intb=%d\n",buffer, deb_dev1, deb_dev2, deb_intr1,deb_intr2,deb_intb);
+		printk("[FSA9480] usb_sel.bin = %s, deb_dev1=0x%x, deb_dev2=0x%x, deb_intr1=0x%x, deb_intr2=0x%x, deb_intb=%d\n",buffer, deb_dev1, deb_dev2, deb_intr1,deb_intr2,deb_intb);
 
 
 	if (!strcmp(buffer, "1")){
@@ -645,13 +645,13 @@ static ssize_t usb_switch_store(
 
 	if(strncmp(buf, "PDA_AP", 6) == 0 || strncmp(buf, "pda_ap", 6) == 0) {
 		sprintf(buffer, "1");
-		samsung_enable_function( USBSTATUS_SAMSUNG_KIES);
+		//samsung_enable_function( USBSTATUS_SAMSUNG_KIES);
 		printk("usb_switch_store1 %s !! \n",buf);		
 	}
     else
     {
 		sprintf(buffer, "2");
-		samsung_enable_function( USBSTATUS_DM);
+		//samsung_enable_function( USBSTATUS_DM);
 		printk("usb_switch_store2 %s !! \n",buf);		
     }
 	sys_write(fd,buffer,strlen(buffer));
@@ -697,12 +697,12 @@ void uart_switch_mode_select(int mode) {
 	struct ariesve_parameter param_data;
 	memset(&param_data,0,sizeof(struct ariesve_parameter));
 
-	msm_read_param(&param_data);
+	//msm_read_param(&param_data);
 
 	uart_switch_mode(mode);
 	param_data.uart_sel = mode;
 
-	msm_write_param(&param_data);
+	//msm_write_param(&param_data);
 }
 EXPORT_SYMBOL(uart_switch_mode_select);
 
@@ -809,8 +809,7 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 						msm_hsusb_set_vbus_state(1);  // if MTP blocked before. disable_vbus_store
 						disable_vbus_flag = 0;
 					}
-//					if(!charging_boot) 
-					if( (!charging_boot) && (android_probe_done) )
+					if(!charging_boot)
 					{
 					DEBUG_FSA9480("USB ---!charging_boot && android_probe_done\n");					
 						usb_switch_state();

@@ -54,6 +54,24 @@
 #include <asm/io.h>
 #include <asm/unistd.h>
 
+#include "../arch/arm/mach-msm/smd_private.h"
+#include "../arch/arm/mach-msm/proc_comm.h"
+#include <mach/msm_iomap.h>
+#include <asm/io.h>
+
+struct smem_info {
+	unsigned int info;
+};
+
+extern struct smem_info *smem_flag;
+
+#define POWER_OFF_TIME ( 40* HZ ) // 40 secs
+
+void power_off_registertimer(struct timer_list* ptimer, unsigned long timeover );
+void power_off_timeout(unsigned long arg);
+
+struct timer_list power_off_timer;
+
 #ifndef SET_UNALIGN_CTL
 # define SET_UNALIGN_CTL(a,b)	(-EINVAL)
 #endif
@@ -403,8 +421,27 @@ EXPORT_SYMBOL_GPL(kernel_halt);
  *
  *	Shutdown everything and perform a clean system power_off.
  */
+void power_off_registertimer(struct timer_list* ptimer, unsigned long timeover )
+{
+	printk("%s\n",__func__);
+	init_timer(ptimer);
+	ptimer->expires = get_jiffies_64() + timeover;
+	ptimer->data = (long) NULL;
+	ptimer->function = power_off_timeout;
+	add_timer(ptimer);
+}
+
+void power_off_timeout(unsigned long arg)
+{
+	printk("%s\n",__func__);
+	//smem_flag->info = 0xAEAEAEAE;
+	//msm_proc_comm_reset_modem_now();
+	machine_power_off();
+}
+
 void kernel_power_off(void)
 {
+	power_off_registertimer(&power_off_timer, POWER_OFF_TIME);
 	kernel_shutdown_prepare(SYSTEM_POWER_OFF);
 	if (pm_power_off_prepare)
 		pm_power_off_prepare();
