@@ -133,7 +133,6 @@
 #define GPIO_WLAN_LEVEL_HIGH	1
 #define GPIO_WLAN_LEVEL_NONE	2
 
-#define GPIO_BT_RESET		146
 #define WLAN_EN_GPIO		144 //WLAN_BT_EN
 #define WLAN_RESET		127 //Reset
 #define WLAN_HOST_WAKE		111
@@ -5637,7 +5636,7 @@ static uint32_t msm_sdcc_setup_gpio(int dev_id, unsigned int enable)
 	int rc = 0;
 	struct sdcc_gpio *curr;
 
-	if((dev_id == 1)&& (gpio_get_value(WLAN_RESET)))
+	if ((dev_id == 1) && (gpio_get_value(WLAN_RESET)))
 	{
 		return 0;
 	}
@@ -5675,7 +5674,7 @@ static uint32_t msm_sdcc_setup_vreg(int dev_id, unsigned int enable)
 	if (test_bit(dev_id, &vreg_sts) == enable)
 		return rc;
 
-	if (!enable || enabled_once[dev_id - 1])
+	if ((!enable || enabled_once[dev_id - 1]) && dev_id != 4)
 		return 0;
 
 	if (!curr)
@@ -6104,25 +6103,7 @@ out:
 	/* should return 0 only */
 	return 0;
 }
-
 #endif
-
-static void (*wlan_status_notify_cb)(int card_present, void *dev_id);
-static void *wlan_status_notify_cb_devid;
-int wlan_register_status_notify(void (*callback)(int, void *),
-	void *dev_id)
-{
-	wlan_status_notify_cb = callback;
-	wlan_status_notify_cb_devid = dev_id;
-	return 0;
-}
-
-static unsigned int wlan_status(struct device *dev)
-{
-	printk("wlan_status called....\n");
-	return gpio_get_value (WLAN_RESET);
-}
-
 #endif
 
 #ifdef CONFIG_MMC_MSM_SDC4_SUPPORT
@@ -6161,6 +6142,9 @@ static int msm_sdcc_get_wpswitch(struct device *dv)
 	return ret;
 }
 #endif
+
+extern int wlan_register_status_notify();
+extern unsigned int wlan_status();
 
 #if defined(CONFIG_MMC_MSM_SDC1_SUPPORT)
 #if defined(CONFIG_CSDIO_VENDOR_ID) && \
@@ -6332,175 +6316,6 @@ int msm_wlan_gpio_init ( void )
 
 	return 0;
 }
-void wlan_setup_power(int on, int flag)
-{
-	if (flag == 1)
-	{
-		printk ("Before %s: WLAN_EN_GPIO value before set is %d on=%d WLAN_RESET=%d \n", __func__, gpio_get_value (WLAN_EN_GPIO),on,gpio_get_value (WLAN_RESET));
-		if(on)
-		{
-			if (gpio_tlmm_config (GPIO_CFG(WLAN_EN_GPIO, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_8MA), GPIO_CFG_ENABLE))
-			{
-					printk (KERN_ERR "%s: Unable configure WLAN_EN_GPIO\n", __func__);
-					return;
-			}
-
-			gpio_set_value (WLAN_EN_GPIO, on);
-		}
-		else
-		{
-			if(!gpio_get_value(GPIO_BT_RESET))
-			{
-				printk("Switching OFF Enable pin \n");
-				if (gpio_tlmm_config (GPIO_CFG(WLAN_EN_GPIO, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_8MA), GPIO_CFG_ENABLE))
-				{
-						printk (KERN_ERR "%s: Unable configure WLAN_EN_GPIO\n", __func__);
-						return;
-				}
-
-				gpio_set_value (WLAN_EN_GPIO, on);
-			}
-			else
-			{
-				printk("BT is Enabled\n");
-			}
-		}
-		printk ("%s: WLAN_EN_GPIO value before set is %d on=%d \n", __func__, gpio_get_value (WLAN_EN_GPIO),on);
-		if (gpio_tlmm_config (GPIO_CFG(WLAN_RESET, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_8MA), GPIO_CFG_ENABLE))
-		{
-				printk (KERN_ERR "%s: Unable configure WLAN_RESET \n", __func__);
-				return;
-		}
-
-		mdelay (100);
-		gpio_set_value (WLAN_RESET, 0);
-		mdelay (100);
-		printk("Just Resetting WIFI ONCE,before POWER ON\n");
-		//
-		gpio_set_value (WLAN_RESET, on);
-		mdelay (10);
-		//gpio_set_value (WLAN_RESET, 0);
-		printk ("After %s: WLAN_EN_GPIO value before set is %d on=%d WLAN_RESET=%d \n", __func__, gpio_get_value (WLAN_EN_GPIO),on,gpio_get_value (WLAN_RESET));
-		if (wlan_status_notify_cb) {
-			printk ("%s: calling detect change\n", __func__);
-			wlan_status_notify_cb(gpio_get_value (WLAN_EN_GPIO),
-				wlan_status_notify_cb_devid);
-		}
-	}
-	else
-	{
-
-		printk("Reseting WLAN...\n");
-		if (gpio_tlmm_config (GPIO_CFG(WLAN_RESET, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_8MA), GPIO_CFG_ENABLE))
-		{
-			printk (KERN_ERR "%s: Unable configure WLAN_RESET \n", __func__);
-			return;
-		}
-
-		gpio_set_value (WLAN_RESET, on);
-	}
-}
-EXPORT_SYMBOL (wlan_setup_power);
-
-#define WLAN_STATIC_BUF
-#ifdef WLAN_STATIC_BUF
-
-#define PREALLOC_WLAN_SEC_NUM		4
-#define PREALLOC_WLAN_BUF_NUM		160
-#define PREALLOC_WLAN_SECTION_HEADER	24
-
-
-#define WLAN_SECTION_SIZE_0	(PREALLOC_WLAN_BUF_NUM * 128)
-#define WLAN_SECTION_SIZE_1	(PREALLOC_WLAN_BUF_NUM * 128)
-#define WLAN_SECTION_SIZE_2	(PREALLOC_WLAN_BUF_NUM * 512)
-#define WLAN_SECTION_SIZE_3	(PREALLOC_WLAN_BUF_NUM * 1024)
-
-#define WLAN_SKB_BUF_NUM	17
-
-static struct sk_buff *wlan_static_skb[WLAN_SKB_BUF_NUM];
-
-#endif /* WLAN_STATIC_BUF */
-
-#ifdef WLAN_STATIC_BUF
-
-struct wifi_mem_prealloc {
-	void *mem_ptr;
-	unsigned long size;
-};
-
-static struct wifi_mem_prealloc wifi_mem_array[PREALLOC_WLAN_SEC_NUM] = {
-	{NULL, (WLAN_SECTION_SIZE_0 + PREALLOC_WLAN_SECTION_HEADER)},
-	{NULL, (WLAN_SECTION_SIZE_1 + PREALLOC_WLAN_SECTION_HEADER)},
-	{NULL, (WLAN_SECTION_SIZE_2 + PREALLOC_WLAN_SECTION_HEADER)},
-	{NULL, (WLAN_SECTION_SIZE_3 + PREALLOC_WLAN_SECTION_HEADER)}
-};
-
-void *wlan_mem_prealloc(int section, unsigned long size)
-{
-	if (section == PREALLOC_WLAN_SEC_NUM)
-		return wlan_static_skb;
-
-	if ((section < 0) || (section > PREALLOC_WLAN_SEC_NUM))
-		return NULL;
-
-	if (wifi_mem_array[section].size < size)
-		return NULL;
-
-	return wifi_mem_array[section].mem_ptr;
-}
-EXPORT_SYMBOL(wlan_mem_prealloc);
-
-#define DHD_SKB_HDRSIZE 		336
-#define DHD_SKB_1PAGE_BUFSIZE	((PAGE_SIZE*1)-DHD_SKB_HDRSIZE)
-#define DHD_SKB_2PAGE_BUFSIZE	((PAGE_SIZE*2)-DHD_SKB_HDRSIZE)
-#define DHD_SKB_4PAGE_BUFSIZE	((PAGE_SIZE*4)-DHD_SKB_HDRSIZE)
-
-static int init_wifi_mem(void)
-{
-	int i;
-	int j;
-
-	for (i = 0; i < 8; i++) {
-		wlan_static_skb[i] = dev_alloc_skb(DHD_SKB_1PAGE_BUFSIZE);
-		if (!wlan_static_skb[i])
-			goto err_skb_alloc;
-	}
-
-	for (; i < 16; i++) {
-		wlan_static_skb[i] = dev_alloc_skb(DHD_SKB_2PAGE_BUFSIZE);
-		if (!wlan_static_skb[i])
-			goto err_skb_alloc;
-	}
-
-	wlan_static_skb[i] = dev_alloc_skb(DHD_SKB_4PAGE_BUFSIZE);
-	if (!wlan_static_skb[i])
-		goto err_skb_alloc;
-
-	for (i = 0 ; i < PREALLOC_WLAN_SEC_NUM ; i++) {
-		wifi_mem_array[i].mem_ptr =
-				kmalloc(wifi_mem_array[i].size, GFP_KERNEL);
-
-		if (!wifi_mem_array[i].mem_ptr)
-			goto err_mem_alloc;
-	}
-	printk("%s: WIFI MEM Allocated\n", __FUNCTION__);
-	return 0;
-
- err_mem_alloc:
-	pr_err("Failed to mem_alloc for WLAN\n");
-	for (j = 0 ; j < i ; j++)
-		kfree(wifi_mem_array[j].mem_ptr);
-
-	i = WLAN_SKB_BUF_NUM;
-
- err_skb_alloc:
-	pr_err("Failed to skb_alloc for WLAN\n");
-	for (j = 0 ; j < i ; j++)
-		dev_kfree_skb(wlan_static_skb[j]);
-
-	return -ENOMEM;
-}
-#endif /* WLAN_STATIC_BUF */
 
 static int mmc_regulator_init(int sdcc_no, const char *supply, int uV)
 {
@@ -7355,10 +7170,8 @@ static void __init msm7x30_init(void)
 		(smem_get_entry(SMEM_POWER_ON_STATUS_INFO, &smem_size));
 	printk(KERN_NOTICE "Boot Reason = 0x%02x\n", boot_reason);
 
-#ifdef WLAN_STATIC_BUF
-	init_wifi_mem();
-#endif
-
+	/* Broadcom Wi-Fi */
+	brcm_wlan_init();
 }
 
 static unsigned pmem_sf_size = MSM_PMEM_SF_SIZE;
