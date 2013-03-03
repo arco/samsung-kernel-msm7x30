@@ -3517,7 +3517,7 @@ static int __devinit msm_batt_probe(struct platform_device *pdev)
 	msm_batt_create_attrs(msm_psy_batt.dev);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	msm_batt_info.early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
+	msm_batt_info.early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 1;
 	msm_batt_info.early_suspend.suspend = msm_batt_early_suspend;
 	msm_batt_info.early_suspend.resume = msm_batt_late_resume;
 	register_early_suspend(&msm_batt_info.early_suspend);
@@ -3614,29 +3614,18 @@ static int __devexit msm_batt_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void msm_batt_shutdown(struct platform_device *pdev)
-{
-#if 0
-	int rc;
-	rc = msm_batt_cleanup();
-
-	if (rc < 0) {
-		dev_err(&pdev->dev,
-			"%s: msm_batt_cleanup  failed rc=%d\n", __func__, rc);
-	}
-#endif
-	del_timer_sync(&msm_batt_info.timer);
-}
+static const struct dev_pm_ops msm_bat_pm_ops = {
+	.prepare = msm_batt_suspend,
+	.complete = msm_batt_resume,
+};
 
 static struct platform_driver msm_batt_driver = {
 	.probe = msm_batt_probe,
-	.suspend = msm_batt_suspend,
-	.resume = msm_batt_resume,		
 	.remove = __devexit_p(msm_batt_remove),
-	.shutdown = msm_batt_shutdown,
 	.driver = {
 		   .name = "ancora-battery",
 		   .owner = THIS_MODULE,
+		   .pm = &msm_bat_pm_ops,
 		   },
 };
 
