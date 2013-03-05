@@ -2032,6 +2032,19 @@ static void a2xx_start(struct adreno_device *adreno_dev)
 	a2xx_gmeminit(adreno_dev);
 }
 
+static unsigned int a2xx_irq_pending(struct adreno_device *adreno_dev)
+{
+	struct kgsl_device *device = &adreno_dev->dev;
+	unsigned int rbbm, cp, mh;
+
+	adreno_regread(device, REG_RBBM_INT_CNTL, &rbbm);
+	adreno_regread(device, REG_CP_INT_CNTL, &cp);
+	adreno_regread(device, MH_INTERRUPT_MASK, &mh);
+
+	return ((rbbm & RBBM_INT_MASK) || (cp & CP_INT_MASK) ||
+			(mh & MH_INTERRUPT_MASK)) ? 1 : 0;
+}
+
 /* Defined in adreno_a2xx_snapshot.c */
 void *a2xx_snapshot(struct adreno_device *adreno_dev, void *snapshot,
 	int *remain, int hang);
@@ -2047,6 +2060,7 @@ struct adreno_gpudev adreno_a2xx_gpudev = {
 	.ctxt_draw_workaround = a2xx_drawctxt_draw_workaround,
 	.irq_handler = a2xx_irq_handler,
 	.irq_control = a2xx_irq_control,
+	.irq_pending = a2xx_irq_pending,
 	.snapshot = a2xx_snapshot,
 	.rb_init = a2xx_rb_init,
 	.busy_cycles = a2xx_busy_cycles,
