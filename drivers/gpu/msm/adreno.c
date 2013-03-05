@@ -1053,10 +1053,12 @@ static unsigned int adreno_isidle(struct kgsl_device *device)
 		GSL_RB_GET_READPTR(rb, &rb->rptr);
 		if (!device->active_cnt && (rb->rptr == rb->wptr)) {
 			/* Is the core idle? */
-			adreno_regread(device, REG_RBBM_STATUS,
-					    &rbbm_status);
-			if (rbbm_status == 0x110)
-				status = true;
+			if (adreno_dev->gpudev->irq_pending(adreno_dev) == 0) {
+				adreno_regread(device, REG_RBBM_STATUS,
+							&rbbm_status);
+				if (rbbm_status == 0x110)
+					status = true;
+			}
 		}
 	} else {
 		status = true;
