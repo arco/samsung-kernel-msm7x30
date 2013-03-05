@@ -24,11 +24,6 @@
 #endif
 #include "power.h"
 
-#ifdef CONFIG_DPRAM_WHITELIST
-#include <linux/delay.h>
-#include "portlist.h"
-#endif /* CONFIG_DPRAM_WHITELIST */
-
 enum {
 	DEBUG_EXIT_SUSPEND = 1U << 0,
 	DEBUG_WAKEUP = 1U << 1,
@@ -54,9 +49,7 @@ static DEFINE_SPINLOCK(suspend_sys_sync_lock);
 static struct workqueue_struct *suspend_sys_sync_work_queue;
 static DECLARE_COMPLETION(suspend_sys_sync_comp);
 struct workqueue_struct *suspend_work_queue;
-struct workqueue_struct *sync_work_queue;
 struct wake_lock main_wake_lock;
-struct wake_lock sync_wake_lock;
 suspend_state_t requested_suspend_state = PM_SUSPEND_MEM;
 static struct wake_lock unknown_wakeup;
 static struct wake_lock suspend_backoff_lock;
@@ -293,9 +286,10 @@ void suspend_sys_sync_queue(void)
 	int ret;
 
 	spin_lock(&suspend_sys_sync_lock);
+	suspend_sys_sync_count++;
 	ret = queue_work(suspend_sys_sync_work_queue, &suspend_sys_sync_work);
-	if (ret)
-		suspend_sys_sync_count++;
+	if (!ret)
+		suspend_sys_sync_count--;
 	spin_unlock(&suspend_sys_sync_lock);
 }
 
@@ -345,7 +339,7 @@ static void suspend_backoff(void)
 
 static void suspend(struct work_struct *work)
 {
-	int ret;
+	int ret = 0;
 	int entry_event_num;
 	struct timespec ts_entry, ts_exit;
 
@@ -355,28 +349,19 @@ static void suspend(struct work_struct *work)
 		return;
 	}
 
-#ifdef CONFIG_DPRAM_WHITELIST
-	// call process white list
-	ret = process_white_list();
-	if (unlikely(ret !=0)) {
-		printk("fail to send whitelist\n");
-		return;
-	} else {
-		msleep(1000); // watch suspend condition change
-		if (has_wake_lock(WAKE_LOCK_SUSPEND)) {
-			if (debug_mask & DEBUG_SUSPEND)
-				pr_info("suspend: abort suspend after processing white list\n");
-			return;
-		}
-	}
-#endif /* CONFIG_DPRAM_WHITELIST */
-
 	entry_event_num = current_event_num;
 	suspend_sys_sync_queue();
-	if (debug_mask & DEBUG_SUSPEND)
-		pr_info("suspend: enter suspend\n");
+
 	getnstimeofday(&ts_entry);
-	ret = pm_suspend(requested_suspend_state);
+	if (debug_mask & DEBUG_SUSPEND) {
+		struct rtc_time tm;
+		rtc_time_to_tm(ts_entry.tv_sec, &tm);
+		pr_info("suspend: enter suspend, ret = %d "
+			"(%d-%02d-%02d %02d:%02d:%02d.%09lu UTC)\n", ret,
+			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+			tm.tm_hour, tm.tm_min, tm.tm_sec, ts_entry.tv_nsec);
+	}
+        ret = pm_suspend(requested_suspend_state);
 	getnstimeofday(&ts_exit);
 
 	if (debug_mask & DEBUG_EXIT_SUSPEND) {
@@ -663,7 +648,6 @@ static int __init wakelocks_init(void)
 			"deleted_wake_locks");
 #endif
 	wake_lock_init(&main_wake_lock, WAKE_LOCK_SUSPEND, "main");
-	wake_lock_init(&sync_wake_lock, WAKE_LOCK_SUSPEND, "sync_system");
 	wake_lock(&main_wake_lock);
 	wake_lock_init(&unknown_wakeup, WAKE_LOCK_SUSPEND, "unknown_wakeups");
 	wake_lock_init(&suspend_backoff_lock, WAKE_LOCK_SUSPEND,
@@ -694,13 +678,6 @@ static int __init wakelocks_init(void)
 		goto err_suspend_work_queue;
 	}
 
-	sync_work_queue = create_singlethread_workqueue("sync_system_work");
-	if (sync_work_queue == NULL) {
-		pr_err("%s: failed to create sync_work_queue\n", __func__);
-		ret = -ENOMEM;
-		goto err_suspend_work_queue;
-	}
-
 #ifdef CONFIG_WAKELOCK_STAT
 	proc_create("wakelocks", S_IRUGO, NULL, &wakelock_stats_fops);
 #endif
@@ -715,7 +692,6 @@ err_platform_driver_register:
 err_platform_device_register:
 	wake_lock_destroy(&suspend_backoff_lock);
 	wake_lock_destroy(&unknown_wakeup);
-	wake_lock_destroy(&sync_wake_lock);
 	wake_lock_destroy(&main_wake_lock);
 #ifdef CONFIG_WAKELOCK_STAT
 	wake_lock_destroy(&deleted_wake_locks);
@@ -734,7 +710,6 @@ static void  __exit wakelocks_exit(void)
 	platform_device_unregister(&power_device);
 	wake_lock_destroy(&suspend_backoff_lock);
 	wake_lock_destroy(&unknown_wakeup);
-	wake_lock_destroy(&sync_wake_lock);
 	wake_lock_destroy(&main_wake_lock);
 #ifdef CONFIG_WAKELOCK_STAT
 	wake_lock_destroy(&deleted_wake_locks);
