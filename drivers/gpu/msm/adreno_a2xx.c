@@ -1680,16 +1680,6 @@ static void a2xx_cp_intrcallback(struct kgsl_device *device)
 		return;
 	}
 
-	if (status & CP_INT_CNTL__RB_INT_MASK) {
-		/* signal intr completion event */
-		unsigned int enableflag = 0;
-		kgsl_sharedmem_writel(&rb->device->memstore,
-			KGSL_DEVICE_MEMSTORE_OFFSET(ts_cmp_enable),
-			enableflag);
-		wmb();
-		KGSL_CMD_WARN(rb->device, "ringbuffer rb interrupt\n");
-	}
-
 	for (i = 0; i < ARRAY_SIZE(kgsl_cp_error_irqs); i++) {
 		if (status & kgsl_cp_error_irqs[i].mask) {
 			KGSL_CMD_CRIT(rb->device, "%s\n",
