@@ -498,16 +498,8 @@ static DEVICE_ATTR(info, S_IRUGO|S_IWUSR, show_info, NULL);
 static ssize_t store_whitelist(struct device *d,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	int i;
-
 	switch (buf[0]) {
 	case 0x7F:
-#if 1	//1
-		printk("SEND WHITELIST USING DPARM FMT COMMAND\n");
-		for(i=0; i<count; i++)
-			printk("%02x", buf[i]);
-		printk("\n");
-#endif
 		dpram_write(&dpram_table[0], buf, count);
 		break;
 	default:
