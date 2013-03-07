@@ -32,7 +32,7 @@
 #include <linux/wakelock.h>
 #include <linux/input.h>
 #include <linux/workqueue.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/mfd/pmic8058.h>
 #include <linux/gp2a.h>
 #include <linux/slab.h>
@@ -93,7 +93,7 @@ static struct i2c_client *opt_i2c_client = NULL;
 /* driver data */
 struct gp2a_data {
 	struct input_dev *input_dev;
-	struct work_struct work;  /* for proximity sensor */
+	struct delayed_work work;  /* for proximity sensor */
 	struct mutex enable_mutex;
 	struct mutex data_mutex;
 
@@ -374,12 +374,12 @@ static void gp2a_work_func_prox(struct work_struct *work)
 
 irqreturn_t gp2a_irq_handler(int irq, void *dev_id)
 {
-    
 	wake_lock_timeout(&prx_wake_lock, 3*HZ);
 
-    gprintk("\n");
+	gprintk("\n");
 
-	schedule_work(&prox_data->work);
+	schedule_delayed_work(&prox_data->work,
+		msecs_to_jiffies(prox_data->delay));
 
 	printk("[PROXIMITY] IRQ_HANDLED.\n");
 	return IRQ_HANDLED;
@@ -499,7 +499,7 @@ static int gp2a_opt_probe( struct platform_device* pdev )
     int err = 0;
 
 	/* allocate driver_data */
-	gp2a = (struct gp2a_data*) kzalloc(sizeof(struct gp2a_data),GFP_KERNEL);
+	gp2a = kzalloc(sizeof(struct gp2a_data),GFP_KERNEL);
 	if(!gp2a)
 	{
 		pr_err("kzalloc error\n");
@@ -515,8 +515,9 @@ static int gp2a_opt_probe( struct platform_device* pdev )
 	mutex_init(&gp2a->enable_mutex);
 	mutex_init(&gp2a->data_mutex);
 
-	INIT_WORK(&gp2a->work, gp2a_work_func_prox);
-	
+	INIT_DELAYED_WORK(&gp2a->work, gp2a_work_func_prox);
+	cancel_delayed_work_sync(&gp2a->work);
+
 	err = proximity_input_init(gp2a);
 	if(err < 0) {
 		goto error_1;
@@ -567,15 +568,16 @@ static int gp2a_opt_probe( struct platform_device* pdev )
 		printk(KERN_ERR "failed to request proximity_irq\n");
 		goto error_2;
 	}
-    disable_irq(IRQ_GP2A_INT);
-	
+
+	disable_irq(IRQ_GP2A_INT);
+
 	return 0;
 
 error_2:
 	input_unregister_device(gp2a->input_dev);
 	input_free_device(gp2a->input_dev);
 error_1:
-	kfree((void*)gp2a);
+	kfree(gp2a);
 	return err;
 }
 
