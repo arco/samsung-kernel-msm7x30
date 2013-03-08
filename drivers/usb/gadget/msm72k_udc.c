@@ -45,6 +45,9 @@
 #include <mach/clk.h>
 #include <linux/uaccess.h>
 #include <linux/wakelock.h>
+#ifdef CONFIG_FORCE_FAST_CHARGE
+#include <linux/fastchg.h>
+#endif
 
 static const char driver_name[] = "msm72k_udc";
 
@@ -294,9 +297,13 @@ static ssize_t print_switch_state(struct switch_dev *sdev, char *buf)
 
 static inline enum chg_type usb_get_chg_type(struct usb_info *ui)
 {
-	if ((readl(USB_PORTSC) & PORTSC_LS) == PORTSC_LS)
+#ifdef CONFIG_FORCE_FAST_CHARGE
+	if ((readl(USB_PORTSC) & PORTSC_LS) == PORTSC_LS || force_fast_charge) {
+#else
+	if ((readl_relaxed(USB_PORTSC) & PORTSC_LS) == PORTSC_LS) {
+#endif
 		return USB_CHG_TYPE__WALLCHARGER;
-	else {
+	} else {
 		if (ui->gadget.speed == USB_SPEED_LOW ||
 			ui->gadget.speed == USB_SPEED_FULL ||
 			ui->gadget.speed == USB_SPEED_HIGH)

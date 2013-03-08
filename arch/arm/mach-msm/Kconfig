@@ -2682,4 +2682,9 @@ config MSM_USE_USER_ACCESSIBLE_TIMERS
 	  Enables MSM-specific user accessible timers via a shared
 	  memory page containing the cycle counter.
 
+config FORCE_FAST_CHARGE
+	bool "Force AC charge mode at will"
+	help
+	  A simple sysfs interface to force adapters that
+	  are detected as USB to charge as AC.
 endif
