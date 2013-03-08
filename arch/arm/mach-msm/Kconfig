@@ -2187,4 +2187,9 @@ config MSM_CACHE_DUMP_ON_PANIC
 	  want to dump the L1 and L2 caches on panic before any flush occurs.
 	  If unsure, say N
 
+config FORCE_FAST_CHARGE
+	bool "Force AC charge mode at will"
+	help
+	  A simple sysfs interface to force adapters that
+	  are detected as USB to charge as AC.
 endif
