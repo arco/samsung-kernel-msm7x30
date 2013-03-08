@@ -19,7 +19,6 @@
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include <linux/clk.h>
-#include <linux/android_pmem.h>
 #include <linux/msm_rotator.h>
 #include <linux/io.h>
 #include <mach/msm_rotator_imem.h>
@@ -1694,10 +1693,6 @@ static int get_img(struct msmfb_data *fbd, int domain,
 	struct file *file = NULL;
 	int put_needed, fb_num;
 #endif
-#ifdef CONFIG_ANDROID_PMEM
-	unsigned long vstart;
-#endif
-
 	*p_need = 0;
 
 #ifdef CONFIG_FB
@@ -1728,27 +1723,14 @@ static int get_img(struct msmfb_data *fbd, int domain,
 	}
 #endif
 
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
 	return msm_rotator_iommu_map_buf(fbd->memory_id, domain, start,
 		len, p_ihdl, secure);
-#endif
-#ifdef CONFIG_ANDROID_PMEM
-	if (!get_pmem_file(fbd->memory_id, start, &vstart, len, p_file))
-		return 0;
-	else
-		return -ENOMEM;
-#endif
 
 }
 
 static void put_img(struct file *p_file, struct ion_handle *p_ihdl,
 	int domain, unsigned int secure)
 {
-#ifdef CONFIG_ANDROID_PMEM
-	if (p_file != NULL)
-		put_pmem_file(p_file);
-#endif
-
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
 	if (!IS_ERR_OR_NULL(p_ihdl)) {
 		pr_debug("%s(): p_ihdl %p\n", __func__, p_ihdl);
