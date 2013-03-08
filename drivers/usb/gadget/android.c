@@ -32,6 +32,10 @@
 #include <linux/usb/composite.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/android.h>
+#ifdef CONFIG_FORCE_FAST_CHARGE
+#include <linux/fastchg.h>
+#endif
+
 
 #include "gadget_chips.h"
 
@@ -1599,6 +1603,11 @@ android_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *c)
 	struct android_usb_function	*f;
 	int value = -EOPNOTSUPP;
 	unsigned long flags;
+
+#ifdef CONFIG_FORCE_FAST_CHARGE
+	if(force_fast_charge)
+		return -1;
+#endif
 
 	req->zero = 0;
 	req->complete = composite_setup_complete;
