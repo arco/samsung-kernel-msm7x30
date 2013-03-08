@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -60,6 +60,9 @@ volatile smem_proc_comm_data_type *proc_comm;
 
 static void msm_pm_power_off(void)
 {
+	/* Disable interrupts */
+	local_irq_disable();
+
 #if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
 	proc_comm = (volatile smem_proc_comm_data_type *)MSM_SHARED_RAM_BASE;
 	proc_comm[4].command = curr_usb_status || curr_ta_status;
