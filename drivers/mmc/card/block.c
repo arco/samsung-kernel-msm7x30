@@ -1586,6 +1586,7 @@ static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
 	}
 
 	mqrq->mmc_active.mrq = &brq->mrq;
+	mqrq->mmc_active.cmd_flags = req->cmd_flags;
 	mqrq->mmc_active.err_check = mmc_blk_err_check;
 	mqrq->mmc_active.reinsert_req = mmc_blk_reinsert_req;
 	mqrq->mmc_active.update_interrupted_req =
@@ -1965,6 +1966,7 @@ static void mmc_blk_packed_hdr_wrq_prep(struct mmc_queue_req *mqrq,
 	brq->data.sg_len = mmc_queue_map_sg(mq, mqrq);
 
 	mqrq->mmc_active.mrq = &brq->mrq;
+	mqrq->mmc_active.cmd_flags = req->cmd_flags;
 
 	/*
 	 * This is intended for packed commands tests usage - in case these
@@ -2137,6 +2139,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 			mq->flags |= MMC_QUEUE_URGENT_REQUEST;
 			ret = 0;
 			break;
+		case MMC_BLK_URGENT_DONE:
 		case MMC_BLK_SUCCESS:
 		case MMC_BLK_PARTIAL:
 			/*
@@ -2320,8 +2323,15 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	}
 
 out:
+	/*
+	 * packet burst is over, when one of the following occurs:
+	 * - no more requests and new request notification is not in progress
+	 * - urgent notification in progress and current request is not urgent
+	 *   (all existing requests completed or reinserted to the block layer)
+	 */
 	if ((!req && !(mq->flags & MMC_QUEUE_NEW_REQUEST)) ||
-			(mq->flags & MMC_QUEUE_URGENT_REQUEST)) {
+			((mq->flags & MMC_QUEUE_URGENT_REQUEST) &&
+				!(mq->mqrq_cur->req->cmd_flags & REQ_URGENT))) {
 		if (mmc_card_need_bkops(card))
 			mmc_start_bkops(card, false);
 		/* release host only when there are no more requests */
