@@ -445,6 +445,22 @@ struct platform_device msm_device_hsusb_host = {
 	},
 };
 
+struct resource ram_console_resources[] = {
+	{
+		.start  = 0,
+		.end    = 0,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+struct platform_device ram_console_device = {
+	.name		= "ram_console",
+	.id		= -1,
+	.num_resources  = ARRAY_SIZE(ram_console_resources),
+	.resource       = ram_console_resources,
+};
+
+
 static struct platform_device *msm_host_devices[] = {
 	&msm_device_hsusb_host,
 };
