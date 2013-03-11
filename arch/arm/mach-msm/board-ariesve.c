@@ -78,6 +78,7 @@
 #include <linux/platform_data/qcom_crypto_device.h>
 
 #include "devices.h"
+#include "devices-msm7x30.h"
 #include "timer.h"
 #ifdef CONFIG_USB_G_ANDROID
 #include <linux/usb/android.h>
@@ -136,6 +137,7 @@
 #define GPIO_WLAN_LEVEL_NONE	2
 
 #define WLAN_RESET		127 //Reset
+
 
 struct class *sec_class;
 EXPORT_SYMBOL(sec_class);
@@ -5395,6 +5397,7 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_SAMSUNG_JACK
 	&sec_device_jack,
 #endif
+	&ram_console_device,
 };
 
 static struct msm_gpio msm_i2c_gpios_hw[] = {
@@ -7246,6 +7249,16 @@ static void __init msm7x30_allocate_memory_regions(void)
 	msm_fb_resources[0].end = msm_fb_resources[0].start + size - 1;
 	pr_info("allocating %lu bytes at %p (%lx physical) for fb\n",
 		size, addr, __pa(addr));
+
+	/* RAM Console can't use alloc_bootmem(), since that zeroes the
+	 * region */
+	size = MSM_RAM_CONSOLE_SIZE;
+	ram_console_resources[0].start = msm_fb_resources[0].end+1;
+	ram_console_resources[0].end = ram_console_resources[0].start + size - 1;
+	pr_info("allocating %lu bytes at (%lx physical) for ram console\n",
+		size, (unsigned long)ram_console_resources[0].start);
+	/* We still have to reserve it, though */
+	reserve_bootmem(ram_console_resources[0].start,size,0);
 }
 
 static void __init msm7x30_map_io(void)
