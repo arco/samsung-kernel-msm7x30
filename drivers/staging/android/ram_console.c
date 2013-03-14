@@ -355,7 +355,7 @@ static int ram_console_driver_probe(struct platform_device *pdev)
 	start = res->start;
 	printk(KERN_INFO "ram_console: got buffer at %zx, size %zx\n",
 	       start, buffer_size);
-	buffer = ioremap(res->start, buffer_size);
+	buffer = __va(start);
 	if (buffer == NULL) {
 		printk(KERN_ERR "ram_console: failed to map memory\n");
 		return -ENOMEM;
