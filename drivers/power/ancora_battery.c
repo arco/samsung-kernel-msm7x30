@@ -2913,9 +2913,14 @@ static int __devexit msm_batt_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void msm_batt_shutdown(struct platform_device *pdev)
+{
+	del_timer_sync(&msm_batt_info.timer);
+}
+
 static const struct dev_pm_ops msm_bat_pm_ops = {
-	.prepare = msm_batt_suspend,
-	.complete = msm_batt_resume,
+	.suspend = msm_batt_suspend,
+	.resume = msm_batt_resume,
 };
 
 static struct platform_driver msm_batt_driver = {
@@ -2923,7 +2928,7 @@ static struct platform_driver msm_batt_driver = {
 	.remove = __devexit_p(msm_batt_remove),
 	.driver = {
 		   .name = "ancora-battery",
-		   .owner = THIS_MODULE,
+		   .shutdown = msm_batt_shutdown,
 		   .pm = &msm_bat_pm_ops,
 		   },
 };
@@ -2935,7 +2940,7 @@ static int __devinit msm_batt_init_rpc(void)
 	if (board_hw_revision < 0x06)
 	{
 		msm_batt_info.msm_batt_wq =
-				create_freezable_workqueue("msm_battery");
+				create_singlethread_workqueue("msm_battery");	
 		if (!msm_batt_info.msm_batt_wq) {
 			printk(KERN_ERR "%s: create workque failed \n", __func__);
 			return -ENOMEM;

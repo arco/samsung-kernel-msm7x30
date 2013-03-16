@@ -500,7 +500,7 @@ static void msm_batt_check_event(struct work_struct *work)
 
 #define MSM_BATTERY_ATTR(_name)		\
 {			\
-	.attr = { .name = #_name, .mode = 0644 },	\
+	.attr = { .name = #_name, .mode = 0664 },	\
 	.show = msm_batt_show_property,			\
 	.store = msm_batt_store_property,		\
 }
@@ -2562,9 +2562,14 @@ static int __devexit msm_batt_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void msm_batt_shutdown(struct platform_device *pdev)
+{
+	del_timer_sync(&msm_batt_info.timer);
+}
+
 static const struct dev_pm_ops msm_bat_pm_ops = {
-	.prepare = msm_batt_suspend,
-	.complete = msm_batt_resume,
+	.suspend = msm_batt_suspend,
+	.resume = msm_batt_resume,
 };
 
 static struct platform_driver msm_batt_driver = {
@@ -2572,7 +2577,7 @@ static struct platform_driver msm_batt_driver = {
 	.remove = __devexit_p(msm_batt_remove),
 	.driver = {
 		   .name = "ariesve-battery",
-		   .owner = THIS_MODULE,
+		   .shutdown = msm_batt_shutdown,
 		   .pm = &msm_bat_pm_ops,
 		   },
 };
