@@ -612,12 +612,10 @@ static void dhd_set_packet_filter(int value, dhd_pub_t *dhd)
 static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 {
 	char iovbuf[32];
-#ifndef CUSTOMER_HW_SAMSUNG
 	int power_mode = PM_MAX;
 	/* wl_pkt_filter_enable_t	enable_parm; */
 	int bcn_li_dtim = 3;
 	uint roamvar = 1;
-#endif
 #ifdef BCM4334_CHIP
 	int bcn_li_bcn;
 #endif
@@ -639,10 +637,8 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			/* Kernel suspended */
 			DHD_ERROR(("%s: force extra Suspend setting \n", __FUNCTION__));
 
-#ifndef CUSTOMER_HW_SAMSUNG
 			dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
 				sizeof(power_mode), TRUE, 0);
-#endif
 
 			/* Enable packet filter, only allow unicast packet to send up */
 			if (dhd_pkt_filter_enable && !dhd->dhcp_in_progress) {
@@ -657,7 +653,6 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 #endif /* PASS_ALL_MCAST_PKTS */
 
-#ifndef CUSTOMER_HW_SAMSUNG
 			/* If DTIM skip is set up as default, force it to wake
 			 * each third DTIM for better power savings.  Note that
 			 * one side effect is a chance to miss BC/MC packet.
@@ -671,7 +666,6 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			bcm_mkiovar("roam_off", (char *)&roamvar, 4,
 				iovbuf, sizeof(iovbuf));
 			dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-#endif
 #ifdef BCM4334_CHIP
 			bcn_li_bcn = 0;
 			bcm_mkiovar("bcn_li_bcn", (char *)&bcn_li_bcn,
@@ -687,11 +681,9 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			/* Kernel resumed  */
 			DHD_ERROR(("%s: Remove extra suspend setting \n", __FUNCTION__));
 
-#ifndef CUSTOMER_HW_SAMSUNG
 			power_mode = PM_FAST;
 			dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
 				sizeof(power_mode), TRUE, 0);
-#endif
 
 			/* disable pkt filter */
 			if (dhd_pkt_filter_enable && !dhd->dhcp_in_progress) {
@@ -706,7 +698,6 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 #endif /* PASS_ALL_MCAST_PKTS */
 
-#ifndef CUSTOMER_HW_SAMSUNG
 			/* restore pre-suspend setting for dtim_skip */
 			bcm_mkiovar("bcn_li_dtim", (char *)&dhd->dtim_skip,
 				4, iovbuf, sizeof(iovbuf));
@@ -717,7 +708,6 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			bcm_mkiovar("roam_off", (char *)&roamvar, 4, iovbuf,
 				sizeof(iovbuf));
 			dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-#endif
 #ifdef BCM4334_CHIP
 			bcn_li_bcn = 1;
 			bcm_mkiovar("bcn_li_bcn", (char *)&bcn_li_bcn,
