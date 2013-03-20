@@ -5263,12 +5263,11 @@ static int bluetooth_power(int on)
 
         gpio_direction_output(GPIO_BT_WAKE, GPIO_WLAN_LEVEL_HIGH);
         gpio_direction_output(GPIO_BT_WLAN_REG_ON, GPIO_WLAN_LEVEL_HIGH);
-//        mdelay(150);
-        usleep(150000);
+        mdelay(150);
         gpio_direction_output(GPIO_BT_RESET, GPIO_WLAN_LEVEL_HIGH);
 
         pr_info("bluetooth_power BT_WAKE:%d, HOST_WAKE:%d, REG_ON:%d\n", gpio_get_value(GPIO_BT_WAKE), gpio_get_value(GPIO_BT_HOST_WAKE), gpio_get_value(GPIO_BT_WLAN_REG_ON));   
-//        mdelay(100);
+        mdelay(150);
 
         bluesleep_start();
     }
