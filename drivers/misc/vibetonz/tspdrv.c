@@ -108,6 +108,7 @@ static struct regulator *vreg_ldo19;
 
 static int max_timeout = 5000;
 static int vibrator_value = 0;
+static int pwmvalue = 121;
 
 struct pwm_device	*vib_pwm;
 
@@ -120,7 +121,7 @@ static int set_vibetonz(int timeout) {
 		wake_lock(&vib_wake_lock);
 		//printk("[VIBETONZ] FIXED ENABLE\n");
 		ImmVibeSPI_ForceOut_AmpEnable(0);
-		vibe_set_pwm_freq(121);
+		vibe_set_pwm_freq(pwmvalue);
 	}
 
 	vibrator_value = timeout;
@@ -274,8 +275,28 @@ static ssize_t immTest_store(struct device *dev, struct device_attribute *attr, 
 	return size;
 }
 static DEVICE_ATTR(immTest, S_IRUGO | S_IWUSR, immTest_show, immTest_store);
-#endif /* VIBE_TUNING */
 
+struct device *immIntensity;
+
+static ssize_t pwmvalue_intensity_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int count;
+	count = sprintf(buf,"%d\n", pwmvalue);
+	return count;
+}
+static ssize_t pwmvalue_intensity_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+	char *after;
+	unsigned long value = simple_strtoul(buf, &after, 10);
+
+   	if(0 <= value && value <= 127) {
+		pwmvalue = (int) value;
+		vibe_set_pwm_freq((int) value);
+	}
+	return size;
+}
+static DEVICE_ATTR(pwmvalue_intensity, S_IRUGO | S_IWUSR, pwmvalue_intensity_show, pwmvalue_intensity_store);
+#endif /* VIBE_TUNING */
 
 int vibe_init(void)
 {
@@ -391,6 +412,14 @@ int vibe_init(void)
 
 	if (device_create_file(immTest_test, &dev_attr_immTest) < 0)
 		pr_err("Failed to create device file(%s)!\n", dev_attr_immTest.attr.name);
+
+    immIntensity = device_create(vibetonz_class, NULL, 0, NULL, "immDuty");
+	if (IS_ERR(immIntensity))
+		pr_err("Failed to create intensity device(switch)!\n");
+
+	if (device_create_file(immIntensity, &dev_attr_pwmvalue_intensity) < 0)
+		pr_err("Failed to create device file(%s)!\n", dev_attr_pwmvalue_intensity.attr.name);
+
 #endif
 
     vibetonz_start();
