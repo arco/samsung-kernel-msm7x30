@@ -445,6 +445,7 @@ struct platform_device msm_device_hsusb_host = {
 	},
 };
 
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
 struct resource ram_console_resources[] = {
 	{
 		.start  = 0,
@@ -459,7 +460,7 @@ struct platform_device ram_console_device = {
 	.num_resources  = ARRAY_SIZE(ram_console_resources),
 	.resource       = ram_console_resources,
 };
-
+#endif
 
 static struct platform_device *msm_host_devices[] = {
 	&msm_device_hsusb_host,
