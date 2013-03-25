@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.69 Kernel Configuration
+# Linux/arm 3.0.72 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1084,6 +1084,7 @@ CONFIG_PMIC8XXX_UPL=y
 # CONFIG_QFP_FUSE is not set
 CONFIG_SAMSUNG_JACK=y
 CONFIG_SAMSUNG_FM_SI4709=y
+# CONFIG_GENERIC_BLN is not set
 # CONFIG_C2PORT is not set
 
 #
@@ -1394,7 +1395,7 @@ CONFIG_DIAG_OVER_USB=y
 #
 # SDIO support for DIAG
 #
-CONFIG_DIAG_SDIO_PIPE=y
+# CONFIG_DIAG_SDIO_PIPE is not set
 
 #
 # HSIC support for DIAG
@@ -2572,7 +2573,9 @@ CONFIG_FAT_FS=y
 CONFIG_VFAT_FS=y
 CONFIG_FAT_DEFAULT_CODEPAGE=437
 CONFIG_FAT_DEFAULT_IOCHARSET="iso8859-1"
-# CONFIG_NTFS_FS is not set
+CONFIG_NTFS_FS=y
+# CONFIG_NTFS_DEBUG is not set
+# CONFIG_NTFS_RW is not set
 
 #
 # Pseudo filesystems
