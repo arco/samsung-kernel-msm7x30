@@ -200,6 +200,37 @@ unsigned int wlan_status(struct device *dev)
 	return wlan_wifi_cd;
 }
 
+int __init brcm_wifi_init_gpio(void)
+{
+	printk(KERN_ERR "%s: msm_wlan_gpio_init\n", __func__);
+	if (gpio_tlmm_config (GPIO_CFG(WLAN_EN_GPIO, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA), GPIO_CFG_ENABLE))
+	{
+		printk (KERN_ERR "%s: Unable to configure WLAN_EN_GPIO\n", __func__);
+		return -EIO;
+	}
+	if (gpio_request (WLAN_EN_GPIO, "wlan_en"))
+	{
+		printk (KERN_ERR "%s: Unable to request WLAN_EN_GPIO", __func__);
+		return -EINVAL;
+	}
+
+	if (gpio_tlmm_config (GPIO_CFG(WLAN_HOST_WAKE, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_8MA), GPIO_CFG_ENABLE))
+	{
+		printk (KERN_ERR "%s: Unable to configure WLAN_WAKEUP \n", __func__);
+		return -EIO;
+	}
+	if (gpio_request (WLAN_HOST_WAKE, "wlan_wakeup"))
+	{
+		printk (KERN_ERR "%s: Unable to request WLAN_WAKEUP ", __func__);
+		return -EINVAL;
+	}
+
+	gpio_set_value (WLAN_EN_GPIO, 0);
+	gpio_set_value (WLAN_RESET, 0);
+
+	return 0;
+}
+
 int brcm_wlan_power(int onoff)
 {
 	printk ("Before %s: WLAN_EN_GPIO value before set is %d on=%d WLAN_RESET=%d \n", __func__, gpio_get_value (WLAN_EN_GPIO),onoff,gpio_get_value (WLAN_RESET));
@@ -305,6 +336,7 @@ int __init brcm_wlan_init(void)
 {
 	printk(KERN_INFO "%s: start\n", __func__);
 
+	brcm_wifi_init_gpio();
 #ifdef CONFIG_BROADCOM_WIFI_RESERVED_MEM
 	brcm_init_wlan_mem();
 #endif
