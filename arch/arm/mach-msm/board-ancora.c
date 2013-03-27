@@ -5215,9 +5215,6 @@ static struct platform_device msm_bluesleep_device = {
     .resource = bluesleep_resources,
 };
 
-
-extern int bluesleep_start(void);
-extern void bluesleep_stop(void);
 static struct platform_device msm_bt_power_device = {
 .name = "bt_power",
 };
@@ -5268,11 +5265,8 @@ static int bluetooth_power(int on)
 
         pr_info("bluetooth_power BT_WAKE:%d, HOST_WAKE:%d, REG_ON:%d\n", gpio_get_value(GPIO_BT_WAKE), gpio_get_value(GPIO_BT_HOST_WAKE), gpio_get_value(GPIO_BT_WLAN_REG_ON));   
         mdelay(150);
-
-        bluesleep_start();
     }
     else {
-        bluesleep_stop();
         gpio_direction_output(GPIO_BT_RESET, GPIO_WLAN_LEVEL_LOW);/* BT_VREG_CTL */
 
         if( gpio_get_value(WLAN_RESET) == GPIO_WLAN_LEVEL_LOW ) //SEC_BLUETOOTH : pjh_2010.06.30
@@ -5287,11 +5281,13 @@ static int bluetooth_power(int on)
     return 0;
 }
 
+extern void bluesleep_setup_uart_port(struct platform_device *uart_dev);
 static void __init bt_power_init(void)
 {
     pr_info("bt_power_init \n");
 
     msm_bt_power_device.dev.platform_data = &bluetooth_power;
+    bluesleep_setup_uart_port(&msm_device_uart_dm1);
 }
 
 static int bluetooth_gpio_init(void)
