@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -49,6 +49,8 @@
 #define PM8038_REVISION_MASK	0x000F
 
 #define REG_PM8038_PON_CNTRL_3	0x01D
+#define REG_PM8921_PON_CNTRL_6	0x018
+#define PON_WARM_BOOT_BIT	BIT(7)
 
 #define SINGLE_IRQ_RESOURCE(_name, _irq) \
 { \
@@ -803,8 +805,18 @@ static int __devinit pm8038_probe(struct platform_device *pdev)
 		goto err_read_rev;
 	}
 	val &= PM8XXX_RESTART_REASON_MASK;
-	pr_info("PMIC Restart Reason: %s\n", pm8xxx_restart_reason_str[val]);
 	pmic->restart_reason = val;
+
+	rc = msm_ssbi_read(pdev->dev.parent, REG_PM8921_PON_CNTRL_6, &val, 1);
+	if (rc) {
+		pr_err("Cannot read PON_CNTRL_6 rc=%d\n", rc);
+		goto err_read_rev;
+	}
+	cold_boot = !(val & PON_WARM_BOOT_BIT);
+
+	pr_info("PMIC Restart Reason: %s, %s boot\n",
+		pm8xxx_restart_reason_str[pmic->restart_reason],
+		cold_boot ? "cold" : "warm");
 
 	rc = pm8038_add_subdevices(pdata, pmic);
 	if (rc) {
