@@ -808,13 +808,13 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 
 			mfd->op_enable = FALSE;
 			curr_pwr_state = mfd->panel_power_on;
-			msleep(300); // HACK: wait for backlight control
 			mfd->panel_power_on = FALSE;
 
 			/* clean fb to prevent displaying old fb */
 			memset((void *)info->screen_base, 0,
 					info->fix.smem_len);
 
+			msleep(16);
 			ret = pdata->off(mfd->pdev);
 			if (ret)
 				mfd->panel_power_on = curr_pwr_state;
