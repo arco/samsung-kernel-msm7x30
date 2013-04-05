@@ -309,6 +309,8 @@ static void mdp4_video_vsync_irq_ctrl(int cndx, int enable)
 			if (vsync_irq_cnt == 0)
 				vsync_irq_disable(INTR_PRIMARY_VSYNC,
 						MDP_PRIM_VSYNC_TERM);
+			vctrl->wait_vsync_cnt = 0;
+			complete_all(&vctrl->vsync_comp);
 		}
 	}
 	pr_debug("%s: enable=%d cnt=%d\n", __func__, enable, vsync_irq_cnt);
