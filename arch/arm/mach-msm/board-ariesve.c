@@ -4010,7 +4010,7 @@ static int lcdc_gpio_array_num[] = {
 				45, /* spi_clk */
 				46, /* spi_cs  */
 				47, /* spi_mosi */
-				129, /* lcd_reset */
+				129, /* spi_miso */
 				};
 
 static struct msm_gpio lcdc_gpio_config_data[] = {
@@ -4020,43 +4020,37 @@ static struct msm_gpio lcdc_gpio_config_data[] = {
 	{ GPIO_CFG(129, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcd_reset" },
 };
 
-/* sleep */
-static struct msm_gpio lcdc_gpio_sleep_config_data[] = {
-	{GPIO_CFG(45, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "spi_clk"},
-	{GPIO_CFG(46, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "spi_cs0"},
-	{GPIO_CFG(47, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "spi_mosi"},
-	{GPIO_CFG(129, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcd_reset"},
-};
 
-static void lcdc_config_gpios(int enable)
+/* GPIO TLMM: Status */
+#define GPIO_ENABLE     0
+#define GPIO_DISABLE    1
+static void config_lcdc_gpio_table(uint32_t *table, int len, unsigned enable)
 {
-	struct msm_gpio *lcdc_gpio_cfg_data;
-	struct msm_gpio *lcdc_gpio_sleep_cfg_data;
-	int array_size;
-	int sleep_cfg_arry_size;
+	int n, rc;
 
-	lcdc_gpio_cfg_data = lcdc_gpio_config_data;
-	lcdc_gpio_sleep_cfg_data = lcdc_gpio_sleep_config_data;
-	array_size = ARRAY_SIZE(lcdc_gpio_config_data);
-	sleep_cfg_arry_size = ARRAY_SIZE(lcdc_gpio_sleep_config_data);
 
- 	if (enable) {
-		msm_gpios_request_enable(lcdc_gpio_cfg_data, array_size);
-	} else {
-		if (lcdc_gpio_sleep_cfg_data) {
-			msm_gpios_enable(lcdc_gpio_sleep_cfg_data, array_size);
-			msm_gpios_free(lcdc_gpio_sleep_cfg_data, array_size);
-		} else {
-			msm_gpios_disable_free(lcdc_gpio_config_data,
-					       array_size);
+	for (n = 0; n < len; n++) {
+		rc = gpio_tlmm_config(table[n],
+			enable ? GPIO_ENABLE : GPIO_DISABLE);
+		if (rc) {
+			printk(KERN_ERR "%s: gpio_tlmm_config(%#x)=%d\n",
+				__func__, table[n], rc);
+			break;
 		}
 	}
+
+}
+
+static void lcdc_s6d04m0_config_gpios(int enable)
+{
+	config_lcdc_gpio_table(lcdc_gpio_config_data,
+		ARRAY_SIZE(lcdc_gpio_config_data), enable);
 }
 #endif
 
 static struct msm_panel_common_pdata lcdc_panel_data = {
 #ifndef CONFIG_SPI_QSD
-	.panel_config_gpio = lcdc_config_gpios,
+	.panel_config_gpio = lcdc_s6d04m0_config_gpios,
 	.gpio_num          = lcdc_gpio_array_num,
 #endif
 };
