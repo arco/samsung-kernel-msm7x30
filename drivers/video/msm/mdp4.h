@@ -465,6 +465,8 @@ void mdp4_isr_read(int);
 void mdp4_clear_lcdc(void);
 void mdp4_mixer_blend_init(int mixer_num);
 void mdp4_vg_qseed_init(int vg_num);
+void mdp4_vg_qseed_init_DMB(int vg_num);
+void mdp4_vg_qseed_init_VideoPlay(int vg_num);
 void mdp4_vg_csc_setup(int vp_num);
 void mdp4_mixer_csc_setup(uint32 mixer);
 void mdp4_dmap_csc_setup(void);
