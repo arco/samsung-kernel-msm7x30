@@ -25,6 +25,10 @@
 #include <linux/mfd/pm8xxx/gpio.h>
 #include <linux/input/pmic8xxx-keypad.h>
 
+#ifdef CONFIG_PHANTOM_KP_FILTER
+#include <linux/phantom_kp_filter.h>
+#endif
+
 #define PM8XXX_MAX_ROWS		18
 #define PM8XXX_MAX_COLS		8
 #define PM8XXX_ROW_SHIFT	3
@@ -87,6 +91,12 @@
 #if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_GODART) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
 #define GPIO_HOMEKEY			51
 #define MSM_GPIO_KEY_IRQ		MSM_GPIO_TO_INT(GPIO_HOMEKEY)
+static int homekey_prev_state = 0;	/* Previous HOME key status */
+#endif
+
+#ifdef CONFIG_PHANTOM_KP_FILTER
+unsigned long homekey_report_time;	/* Time (jiffies) when the collected key presses will be reported */
+struct timer_list homekey_timer;	/* Timer for the collected key presses delayed reporting */
 #endif
 
 /**
@@ -419,22 +429,108 @@ static irqreturn_t pmic8xxx_kp_stuck_irq(int irq, void *data)
 }
 
 #if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_GODART) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+static void gpio_key_report(struct pmic8xxx_kp *kp, int state)
+{
+	input_report_key(kp->input, KEY_HOME, state);
+	input_sync(kp->input);
+
+	key_pressed = state;
+
+#ifdef KEY_LOG_TEST
+	printk("[key] code %d, %d \n", KEY_HOME, key_pressed);
+#endif
+}
+
 static int gpio_key_scan(struct pmic8xxx_kp *kp)
 {
 	int state;
 
-	state=gpio_get_value(GPIO_HOMEKEY);
-	state=!state;
+	/* Get the current HOME key status */
+	state = !(gpio_get_value(GPIO_HOMEKEY));
 
-	input_report_key(kp->input, KEY_HOME, state);
-	input_sync(kp->input);
+	/* If the key press status is changed */
+	if (state != homekey_prev_state) {
+		/* Report the new key status */
+		gpio_key_report(kp, state);
 
-	key_pressed=state;
-#ifdef KEY_LOG_TEST
-	printk("[key] code %d, %d \n", KEY_HOME, key_pressed);
-#endif
+		/* Save the previous key status */
+		homekey_prev_state = state;
+	} else {
+		dev_dbg(kp->dev, "Invalid HOME key pressed (the status is not changed)\n");
+	}
 
 	return 0;
+}
+#endif
+
+#ifdef CONFIG_PHANTOM_KP_FILTER
+/*
+ * Function to scan the current incoming HOME key state and collect it
+ * for the delayed reporting
+ */
+static int gpio_pkf_key_scan(struct pmic8xxx_kp *kp)
+{
+	int state;
+
+	/* If the last key presses have been reported, then start to collect
+	 * the next key presses */
+	if (time_after(jiffies, homekey_report_time)) {
+		clear_homekey_states();
+		pkf_home_inc_kp->irqs_count = 1;
+	} else {
+		pkf_home_inc_kp->irqs_count++;
+	}
+
+	/* If the incoming irq is within the max number of allowed incoming interrupts */
+	if (pkf_home_inc_kp->irqs_count <= pkf_home->allowed_irqs) {
+		/* Get the current key status */
+		state = !(gpio_get_value(GPIO_HOMEKEY));
+
+		/* If the key press state is changed */
+		if (state != homekey_prev_state) {
+			/* Collect the current key status */
+			collect_homekey_status(state);
+
+			/* If this is the first collected key press, then start
+			 * the timer to report the key presses at report_time */
+			if (pkf_home_inc_kp->irqs_count == 1) {
+				homekey_report_time = jiffies + msecs_to_jiffies(pkf_home->report_wait);
+				mod_timer(&homekey_timer, homekey_report_time);
+			}
+
+			/* Save the previous key status */
+			homekey_prev_state = state;
+		} else {
+			count_ignored_home_kp();
+			dev_dbg(kp->dev, "Invalid HOME key pressed (the status is not changed) "
+					"(irqs_count = %u)\n", pkf_home_inc_kp->irqs_count);
+		}
+	} else {
+		count_ignored_home_kp();
+		dev_dbg(kp->dev, "Ignoring possible phantom HOME key press irq "
+					"(irqs_count = %u)\n", pkf_home_inc_kp->irqs_count);
+	}
+
+	return 0;
+}
+
+/*
+ * Function to report the previously collected HOME key presses
+ */
+static void gpio_pkf_key_report(unsigned long data)
+{
+	struct pmic8xxx_kp *kp = (struct pmic8xxx_kp *)data;
+	int i;
+
+	/* Report the collected key presses only if may considered valid */
+	if (pkf_home_inc_kp->irqs_count <= pkf_home->allowed_irqs) {
+		for (i = 0; i < pkf_home_inc_kp->states_count; i++)
+			gpio_key_report(kp, get_homekey_status(i));
+	} else {
+		count_ignored_home_kp();
+		dev_dbg(kp->dev, "Aborting the report of possible phantom HOME key presses "
+					"(irqs_count = %u)\n", pkf_home_inc_kp->irqs_count);
+	}
 }
 #endif
 
@@ -470,6 +566,16 @@ static irqreturn_t pmic8xxx_kp_irq(int irq, void *data)
 static irqreturn_t pmic8xxx_gpiokey_irq(int irq, void *data)
 {
 	struct pmic8xxx_kp *kp = data;
+
+#ifdef CONFIG_PHANTOM_KP_FILTER
+	/* If the phantom HOME key presses filtering is enabled,
+	 * scan the incoming key status with the alternative function */
+	if (pkf_home->enabled) {
+		gpio_pkf_key_scan(kp);
+
+		return IRQ_HANDLED;
+	}
+#endif
 
 	if (kp->pdata->debounce_ms_gpiokey)
 		mod_timer(&kp->timer, jiffies + msecs_to_jiffies(kp->pdata->debounce_ms_gpiokey));
@@ -686,6 +792,12 @@ static int __devinit pmic8xxx_kp_probe(struct platform_device *pdev)
 	}
 
 	setup_timer(&kp->timer, gpio_key_timer, (unsigned long)kp);
+
+#ifdef CONFIG_PHANTOM_KP_FILTER
+	/* Timer setup for the collected HOME key presses delayed reporting */
+	setup_timer(&homekey_timer, gpio_pkf_key_report, (unsigned long)kp);
+	homekey_report_time = jiffies;
+#endif
 
 	kp->key_sense_irq = platform_get_irq(pdev, 0);
 	if (kp->key_sense_irq < 0) {
