@@ -69,3 +69,4 @@ obj-$(CONFIG_SAMSUNG_JACK) += sec_jack.o
 obj-$(CONFIG_SAMSUNG_FM_SI4709) += fm_si4709/
 obj-$(CONFIG_VIBETONZ)		+= vibetonz/
 obj-$(CONFIG_GENERIC_BLN) += bln.o
+obj-$(CONFIG_PHANTOM_KP_FILTER) += phantom_kp_filter.o
