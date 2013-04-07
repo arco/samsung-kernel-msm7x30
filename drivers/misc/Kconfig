@@ -692,6 +692,14 @@ config GENERIC_BLN
       Say Y here to enable the backlight notification
       for android led-notification (modified liblight needed)
 
+config PHANTOM_KP_FILTER
+	depends on MACH_ARIESVE
+	bool "Phantom key presses filter"
+	default y
+	help
+	  Allow to filter and prevent the possbile phantom key presses caused
+	  by radio hardware interference
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

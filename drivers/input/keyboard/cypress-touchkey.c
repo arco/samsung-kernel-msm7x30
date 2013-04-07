@@ -46,6 +46,10 @@
 
 #include <linux/wakelock.h>
 
+#ifdef CONFIG_PHANTOM_KP_FILTER
+#include <linux/phantom_kp_filter.h>
+#endif
+
 #define SCANCODE_MASK		0x07
 #define UPDOWN_EVENT_MASK	0x08
 #define ESD_STATE_MASK		0x10
@@ -57,6 +61,22 @@
 #define OLD_BACKLIGHT_OFF	0x2
 
 #define DEVICE_NAME "melfas_touchkey"
+
+#ifdef CONFIG_PHANTOM_KP_FILTER
+/* Possible key event codes */
+enum key_data_code {
+	KEY_MENU_DOWN = 0x1,
+	KEY_BACK_DOWN = 0x2,
+	KEY_NOT_VALID = 0x7,
+	KEY_MENU_UP   = 0x9,
+	KEY_BACK_UP   = 0xA
+};
+
+u8 prev_data = KEY_NOT_VALID;		/* Previous key event */
+unsigned int keypress_errors = 0;	/* Key press errors before a valid key press */
+unsigned long first_error_time;		/* Time (jiffies) of the first key press error occurrence */
+unsigned long last_error_time;		/* Time (jiffies) of the last key press error occurrence */
+#endif
 
 #define _3_TOUCH_INT     84
 #define _3_TOUCH_SCL_28V 124
@@ -196,9 +216,63 @@ out:
 extern unsigned int touch_state_val;
 extern void TSP_forced_release(void);
 
+#ifdef CONFIG_PHANTOM_KP_FILTER
+/*
+ * Function to check if the incoming interrupt from the melfas chip is valid
+ * Returns false for the ones caused by the radio high activity interference (bad signal)
+ */
+static bool is_valid_interrupt(void)
+{
+	int val;
+	u8 i;
+
+	/* Check the RFI/EMI generated interrupts for phantom_interrupt_checks times */
+	for (i = 0; i < pkf_menuback->interrupt_checks; i++) {
+		/* Get the _3_TOUCH_INT interrupt value */
+		val = gpio_get_value(_3_TOUCH_INT);
+
+		/* If the input pin is not zero then it's not a valid interrupt from
+		 * the chip and should be ignored */
+		if (val & 1) return false;
+	}
+
+	return true;
+}
+
+/*
+ * Function to check if the incoming key event is valid
+ */
+static bool is_valid_key_press(u8 data)
+{
+	switch (data) {
+		/* If it's a key down event from MENU or BACK key */
+		case KEY_MENU_DOWN:
+		case KEY_BACK_DOWN:
+			/* Check if the previous event was a key up */
+			if (prev_data == KEY_MENU_UP || prev_data == KEY_BACK_UP)
+				return true;
+			/* If there are multiple rapid errors, avoid key presses if within
+			 * wait_time ms of the first error or if within wait_time ms of the last error */
+			else
+				return !!(keypress_errors <= 1 ||
+						  (time_after(jiffies, first_error_time + msecs_to_jiffies(pkf_menuback->first_err_wait)) &&
+						   time_after(jiffies, last_error_time + msecs_to_jiffies(pkf_menuback->last_err_wait))));
+		/* If it's a key up event from MENU or BACK key */
+		case KEY_MENU_UP:
+		case KEY_BACK_UP:
+			/* Check if the previous event was a key down of the same key */
+			return !!((prev_data == KEY_MENU_DOWN || prev_data == KEY_BACK_DOWN) &&
+					  (data - prev_data) == UPDOWN_EVENT_MASK);
+		default:
+			/* Unknown key event, this is not a valid key */
+			return false;
+	}
+}
+#endif
+
 static irqreturn_t touchkey_interrupt_thread(int irq, void *touchkey_devdata)
 {
-	u8 data;
+	u8 data = 0xff;
 	int i;
 	int ret;
 	int scancode;
@@ -214,14 +288,26 @@ static irqreturn_t touchkey_interrupt_thread(int irq, void *touchkey_devdata)
 		}
 	}
 
-
 	if (devdata->has_legacy_keycode) {
 		scancode = (data & SCANCODE_MASK) - 1;
 		if (scancode < 0 || scancode >= devdata->pdata->keycode_cnt) {
-			dev_err(&devdata->client->dev, "%s: scancode is out of "
-				"range\n", __func__);
+			dev_err(&devdata->client->dev, "%s: scancode %d is out of "
+						"range, data = %d\n", __func__, scancode, data);
 			goto err;
 		}
+
+#ifdef CONFIG_PHANTOM_KP_FILTER
+		if (pkf_menuback->enabled) {
+			if (is_valid_key_press(data)) {
+				keypress_errors = 0;
+				prev_data = data;
+			} else {
+				dev_dbg(&devdata->client->dev, "%s: Not valid key press "
+							"(data = %d)\n", __func__, data);
+				goto err;
+			}
+		}
+#endif
 
 		/* Don't send down event while the touch screen is being pressed
 		 * to prevent accidental touch key hit.
@@ -252,13 +338,34 @@ static irqreturn_t touchkey_interrupt_thread(int irq, void *touchkey_devdata)
 	}
 
 	input_sync(devdata->input_dev);
+	return IRQ_HANDLED;
 err:
+#ifdef CONFIG_PHANTOM_KP_FILTER
+	if (pkf_menuback->enabled) {
+		count_ignored_menuback_kp();
+		prev_data = KEY_NOT_VALID;
+		keypress_errors++;
+		if (keypress_errors == 1) first_error_time = jiffies;
+		last_error_time = jiffies;
+	}
+#endif
+
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t touchkey_interrupt_handler(int irq, void *touchkey_devdata)
 {
 	struct cypress_touchkey_devdata *devdata = touchkey_devdata;
+
+#ifdef CONFIG_PHANTOM_KP_FILTER
+	/* Prevent phantom key press caused by bad interrupt */
+	if (pkf_menuback->enabled && !is_valid_interrupt()) {
+		count_ignored_menuback_kp();
+		dev_dbg(&devdata->client->dev, "%s: possible phantom key press, "
+					"ignoring bad interrupt\n", __func__);
+		return IRQ_HANDLED;
+	}
+#endif
 
 	if (devdata->is_powering_on) {
 		dev_dbg(&devdata->client->dev, "%s: ignoring spurious boot "
