@@ -76,3 +76,4 @@ obj-$(CONFIG_SAMSUNG_FM_SI4709) += fm_si4709/
 obj-$(CONFIG_VIBETONZ)		+= vibetonz/
 obj-$(CONFIG_GENERIC_BLN) += bln.o 
 obj-$(CONFIG_VP_A2220) += a2220.o
+obj-$(CONFIG_PHANTOM_KP_FILTER) += phantom_kp_filter.o
