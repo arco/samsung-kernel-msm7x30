@@ -1102,9 +1102,12 @@ static void config_gpio_table(uint32_t *table, int len)
 }
 
 #ifdef CONFIG_MSM_CAMERA
+
+#ifdef NOT_SET
 static uint32_t camera_off_vcm_gpio_table[] = {
 GPIO_CFG(1, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* VCM */
 };
+#endif
 
 static uint32_t camera_off_gpio_table[] = {
 #if defined (CONFIG_SENSOR_CE147)
@@ -1154,9 +1157,11 @@ static uint32_t camera_off_gpio_table[] = {
 #endif
 };
 
+#ifdef NOT_SET
 static uint32_t camera_on_vcm_gpio_table[] = {
 GPIO_CFG(1, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA), /* VCM */
 };
+#endif
 
 static uint32_t camera_on_gpio_table[] = {
 #if defined (CONFIG_SENSOR_CE147)
@@ -1280,6 +1285,7 @@ static struct msm_camera_sensor_flash_src msm_flash_src_pwm = {
 	._fsrc.pwm_src.channel = 7,
 };
 
+#if !defined (CONFIG_USE_QUP_I2C)
 static struct i2c_gpio_platform_data camera_i2c_gpio_data = {
 	.scl_pin = 0,
 	.sda_pin = 1,
@@ -1292,6 +1298,7 @@ static struct platform_device camera_i2c_gpio_device = {
 		.platform_data  = &camera_i2c_gpio_data,
 	},
 };
+#endif
 
 #ifdef CONFIG_MT9D112
 static struct msm_camera_sensor_flash_data flash_mt9d112 = {
@@ -2069,9 +2076,6 @@ static struct regulator *vreg_marimba_1;
 static struct regulator *vreg_marimba_2;
 static struct regulator *vreg_bahama;
 
-static struct msm_gpio timpani_reset_gpio_cfg[] = {
-{ GPIO_CFG(TIMPANI_RESET_GPIO, 0, GPIO_CFG_OUTPUT,
-	GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "timpani_reset"} };
 
 static u8 read_bahama_ver(void)
 {
@@ -2102,6 +2106,11 @@ static u8 read_bahama_ver(void)
 		return VER_UNSUPPORTED;
 	}
 }
+#ifdef CONFIG_TIMPANI_CODEC
+
+static struct msm_gpio timpani_reset_gpio_cfg[] = {
+{ GPIO_CFG(TIMPANI_RESET_GPIO, 0, GPIO_CFG_OUTPUT,
+	GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "timpani_reset"} };
 
 static int config_timpani_reset(void)
 {
@@ -2116,6 +2125,7 @@ static int config_timpani_reset(void)
 	}
 	return rc;
 }
+
 
 static unsigned int msm_timpani_setup_power(void)
 {
@@ -2176,6 +2186,7 @@ static void msm_timpani_shutdown_power(void)
 	msm_gpios_free(timpani_reset_gpio_cfg,
 				   ARRAY_SIZE(timpani_reset_gpio_cfg));
 };
+#endif
 
 static unsigned int msm_bahama_core_config(int type)
 {
@@ -2487,6 +2498,8 @@ static struct marimba_fm_platform_data marimba_fm_pdata = {
 #define BAHAMA_SLAVE_ID_FM_ADDR         0x2A
 #define BAHAMA_SLAVE_ID_QMEMBIST_ADDR   0x7B
 
+#ifdef CONFIG_TIMPANI_CODEC
+
 static const char *tsadc_id = "MADC";
 
 static struct regulator_bulk_data regs_tsadc_marimba[] = {
@@ -2502,6 +2515,7 @@ static struct regulator_bulk_data regs_tsadc_timpani[] = {
 
 static struct regulator_bulk_data *regs_tsadc;
 static int regs_tsadc_count;
+
 
 static int marimba_tsadc_power(int vreg_on)
 {
@@ -2629,6 +2643,7 @@ static struct msm_ts_platform_data msm_ts_data = {
 	.can_wakeup	= false,
 };
 
+
 static struct marimba_tsadc_platform_data marimba_tsadc_pdata = {
 	.marimba_tsadc_power =  marimba_tsadc_power,
 	.init		     =  marimba_tsadc_init,
@@ -2650,6 +2665,7 @@ static struct marimba_tsadc_platform_data marimba_tsadc_pdata = {
 	},
 	.tssc_data = &msm_ts_data,
 };
+#endif
 
 static struct regulator_bulk_data codec_regs[] = {
 	{ .supply = "s4", .min_uV = 2200000, .max_uV = 2200000 },
@@ -2755,12 +2771,11 @@ static void __init msm7x30_init_marimba(void)
 	vreg_marimba_2 = regs[1].consumer;
 	vreg_bahama    = regs[2].consumer;
 }
+#ifdef CONFIG_TIMPANI_CODEC
 
 static struct marimba_codec_platform_data timpani_codec_pdata = {
 	.marimba_codec_power =  msm_marimba_codec_power,
-#ifdef CONFIG_TIMPANI_CODEC
 	.snddev_profile_init = msm_snddev_init_timpani,
-#endif
 };
 
 static struct marimba_platform_data timpani_pdata = {
@@ -2781,6 +2796,7 @@ static struct i2c_board_info msm_i2c_gsbi7_timpani_info[] = {
 		.platform_data = &timpani_pdata,
 	},
 };
+#endif
 
 #ifdef CONFIG_MSM7KV2_AUDIO
 static struct resource msm_aictl_resources[] = {
@@ -3365,8 +3381,6 @@ static struct platform_device touch_keypad_i2c_device = {
 };
 static void touch_keypad_gpio_init(void)
 {
-	int ret = 0;
-
 	gpio_tlmm_config(GPIO_CFG(_3_TOUCH_EN, 0, GPIO_CFG_OUTPUT,
 				  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
 	gpio_set_value(_3_TOUCH_EN, 1);
@@ -3922,6 +3936,7 @@ static struct msm_hsusb_gadget_platform_data msm_gadget_pdata = {
 	.is_phy_status_timer_on = 1,
 };
 #endif
+
 #ifndef CONFIG_USB_EHCI_MSM_72K
 typedef void (*notify_vbus_state) (int);
 notify_vbus_state notify_vbus_state_func_ptr;
@@ -4017,7 +4032,7 @@ static void config_lcdc_gpio_table(uint32_t *table, int len, unsigned enable)
 
 static void lcdc_config_gpios(int enable)
 {
-	config_lcdc_gpio_table(lcdc_gpio_config_data,
+	config_lcdc_gpio_table((uint32_t *)lcdc_gpio_config_data,
 		ARRAY_SIZE(lcdc_gpio_config_data), enable);
 }
 #endif
@@ -5030,6 +5045,21 @@ static struct platform_device msm_bt_power_device = {
 .name = "bt_power",
 };
 
+static unsigned bt_config_default[] = {
+    GPIO_CFG(GPIO_BT_WAKE,       0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),    /* WAKE */
+    GPIO_CFG(GPIO_BT_UART_RTS,   1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),    /* RFR */
+    GPIO_CFG(GPIO_BT_UART_CTS,   1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),    /* CTS */
+    GPIO_CFG(GPIO_BT_UART_RXD,   1, GPIO_CFG_INPUT,  GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),    /* Rx */
+    GPIO_CFG(GPIO_BT_UART_TXD,   1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),    /* Tx */
+    GPIO_CFG(GPIO_BT_PCM_DOUT,   1, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),    /* PCM_DOUT */
+    GPIO_CFG(GPIO_BT_PCM_DIN,    1, GPIO_CFG_INPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),    /* PCM_DIN */
+    GPIO_CFG(GPIO_BT_PCM_SYNC,   1, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),    /* PCM_SYNC */
+    GPIO_CFG(GPIO_BT_PCM_CLK,    1, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),    /* PCM_CLK */
+    GPIO_CFG(GPIO_BT_HOST_WAKE,  0, GPIO_CFG_INPUT,  GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),    /* HOST_WAKE */    
+    GPIO_CFG(GPIO_BT_WLAN_REG_ON,0, GPIO_CFG_OUTPUT,  GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),    /* BT_WLAN_REG_ON */
+    GPIO_CFG(GPIO_BT_RESET,      0, GPIO_CFG_OUTPUT,  GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),    /* BT_RESET */
+};
+
 static unsigned bt_config_power_on[] = {
     GPIO_CFG(GPIO_BT_WAKE,     0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),    /* WAKE */
     GPIO_CFG(GPIO_BT_UART_RTS, 1, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),    /* RFR */
@@ -5058,9 +5088,6 @@ static unsigned bt_config_power_off[] = {
 
 static int bluetooth_power(int on)
 {
-    struct vreg *vreg_bt;
-    int pin, rc;
-
     pr_info("bluetooth_power \n");
 
     printk(KERN_DEBUG "%s\n", __func__);
@@ -5107,7 +5134,7 @@ static int bluetooth_gpio_init(void)
 {
     pr_info("bluetooth_gpio_init on system_rev:%d\n", system_rev);
 
-    config_gpio_table(bt_config_power_on, ARRAY_SIZE(bt_config_power_on));
+    config_gpio_table(bt_config_default, ARRAY_SIZE(bt_config_default));
     return 0;
 }
 #endif
@@ -7044,6 +7071,8 @@ static void __init msm7x30_init(void)
 
 
 	bt_power_init();
+	bluetooth_gpio_init();
+
 #ifdef CONFIG_I2C_SSBI
 	msm_device_ssbi7.dev.platform_data = &msm_i2c_ssbi7_pdata;
 #endif
