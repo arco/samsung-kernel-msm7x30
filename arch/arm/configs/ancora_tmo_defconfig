@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.72 Kernel Configuration
+# Linux/arm 3.0.73 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1825,7 +1825,19 @@ CONFIG_VIDEO_HELPER_CHIPS_AUTO=y
 # CONFIG_VIDEO_CPIA2 is not set
 # CONFIG_VIDEO_NOON010PC30 is not set
 # CONFIG_SOC_CAMERA is not set
-# CONFIG_V4L_USB_DRIVERS is not set
+CONFIG_V4L_USB_DRIVERS=y
+CONFIG_USB_VIDEO_CLASS=y
+CONFIG_USB_VIDEO_CLASS_INPUT_EVDEV=y
+# CONFIG_USB_GSPCA is not set
+# CONFIG_VIDEO_PVRUSB2 is not set
+# CONFIG_VIDEO_HDPVR is not set
+# CONFIG_VIDEO_USBVISION is not set
+# CONFIG_USB_ET61X251 is not set
+# CONFIG_USB_SN9C102 is not set
+# CONFIG_USB_PWC is not set
+# CONFIG_USB_ZR364XX is not set
+# CONFIG_USB_STKWEBCAM is not set
+# CONFIG_USB_S2255 is not set
 
 #
 # Qualcomm MSM Camera And Video
