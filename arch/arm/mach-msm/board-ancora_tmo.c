@@ -160,7 +160,6 @@ EXPORT_SYMBOL(switch_dev);
 #define MSM_PMEM_ADSP_SIZE		0x2000000
 #define MSM_FLUID_PMEM_ADSP_SIZE	0x2800000
 #define PMEM_KERNEL_EBI0_SIZE		0x600000
-#define MSM_PMEM_AUDIO_SIZE		0x200000
 
 #define PMIC_GPIO_INT		27
 #define PMIC_VREG_WLAN_LEVEL	2900
@@ -4421,23 +4420,10 @@ static struct android_pmem_platform_data android_pmem_adsp_pdata = {
 	.memory_type = MEMTYPE_EBI0,
 };
 
-static struct android_pmem_platform_data android_pmem_audio_pdata = {
-	.name = "pmem_audio",
-	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
-	.cached = 0,
-	.memory_type = MEMTYPE_EBI0,
-};
-
 static struct platform_device android_pmem_adsp_device = {
 	.name = "android_pmem",
 	.id = 2,
 	.dev = { .platform_data = &android_pmem_adsp_pdata },
-};
-
-static struct platform_device android_pmem_audio_device = {
-	.name = "android_pmem",
-	.id = 4,
-	.dev = { .platform_data = &android_pmem_audio_pdata },
 };
 
 #if defined(CONFIG_CRYPTO_DEV_QCRYPTO) || \
@@ -5560,7 +5546,6 @@ static struct platform_device *devices[] __initdata = {
 	&lcdc_samsung_panel_device,
 #endif
 	&android_pmem_adsp_device,
-	&android_pmem_audio_device,
 //	&msm_device_i2c,
 	&msm_device_i2c_2,
 	&msm_device_uart_dm1,
@@ -7448,14 +7433,6 @@ static int __init fluid_pmem_adsp_size_setup(char *p)
 }
 early_param("fluid_pmem_adsp_size", fluid_pmem_adsp_size_setup);
 
-static unsigned pmem_audio_size = MSM_PMEM_AUDIO_SIZE;
-static int __init pmem_audio_size_setup(char *p)
-{
-	pmem_audio_size = memparse(p, NULL);
-	return 0;
-}
-early_param("pmem_audio_size", pmem_audio_size_setup);
-
 static unsigned pmem_kernel_ebi0_size = PMEM_KERNEL_EBI0_SIZE;
 static int __init pmem_kernel_ebi0_size_setup(char *p)
 {
@@ -7486,7 +7463,6 @@ static void __init size_pmem_devices(void)
 		size = pmem_adsp_size;
 
 	android_pmem_adsp_pdata.size = size;
-	android_pmem_audio_pdata.size = pmem_audio_size;
 	android_pmem_pdata.size = pmem_sf_size;
 #endif
 }
@@ -7500,7 +7476,6 @@ static void __init reserve_pmem_memory(void)
 {
 #ifdef CONFIG_ANDROID_PMEM
 	reserve_memory_for(&android_pmem_adsp_pdata);
-	reserve_memory_for(&android_pmem_audio_pdata);
 	reserve_memory_for(&android_pmem_pdata);
 	msm7x30_reserve_table[MEMTYPE_EBI0].size += pmem_kernel_ebi0_size;
 #endif
