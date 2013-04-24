@@ -450,6 +450,13 @@ config BATTERY_ANCORA
 	help
 	  Say Y to enable support for the battery in Samsung Ancora.
 
+config BATTERY_ARIESVE
+	tristate "Ariesve battery"
+	depends on MACH_ARIESVE
+	default n
+	help
+	  Say Y to enable support for the battery in Samsung ARIESVE.
+
 config CHARGER_SMB328A
 	bool "Enable SMB328A charger driver"
 	default n
