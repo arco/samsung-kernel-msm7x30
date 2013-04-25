@@ -64,6 +64,9 @@ void kgsl_pwrctrl_pwrlevel_change(struct kgsl_device *device,
 		new_level >= pwr->thermal_pwrlevel &&
 		new_level != pwr->active_pwrlevel) {
 		struct kgsl_pwrlevel *pwrlevel = &pwr->pwrlevels[new_level];
+		int diff = new_level - pwr->active_pwrlevel;
+		int d = (diff > 0) ? 1 : -1;
+		int level = pwr->active_pwrlevel;
 		pwr->active_pwrlevel = new_level;
 		if ((test_bit(KGSL_PWRFLAGS_CLK_ON, &pwr->power_flags)) ||
 			(device->state == KGSL_STATE_NAP)) {
@@ -75,7 +78,14 @@ void kgsl_pwrctrl_pwrlevel_change(struct kgsl_device *device,
 			if (pwr->idle_needed == true)
 				device->ftbl->idle(device,
 						KGSL_TIMEOUT_DEFAULT);
-			clk_set_rate(pwr->grp_clks[0], pwrlevel->gpu_freq);
+			/* Don't shift by more than one level at a time to
+			 * avoid glitches.
+			 */
+			while (level != new_level) {
+				level += d;
+				clk_set_rate(pwr->grp_clks[0],
+						pwr->pwrlevels[level].gpu_freq);
+			}
 		}
 		if (test_bit(KGSL_PWRFLAGS_AXI_ON, &pwr->power_flags)) {
 			if (pwr->pcl)
@@ -346,23 +356,34 @@ void kgsl_pwrctrl_clk(struct kgsl_device *device, int state,
 			for (i = KGSL_MAX_CLKS - 1; i > 0; i--)
 				if (pwr->grp_clks[i])
 					clk_disable(pwr->grp_clks[i]);
+			/* High latency clock maintenance. */
 			if ((pwr->pwrlevels[0].gpu_freq > 0) &&
-				(requested_state != KGSL_STATE_NAP))
+				(requested_state != KGSL_STATE_NAP)) {
 				clk_set_rate(pwr->grp_clks[0],
 					pwr->pwrlevels[pwr->num_pwrlevels - 1].
 					gpu_freq);
+				for (i = KGSL_MAX_CLKS - 1; i > 0; i--)
+					if (pwr->grp_clks[i])
+						clk_unprepare(pwr->grp_clks[i]);
+			}
 			kgsl_pwrctrl_busy_time(device, true);
 		}
 	} else if (state == KGSL_PWRFLAGS_ON) {
 		if (!test_and_set_bit(KGSL_PWRFLAGS_CLK_ON,
 			&pwr->power_flags)) {
 			trace_kgsl_clk(device, state);
-			if ((pwr->pwrlevels[0].gpu_freq > 0) &&
-				(device->state != KGSL_STATE_NAP))
-				clk_set_rate(pwr->grp_clks[0],
-					pwr->pwrlevels[pwr->active_pwrlevel].
-						gpu_freq);
+			/* High latency clock maintenance. */
+			if (device->state != KGSL_STATE_NAP) {
+				for (i = KGSL_MAX_CLKS - 1; i > 0; i--)
+					if (pwr->grp_clks[i])
+						clk_prepare(pwr->grp_clks[i]);
 
+				if (pwr->pwrlevels[0].gpu_freq > 0)
+					clk_set_rate(pwr->grp_clks[0],
+						pwr->pwrlevels
+						[pwr->active_pwrlevel].
+						gpu_freq);
+			}
 			/* as last step, enable grp_clk
 			   this is to let GPU interrupt to come */
 			for (i = KGSL_MAX_CLKS - 1; i > 0; i--)
