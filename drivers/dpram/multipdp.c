@@ -328,9 +328,9 @@ struct pdp_info {
 
 /* PDP information table */
 static struct pdp_info *pdp_table[MAX_PDP_CONTEXT];
-static DECLARE_MUTEX(pdp_lock);
+static DEFINE_SEMAPHORE(pdp_lock);
 #ifdef NO_TTY_MUTEX_VNET
-static DECLARE_MUTEX(pdp_txlock);
+static DEFINE_SEMAPHORE(pdp_txlock);
 #endif
 
 /* DPRAM-related stuffs */

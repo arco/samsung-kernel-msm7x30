@@ -48,10 +48,6 @@
 #define DRIVER_NAME 		"DPRAM"
 #define DRIVER_MAJOR_NUM	255
 
-#define MSM_GCC_BASE          IOMEM(0xF8009000)
-#define MSM_GCC_PHYS          0xC0182000
-#define MSM_GCC_SIZE          SZ_4K
-
 #undef _DEBUG
 #ifdef _DEBUG
 #define dprintk(s, args...) printk("[DPRAM] %s:%d - " s, __func__, __LINE__,  ##args)
@@ -71,7 +67,7 @@
 #endif	/* _ENABLE_ERROR_DEVICE */
 
 //#define MSM_A2M_INT(n) (MSM_CSR_BASE + 0x400 + (n) * 4)
-#define MSM_TRIG_A2M_DPRAM_INT     (writel(1 << 4, MSM_GCC_BASE + 0x8))
+#define MSM_TRIG_A2M_DPRAM_INT     (writel(1 << 4, MSM_APCS_GCC_BASE + 0x8))
 
 static volatile unsigned char *SmemBase;
 static int DpramInited = 0;
@@ -146,7 +142,7 @@ static DECLARE_WAIT_QUEUE_HEAD(dpram_err_wait_q);
 static struct fasync_struct *dpram_err_async_q;
 #endif	/* _ENABLE_ERROR_DEVICE */
 
-static DECLARE_MUTEX(write_mutex);
+static DEFINE_SEMAPHORE(write_mutex);
 struct wake_lock imei_wake_lock;
 struct wake_lock dpram_wake_lock;
 struct wake_lock silent_wake_lock;
