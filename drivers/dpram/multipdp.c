@@ -312,7 +312,6 @@ struct pdp_info {
 			int			refcount;
 			struct tty_struct	*tty_table[1];
 			struct ktermios		*termios[1];
-			struct ktermios		*termios_locked[1];
 			char			tty_name[16];
 			struct tty_struct	*tty;
 			struct semaphore	write_lock;
@@ -328,9 +327,9 @@ struct pdp_info {
 
 /* PDP information table */
 static struct pdp_info *pdp_table[MAX_PDP_CONTEXT];
-static DECLARE_MUTEX(pdp_lock);
+static DEFINE_SEMAPHORE(pdp_lock);
 #ifdef NO_TTY_MUTEX_VNET
-static DECLARE_MUTEX(pdp_txlock);
+static DEFINE_SEMAPHORE(pdp_txlock);
 #endif
 
 /* DPRAM-related stuffs */
@@ -1423,7 +1422,6 @@ static int vs_add_dev(struct pdp_info *dev)
 	// tty_driver->refcount	= dev->vs_dev.refcount;
 	tty_driver->ttys	= dev->vs_dev.tty_table; // 2.6 kernel porting
 	tty_driver->termios	= dev->vs_dev.termios;
-	tty_driver->termios_locked	= dev->vs_dev.termios_locked;
 
 	tty_set_operations(tty_driver, &multipdp_tty_ops);
 	return tty_register_driver(tty_driver);
@@ -1768,7 +1766,7 @@ static int pdp_activate(pdp_arg_t *pdp_arg, unsigned type, unsigned flags)
 		DPRINTK(1, "%s(id: %u) network device created\n", 
 			net->name, dev->id);
 	} else if (type == DEV_TYPE_SERIAL) {
-		init_MUTEX(&dev->vs_dev.write_lock);
+		sema_init(&dev->vs_dev.write_lock, 1);
 		strcpy(dev->vs_dev.tty_name, pdp_arg->ifname);
 
 		ret = vs_add_dev(dev);
