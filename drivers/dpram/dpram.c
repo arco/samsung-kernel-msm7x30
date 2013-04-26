@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/mm.h>
+#include <linux/sched.h>
 
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -42,7 +43,7 @@
 
 #include "dpram.h"
 #include "../../arch/arm/mach-msm/smd_private.h"
-#include "../../arch/arm/mach-msm/proc_comm.h"
+#include "../../arch/arm/mach-msm/include/mach/proc_comm.h"
 
 #define DRIVER_NAME 		"DPRAM"
 #define DRIVER_MAJOR_NUM	255
@@ -66,7 +67,7 @@
 #endif	/* _ENABLE_ERROR_DEVICE */
 
 //#define MSM_A2M_INT(n) (MSM_CSR_BASE + 0x400 + (n) * 4)
-#define MSM_TRIG_A2M_DPRAM_INT     (writel(1 << 4, MSM_GCC_BASE + 0x8))
+#define MSM_TRIG_A2M_DPRAM_INT     (writel(1 << 4, MSM_APCS_GCC_BASE + 0x8))
 
 static volatile unsigned char *SmemBase;
 static int DpramInited = 0;
@@ -108,7 +109,6 @@ static dpram_device_t dpram_table[MAX_INDEX] = {
 
 static struct tty_struct *dpram_tty[MAX_INDEX];
 static struct ktermios *dpram_termios[MAX_INDEX];
-static struct ktermios *dpram_termios_locked[MAX_INDEX];
 
 extern void *smem_alloc(unsigned, unsigned);
 
@@ -141,7 +141,7 @@ static DECLARE_WAIT_QUEUE_HEAD(dpram_err_wait_q);
 static struct fasync_struct *dpram_err_async_q;
 #endif	/* _ENABLE_ERROR_DEVICE */
 
-static DECLARE_MUTEX(write_mutex);
+static DEFINE_SEMAPHORE(write_mutex);
 struct wake_lock imei_wake_lock;
 struct wake_lock dpram_wake_lock;
 struct wake_lock silent_wake_lock;
@@ -1639,7 +1639,6 @@ static int register_dpram_driver(void)
 
 	dpram_tty_driver->ttys = dpram_tty;
 	dpram_tty_driver->termios = dpram_termios;
-	dpram_tty_driver->termios_locked = dpram_termios_locked;
 
 	/* @LDK@ register tty driver */
 	retval = tty_register_driver(dpram_tty_driver);
@@ -1663,7 +1662,7 @@ static void init_devices(void)
 	int i;
 
 	for (i = 0; i < MAX_INDEX; i++) {
-		init_MUTEX(&dpram_table[i].serial.sem);
+		sema_init(&dpram_table[i].serial.sem, 1);
 
 		dpram_table[i].serial.open_count = 0;
 		dpram_table[i].serial.tty = NULL;

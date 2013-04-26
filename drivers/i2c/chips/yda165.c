@@ -8,6 +8,7 @@
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/i2c/yda165.h>
+#include <linux/module.h>
 
 #define MODULE_NAME "yda165"
 #define AMPREG_DEBUG 0

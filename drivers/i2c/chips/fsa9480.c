@@ -32,12 +32,13 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <mach/gpio.h>
+#include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <mach/vreg.h>
 #include <asm/io.h>
 #include <linux/uaccess.h>
+#include <asm/system_info.h>
 
 // #define DEBUG 1
 #include <linux/device.h>
