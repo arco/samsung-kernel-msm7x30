@@ -2259,6 +2259,7 @@ struct acdb_fluence_block *get_audpp_fluence_block(void)
 	return NULL;
 }
 
+#if 0
 static s32 acdb_fill_audpreproc_fluence(void)
 {
 	struct acdb_fluence_block *fluence_block = NULL;
@@ -2285,6 +2286,7 @@ static s32 acdb_fill_audpreproc_fluence(void)
 					& 0xFFFF0000) >> 16);
 	return 0;
 }
+#endif
 
 s32 acdb_calibrate_audpreproc(void)
 {
@@ -2347,6 +2349,8 @@ s32 acdb_calibrate_audpreproc(void)
 		} else
 			MM_DBG("RMC block was not found\n");
 	}
+/*remove fluence code because that acdb data has not fluence struct*/
+#if 0
 	if (!acdb_data.fleuce_feature_status[acdb_data.preproc_stream_id]) {
 		result = acdb_fill_audpreproc_fluence();
 		if (!(IS_ERR_VALUE(result))) {
@@ -2366,6 +2370,7 @@ s32 acdb_calibrate_audpreproc(void)
 			MM_ERR("fluence block is not found\n");
 	} else
 		MM_DBG("fluence block override\n");
+#endif
 done:
 	return result;
 }
