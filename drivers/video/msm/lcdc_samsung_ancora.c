@@ -17,7 +17,7 @@
 
 #include <linux/delay.h>
 #include <linux/pwm.h>
-#include <mach/gpio.h>
+#include <linux/gpio.h>
 #include "msm_fb.h"
 #include "lcdc_samsung_ancora.h"
 #include <linux/interrupt.h>

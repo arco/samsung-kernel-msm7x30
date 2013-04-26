@@ -55,7 +55,7 @@
 #include <asm/unistd.h>
 
 #include "../arch/arm/mach-msm/smd_private.h"
-#include "../arch/arm/mach-msm/proc_comm.h"
+#include "../arch/arm/mach-msm/include/mach/proc_comm.h"
 #include <mach/msm_iomap.h>
 #include <asm/io.h>
 

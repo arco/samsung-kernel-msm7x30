@@ -1720,11 +1720,6 @@ static int __init msm_pm_init(void)
 	msm_pm_mode_sysfs_add();
 	msm_pm_add_stats(enable_stats, ARRAY_SIZE(enable_stats));
 
-#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
-	reset_base = ioremap(RESET_ALL, PAGE_SIZE);
-	msm_m_gpio2_owner_base = ioremap(MSM_M_GPIO2_OWNER, PAGE_SIZE);
-#endif
-
 	atomic_set(&msm_pm_init_done, 1);
 	return 0;
 }

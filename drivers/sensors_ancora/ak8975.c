@@ -26,6 +26,7 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
+#include <linux/module.h>
 #include <linux/i2c/ak8975.h>
 #include <linux/completion.h>
 #include <linux/mfd/pmic8058.h>
