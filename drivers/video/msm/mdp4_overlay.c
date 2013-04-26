@@ -3458,9 +3458,11 @@ int mdp4_overlay_play(struct fb_info *info, struct msmfb_overlay_data *req)
 			/* cndx = 0 */
 			mdp4_mddi_pipe_queue(0, pipe);
 		}
+#ifdef CONFIG_FB_MSM_DTV
 	} else if (pipe->mixer_num == MDP4_MIXER1) {
 		if (ctrl->panel_mode & MDP4_PANEL_DTV)
 			mdp4_dtv_pipe_queue(0, pipe);/* cndx = 0 */
+#endif
 	}
 
 	mutex_unlock(&mfd->dma->ov_mutex);
@@ -3537,9 +3539,11 @@ int mdp4_overlay_commit(struct fb_info *info, int mixer)
 			/* cndx = 0 */
 			mdp4_lcdc_pipe_commit(0, 1);
 		}
+#ifdef CONFIG_FB_MSM_DTV
 	} else if (mixer == MDP4_MIXER1) {
 		if (ctrl->panel_mode & MDP4_PANEL_DTV)
 			mdp4_dtv_pipe_commit(0, 1);
+#endif
 	}
 
 	mdp4_overlay_mdp_perf_upd(mfd, 0);

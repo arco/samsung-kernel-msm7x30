@@ -36,6 +36,7 @@
 #include <linux/mfd/pmic8058.h>
 #include <linux/gp2a.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 
 /*********** for debug **********************************************************/

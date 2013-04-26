@@ -20,6 +20,8 @@
 #include <asm/system_misc.h>
 #include <mach/proc_comm.h>
 #include <linux/gpio.h>
+#include <linux/delay.h>
+#include <mach/msm_iomap.h>
 
 #include "devices-msm7x2xa.h"
 #include "smd_rpcrouter.h"
@@ -59,7 +61,6 @@ volatile smem_proc_comm_data_type *proc_comm;
 static void msm_pm_power_off(void)
 {
 #if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
-
 	msm_rpcrouter_close();
 	proc_comm = (volatile smem_proc_comm_data_type *)MSM_SHARED_RAM_BASE;
 	proc_comm[4].command = curr_usb_status || curr_ta_status;
@@ -98,7 +99,6 @@ static void msm_pm_power_off(void)
 static void msm_pm_restart(char str, const char *cmd)
 {
 #if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
-
 	msm_rpcrouter_close();
 
 	/* debug level value set to 0 to avoid entering silent reset mode when restarting */
@@ -195,5 +195,10 @@ static int __init msm_pm_restart_init(void)
 		pr_err("Failed to register reboot notifier\n");
 
 	return ret;
+
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+        reset_base = ioremap(RESET_ALL, PAGE_SIZE);
+        msm_m_gpio2_owner_base = ioremap(MSM_M_GPIO2_OWNER, PAGE_SIZE);
+#endif
 }
 late_initcall(msm_pm_restart_init);
