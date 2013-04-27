@@ -9,13 +9,17 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #ifndef MT9T012_H
 #define MT9T012_H
 
 #include <linux/types.h>
-#include <mach/board.h>
 
 extern struct mt9p012_reg mt9p012_regs;	/* from mt9p012_reg.c */
 
