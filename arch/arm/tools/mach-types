@@ -20,6 +20,7 @@
 #
 # machine_is_xxx	CONFIG_xxxx		MACH_TYPE_xxx		number
 #
+ariesve			MACH_ARIESVE	ARIESVE			2
 ancora			MACH_ANCORA		ANCORA			2
 ebsa110			ARCH_EBSA110		EBSA110			0
 riscpc			ARCH_RPC		RISCPC			1

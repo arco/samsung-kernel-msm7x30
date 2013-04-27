@@ -265,6 +265,7 @@ obj-$(CONFIG_MACH_MSM8625_QRD7) +=  board-qrd7627a.o board-7627a-all.o
 obj-$(CONFIG_MACH_MSM8625_FFA) += board-msm7x27a.o board-7627a-all.o
 obj-$(CONFIG_MACH_MSM8625_EVT) += board-msm7x27a.o board-7627a-all.o
 obj-$(CONFIG_MACH_ANCORA) += board-ancora.o board-ancora-regulator.o samsung_vibrator.o
+obj-$(CONFIG_MACH_ARIESVE) += board-ariesve.o board-ariesve-regulator
 obj-$(CONFIG_ARCH_MSM7X30) += clock-local.o clock-7x30.o acpuclock-7x30.o clock-pll.o
 obj-$(CONFIG_ARCH_MSM7X30) += devices-msm7x30.o memory_topology.o
 obj-$(CONFIG_ARCH_MSM7X30) += broadcom_wlan.o
