@@ -316,6 +316,11 @@ config FB_MSM_LCDC_SAMSUNG_ANCORA
 	select FB_MSM_LCDC_PANEL
 	default n
 
+config FB_MSM_LCDC_S6E63M0_WVGA
+	bool
+	select FB_MSM_LCDC_PANEL
+	default n
+
 config FB_MSM_MIPI_LGIT_VIDEO_WXGA_PT
 	bool
 	select FB_MSM_MIPI_DSI_LGIT
@@ -537,6 +542,13 @@ config FB_MSM_LCDC_SAMSUNG_ANCORA_PANEL
 	select FB_MSM_LCDC_SAMSUNG_ANCORA
 	---help---
 	  Support for LCDC SAMSUNG ANCORA panel
+
+config FB_MSM_LCDC_S6E63M0_WVGA_PANEL
+	depends on FB_MSM_LCDC_HW
+	bool "LCDC S6E63M0 WVGA Panel"
+	select FB_MSM_LCDC_S6E63M0_WVGA
+	---help---
+	  Support for LCDC Samsung S6E63M0 WVGA (480x800) panel
 
 config FB_MSM_LVDS_CHIMEI_WXGA_PANEL
         bool "LVDS Chimei WXGA Panel"
