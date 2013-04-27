@@ -1014,7 +1014,7 @@ probe_fail:
     return rc;
 }
 
-static int __init __s5ka3dfx_probe(struct platform_device *pdev)
+static int __devinit __s5ka3dfx_probe(struct platform_device *pdev)
 {
     return msm_camera_drv_start(pdev, s5ka3dfx_sensor_probe);
 }
