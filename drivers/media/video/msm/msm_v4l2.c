@@ -24,6 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/videodev2.h>
 #include <linux/proc_fs.h>
+#include <linux/module.h>
 #include <media/v4l2-dev.h>
 #include <media/msm_camera.h>
 #include <mach/camera.h>
