@@ -128,7 +128,9 @@
 #define P_DSI_ESC_CLK		108
 #define P_DSI_PIXEL_CLK		109
 #define P_DSI_BYTE_CLK		110
+#ifndef CONFIG_MACH_ARIESVE
 #define P_EBI1_FIXED_CLK	111 /* Not dropped during power-collapse */
+#endif
 #define P_DSI_REF_CLK		112
 #define P_MDP_DSI_P_CLK		113
 #define P_AHB_M_CLK		114
