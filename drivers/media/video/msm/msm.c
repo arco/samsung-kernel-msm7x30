@@ -973,7 +973,7 @@ static int msm_sync_init(struct msm_sync *sync,
 
 	sync->sdata = pdev->dev.platform_data;
 
-	wake_lock_init(&sync->wake_lock, WAKE_LOCK_IDLE, "msm_camera");
+	wake_lock_init(&sync->wake_lock, WAKE_LOCK_SUSPEND, "msm_camera");
 
 	sync->pdev = pdev;
 	sync->sctrl = *sctrl;
