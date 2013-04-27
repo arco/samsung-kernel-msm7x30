@@ -155,5 +155,8 @@ source "drivers/dpram/Kconfig"
 if MACH_ANCORA
 source "drivers/sensors_ancora/Kconfig"
 endif
+if MACH_ARIESVE
+source "drivers/sensors_ariesve/Kconfig"
+endif
 
 endmenu
