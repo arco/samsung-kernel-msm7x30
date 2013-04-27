@@ -146,6 +146,7 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_AmpDisable(VibeUInt8 nActuatorIndex
 			printk("[VIBETONZ] %s: there are no android_vib_clk to disable \n",__func__);
 		} else {
 			clk_disable(android_vib_clk);
+			clk_unprepare(android_vib_clk);
 		}
 		/* End - fix for android_vib_clk is unbalanced error */
     }
@@ -201,6 +202,8 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_AmpEnable(VibeUInt8 nActuatorIndex)
 #endif
 
 		mdelay(1);
+		
+		clk_prepare(android_vib_clk); 
 		clk_enable(android_vib_clk);
 
 		vibe_set_pwm_freq(0);
