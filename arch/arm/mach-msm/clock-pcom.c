@@ -176,18 +176,6 @@ static bool pc_clk_is_local(struct clk *clk)
 	return false;
 }
 
-static enum handoff pc_clk_handoff(struct clk *clk)
-{
-	/*
-	 * Handoff clock state only since querying and caching the rate here
-	 * would incur more overhead than it would ever save.
-	 */
-	if (pc_clk_is_enabled(clk))
-		return HANDOFF_ENABLED_CLK;
-
-	return HANDOFF_DISABLED_CLK;
-}
-
 struct clk_ops clk_ops_pcom = {
 	.enable = pc_clk_enable,
 	.disable = pc_clk_disable,
@@ -199,7 +187,6 @@ struct clk_ops clk_ops_pcom = {
 	.is_enabled = pc_clk_is_enabled,
 	.round_rate = pc_clk_round_rate,
 	.is_local = pc_clk_is_local,
-	.handoff = pc_clk_handoff,
 };
 
 struct clk_ops clk_ops_pcom_ext_config = {
@@ -213,6 +200,5 @@ struct clk_ops clk_ops_pcom_ext_config = {
 	.is_enabled = pc_clk_is_enabled,
 	.round_rate = pc_clk_round_rate,
 	.is_local = pc_clk_is_local,
-	.handoff = pc_clk_handoff,
 };
 
