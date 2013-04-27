@@ -24,8 +24,9 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/rtc.h>
+#include <linux/module.h>
 #include <media/msm_camera.h>
-#include <mach/gpio.h>
+#include <linux/gpio.h>
 #include <mach/camera.h>
 #include "ce147.h"
 
