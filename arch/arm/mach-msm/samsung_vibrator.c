@@ -3,6 +3,7 @@
 #include <linux/err.h>
 #include <linux/hrtimer.h>
 #include <linux/clk.h>
+#include <linux/module.h>
 #include <../../../drivers/staging/android/timed_output.h>
 #include <linux/sched.h>
 
@@ -133,6 +134,7 @@ static int msm_vibrator_power(int on)
 	return VIBE_S_SUCCESS;
 }
 */
+#ifdef CONFIG_MACH_ARIESVE
 static int vibe_set_pwm_freq(int nForce)
 {
 #if 1
@@ -153,6 +155,7 @@ static int vibe_set_pwm_freq(int nForce)
 #endif	
 		return VIBE_S_SUCCESS;
 }
+#endif
 
 static void set_pmic_vibrator(int on)
 {
@@ -283,7 +286,7 @@ static int vibrator_get_time(struct timed_output_dev *dev)
 {
 	if (hrtimer_active(&vibe_timer)) {
 		ktime_t r = hrtimer_get_remaining(&vibe_timer);
-		return r.tv.sec * 1000 + r.tv.nsec / 1000000;
+		return ktime_to_ms(r);
 	} else
 		return 0;
 }
@@ -299,9 +302,9 @@ static enum hrtimer_restart vibrator_timer_func(struct hrtimer *timer)
 		//printk(KERN_INFO,"[VIB] %s\n",__func__);
 		if(hrtimer_active(&vibe_timer)) {
 				ktime_t r = hrtimer_get_remaining(&vibe_timer);
-				remain=r.tv.sec * 1000000 + r.tv.nsec;
+				remain = ktime_to_ms(r);
 				remain = remain / 1000;
-				if(r.tv.sec < 0) {
+				if(ktime_to_ms(r) < 0) {
 						remain = 0;
 				}
 				//printk(KERN_INFO "[VIB] hrtimer active, remain:%d\n",remain);
@@ -371,7 +374,7 @@ static int __devinit msm_vibrator_probe(struct platform_device *pdev)
 
     if(board_hw_revision>= 2)
     {
-    	vreg_vib = vreg_get(NULL, "gp4");
+	vreg_vib = vreg_get(NULL, "wlan2");
     	if (IS_ERR(vreg_vib)) {
     		pr_err("%s: gp4 vreg get failed (%ld)",
     				__func__, PTR_ERR(vreg_vib));
