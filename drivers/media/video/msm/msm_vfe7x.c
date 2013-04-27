@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -8,6 +8,11 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
  *
  */
 
@@ -21,7 +26,7 @@
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include "msm_vfe7x.h"
-#include <linux/pm_qos.h>
+#include <linux/pm_qos_params.h>
 
 #define QDSP_CMDQUEUE 25
 
@@ -38,12 +43,10 @@
 #define MSG_OUTPUT2   7
 #define MSG_STATS_AF  8
 #define MSG_STATS_WE  9
-#define MSG_OUTPUT_S  10
-#define MSG_OUTPUT_T  11
 
 #define VFE_ADSP_EVENT 0xFFFF
 #define SNAPSHOT_MASK_MODE 0x00000002
-#define MSM_AXI_QOS_PREVIEW	192000
+#define MSM_AXI_QOS_PREVIEW		192000
 #define MSM_AXI_QOS_SNAPSHOT	192000
 
 
@@ -56,15 +59,9 @@ static uint32_t extlen;
 struct mutex vfe_lock;
 static void     *vfe_syncdata;
 static uint8_t vfestopped;
-static uint32_t vfetask_state;
 static int cnt;
 
 static struct stop_event stopevent;
-
-unsigned long paddr_s_y;
-unsigned long paddr_s_cbcr;
-unsigned long paddr_t_y;
-unsigned long paddr_t_cbcr;
 
 static void vfe_7x_convert(struct msm_vfe_phy_info *pinfo,
 		enum vfe_resp_msg type,
@@ -72,14 +69,14 @@ static void vfe_7x_convert(struct msm_vfe_phy_info *pinfo,
 {
 	switch (type) {
 	case VFE_MSG_OUTPUT_P: {
-		pinfo->p0_phy = ((struct vfe_endframe *)data)->y_address;
-		pinfo->p1_phy =
+		pinfo->y_phy = ((struct vfe_endframe *)data)->y_address;
+		pinfo->cbcr_phy =
 			((struct vfe_endframe *)data)->cbcr_address;
-		pinfo->p2_phy = pinfo->p0_phy;
+
 		pinfo->output_id = OUTPUT_TYPE_P;
 
 		CDBG("vfe_7x_convert, y_phy = 0x%x, cbcr_phy = 0x%x\n",
-				 pinfo->p0_phy, pinfo->p1_phy);
+				 pinfo->y_phy, pinfo->cbcr_phy);
 
 		((struct vfe_frame_extra *)extdata)->bl_evencol =
 		((struct vfe_endframe *)data)->blacklevelevencolumn;
@@ -95,26 +92,6 @@ static void vfe_7x_convert(struct msm_vfe_phy_info *pinfo,
 
 		*ext  = extdata;
 		*elen = extlen;
-	}
-		break;
-
-	case VFE_MSG_OUTPUT_S: {
-		pinfo->p0_phy = paddr_s_y;
-		pinfo->p1_phy = paddr_s_cbcr;
-		pinfo->p2_phy = pinfo->p0_phy;
-		pinfo->output_id = OUTPUT_TYPE_S;
-		CDBG("vfe_7x_convert: y_phy = 0x%x cbcr_phy = 0x%x\n",
-					pinfo->p0_phy, pinfo->p1_phy);
-	}
-		break;
-
-	case VFE_MSG_OUTPUT_T: {
-		pinfo->p0_phy = paddr_t_y;
-		pinfo->p1_phy = paddr_t_cbcr;
-		pinfo->p2_phy = pinfo->p0_phy;
-		pinfo->output_id = OUTPUT_TYPE_T;
-		CDBG("vfe_7x_convert: y_phy = 0x%x cbcr_phy = 0x%x\n",
-					pinfo->p0_phy, pinfo->p1_phy);
 	}
 		break;
 
@@ -167,23 +144,7 @@ static void vfe_7x_ops(void *driver_data, unsigned id, size_t len,
 		switch (rp->evt_msg.msg_id) {
 		case MSG_SNAPSHOT:
 			update_axi_qos(MSM_AXI_QOS_PREVIEW);
-			vfe_7x_ops(driver_data, MSG_OUTPUT_S, len, getevent);
-			vfe_7x_ops(driver_data, MSG_OUTPUT_T, len, getevent);
 			rp->type = VFE_MSG_SNAPSHOT;
-			break;
-
-		case MSG_OUTPUT_S:
-			rp->type = VFE_MSG_OUTPUT_S;
-			vfe_7x_convert(&(rp->phy), VFE_MSG_OUTPUT_S,
-				rp->evt_msg.data, &(rp->extdata),
-				&(rp->extlen));
-			break;
-
-		case MSG_OUTPUT_T:
-			rp->type = VFE_MSG_OUTPUT_T;
-			vfe_7x_convert(&(rp->phy), VFE_MSG_OUTPUT_T,
-				rp->evt_msg.data, &(rp->extdata),
-				&(rp->extlen));
 			break;
 
 		case MSG_OUTPUT1:
@@ -233,10 +194,8 @@ static int vfe_7x_enable(struct camera_enable_cmd *enable)
 
 	if (!strcmp(enable->name, "QCAMTASK"))
 		rc = msm_adsp_enable(qcam_mod);
-	else if (!strcmp(enable->name, "VFETASK")) {
+	else if (!strcmp(enable->name, "VFETASK"))
 		rc = msm_adsp_enable(vfe_mod);
-		vfetask_state = 1;
-	}
 
 	if (!cnt) {
 		add_axi_qos();
@@ -252,10 +211,8 @@ static int vfe_7x_disable(struct camera_enable_cmd *enable,
 
 	if (!strcmp(enable->name, "QCAMTASK"))
 		rc = msm_adsp_disable(qcam_mod);
-	else if (!strcmp(enable->name, "VFETASK")) {
+	else if (!strcmp(enable->name, "VFETASK"))
 		rc = msm_adsp_disable(vfe_mod);
-		vfetask_state = 0;
-	}
 
 	return rc;
 }
@@ -293,7 +250,6 @@ static void vfe_7x_release(struct platform_device *pdev)
 
 	msm_adsp_disable(qcam_mod);
 	msm_adsp_disable(vfe_mod);
-	vfetask_state = 0;
 
 	msm_adsp_put(qcam_mod);
 	msm_adsp_put(vfe_mod);
@@ -373,20 +329,15 @@ static int vfe_7x_config_axi(int mode,
 		regptr = ad->region;
 
 		CDBG("bufnum1 = %d\n", ad->bufnum1);
-		if (mode == OUTPUT_1_AND_2) {
-			paddr_t_y = regptr->paddr + regptr->info.planar0_off;
-			paddr_t_cbcr = regptr->paddr + regptr->info.planar1_off;
-		}
-
 		CDBG("config_axi1: O1, phy = 0x%lx, y_off = %d, cbcr_off =%d\n",
-			regptr->paddr, regptr->info.planar0_off,
-			regptr->info.planar1_off);
+			regptr->paddr, regptr->info.y_off,
+			regptr->info.cbcr_off);
 
 		bptr = &ao->output1buffer1_y_phy;
 		for (cnt = 0; cnt < ad->bufnum1; cnt++) {
-			*bptr = regptr->paddr + regptr->info.planar0_off;
+			*bptr = regptr->paddr + regptr->info.y_off;
 			bptr++;
-			*bptr = regptr->paddr + regptr->info.planar1_off;
+			*bptr = regptr->paddr + regptr->info.cbcr_off;
 
 			bptr++;
 			regptr++;
@@ -394,9 +345,9 @@ static int vfe_7x_config_axi(int mode,
 
 		regptr--;
 		for (cnt = 0; cnt < (8 - ad->bufnum1); cnt++) {
-			*bptr = regptr->paddr + regptr->info.planar0_off;
+			*bptr = regptr->paddr + regptr->info.y_off;
 			bptr++;
-			*bptr = regptr->paddr + regptr->info.planar1_off;
+			*bptr = regptr->paddr + regptr->info.cbcr_off;
 			bptr++;
 		}
 	} /* if OUTPUT1 or Both */
@@ -405,17 +356,14 @@ static int vfe_7x_config_axi(int mode,
 		regptr = &(ad->region[ad->bufnum1]);
 
 		CDBG("bufnum2 = %d\n", ad->bufnum2);
-		paddr_s_y = regptr->paddr +  regptr->info.planar0_off;
-		paddr_s_cbcr = regptr->paddr +  regptr->info.planar1_off;
 		CDBG("config_axi2: O2, phy = 0x%lx, y_off = %d, cbcr_off =%d\n",
-			regptr->paddr, regptr->info.planar0_off,
-			regptr->info.planar1_off);
+		     regptr->paddr, regptr->info.y_off, regptr->info.cbcr_off);
 
 		bptr = &ao->output2buffer1_y_phy;
 		for (cnt = 0; cnt < ad->bufnum2; cnt++) {
-			*bptr = regptr->paddr + regptr->info.planar0_off;
+			*bptr = regptr->paddr + regptr->info.y_off;
 			bptr++;
-			*bptr = regptr->paddr + regptr->info.planar1_off;
+			*bptr = regptr->paddr + regptr->info.cbcr_off;
 
 			bptr++;
 			regptr++;
@@ -423,9 +371,9 @@ static int vfe_7x_config_axi(int mode,
 
 		regptr--;
 		for (cnt = 0; cnt < (8 - ad->bufnum2); cnt++) {
-			*bptr = regptr->paddr + regptr->info.planar0_off;
+			*bptr = regptr->paddr + regptr->info.y_off;
 			bptr++;
-			*bptr = regptr->paddr + regptr->info.planar1_off;
+			*bptr = regptr->paddr + regptr->info.cbcr_off;
 			bptr++;
 		}
 	}
@@ -587,10 +535,10 @@ static int vfe_7x_config(struct msm_vfe_cfg_cmd *cmd, void *data)
 		fack.header = VFE_FRAME_ACK;
 
 		fack.output2newybufferaddress =
-			(void *)(p + b->planar0_off);
+			(void *)(p + b->y_off);
 
 		fack.output2newcbcrbufferaddress =
-			(void *)(p + b->planar1_off);
+			(void *)(p + b->cbcr_off);
 
 		vfecmd->queue = QDSP_CMDQUEUE;
 		vfecmd->length = sizeof(struct vfe_outputack);
@@ -751,9 +699,9 @@ static int vfe_7x_config(struct msm_vfe_cfg_cmd *cmd, void *data)
 
 config_send:
 	CDBG("send adsp command = %d\n", *(uint32_t *)cmd_data);
-	if (vfetask_state)
-		rc = msm_adsp_write(vfe_mod, vfecmd->queue,
-					cmd_data, vfecmd->length);
+	rc = msm_adsp_write(vfe_mod, vfecmd->queue,
+				cmd_data, vfecmd->length);
+
 config_done:
 	if (cmd_data_alloc != NULL)
 		kfree(cmd_data_alloc);

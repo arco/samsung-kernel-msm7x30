@@ -9,9 +9,13 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/types.h>
@@ -134,7 +138,7 @@ struct mt9t013_ctrl {
 
 static struct mt9t013_ctrl *mt9t013_ctrl;
 static DECLARE_WAIT_QUEUE_HEAD(mt9t013_wait_queue);
-DEFINE_SEMAPHORE(mt9t013_sem);
+DECLARE_MUTEX(mt9t013_sem);
 
 static int mt9t013_i2c_rxdata(unsigned short saddr,
 	unsigned char *rxdata, int length)

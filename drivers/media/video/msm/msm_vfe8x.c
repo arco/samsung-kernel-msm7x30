@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -9,6 +9,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #include <linux/slab.h>
@@ -16,7 +21,7 @@
 #include <linux/interrupt.h>
 #include <mach/irqs.h>
 #include "msm_vfe8x_proc.h"
-#include <linux/pm_qos.h>
+#include <linux/pm_qos_params.h>
 
 #define ON  1
 #define OFF 0
@@ -122,10 +127,10 @@ static void vfe_config_axi(int mode,
 
 			for (j = 0; j < ao->output1.fragmentCount; j++) {
 
-				*p1 = regptr->paddr + regptr->info.planar0_off;
+				*p1 = regptr->paddr + regptr->info.y_off;
 				p1++;
 
-				*p2 = regptr->paddr + regptr->info.planar1_off;
+				*p2 = regptr->paddr + regptr->info.cbcr_off;
 				p2++;
 			}
 			regptr++;
@@ -144,16 +149,15 @@ static void vfe_config_axi(int mode,
 
 			CDBG("config_axi: O2, phy = 0x%lx, y_off = %d, "\
 			     "cbcr_off = %d\n", regptr->paddr,
-				regptr->info.planar0_off,
-				regptr->info.planar1_off);
+			     regptr->info.y_off, regptr->info.cbcr_off);
 
 			for (j = 0; j < ao->output2.fragmentCount; j++) {
 
-				*p1 = regptr->paddr + regptr->info.planar0_off;
+				*p1 = regptr->paddr + regptr->info.y_off;
 				CDBG("vfe_config_axi: p1 = 0x%x\n", *p1);
 				p1++;
 
-				*p2 = regptr->paddr + regptr->info.planar1_off;
+				*p2 = regptr->paddr + regptr->info.cbcr_off;
 				CDBG("vfe_config_axi: p2 = 0x%x\n", *p2);
 				p2++;
 			}
@@ -175,15 +179,15 @@ static void vfe_config_axi(int mode,
 
 		CDBG("config_axi: O1, phy = 0x%lx, y_off = %d, "\
 			 "cbcr_off = %d\n", regptr->paddr,
-			 regptr->info.planar0_off, regptr->info.planar1_off);
+			 regptr->info.y_off, regptr->info.cbcr_off);
 
 			for (j = 0; j < ao->output1.fragmentCount; j++) {
 
-				*p1 = regptr->paddr + regptr->info.planar0_off;
+				*p1 = regptr->paddr + regptr->info.y_off;
 				CDBG("vfe_config_axi: p1 = 0x%x\n", *p1);
 				p1++;
 
-				*p2 = regptr->paddr + regptr->info.planar1_off;
+				*p2 = regptr->paddr + regptr->info.cbcr_off;
 				CDBG("vfe_config_axi: p2 = 0x%x\n", *p2);
 				p2++;
 			}
@@ -195,15 +199,15 @@ static void vfe_config_axi(int mode,
 
 		CDBG("config_axi: O2, phy = 0x%lx, y_off = %d, "\
 			 "cbcr_off = %d\n", regptr1->paddr,
-			 regptr1->info.planar0_off, regptr1->info.planar1_off);
+			 regptr1->info.y_off, regptr1->info.cbcr_off);
 
 			for (j = 0; j < ao->output2.fragmentCount; j++) {
-				*p1 = regptr1->paddr +
-					regptr1->info.planar0_off;
+
+				*p1 = regptr1->paddr + regptr1->info.y_off;
 				CDBG("vfe_config_axi: p1 = 0x%x\n", *p1);
 				p1++;
-				*p2 = regptr1->paddr +
-					r1->info.planar1_off;
+
+				*p2 = regptr1->paddr + regptr1->info.cbcr_off;
 				CDBG("vfe_config_axi: p2 = 0x%x\n", *p2);
 				p2++;
 			}
@@ -690,9 +694,9 @@ static int vfe_config(struct msm_vfe_cfg_cmd *cmd, void *data)
 		b = (struct msm_frame *)(cmd->value);
 		p = *(unsigned long *)data;
 
-			fack.ybufaddr[0] = (uint32_t) (p + b->planar0_off);
+			fack.ybufaddr[0] = (uint32_t) (p + b->y_off);
 
-			fack.chromabufaddr[0] = (uint32_t) (p + b->planar1_off);
+			fack.chromabufaddr[0] = (uint32_t) (p + b->cbcr_off);
 
 		if (b->path == OUTPUT_TYPE_P)
 			vfe_output_p_ack(&fack);

@@ -9,6 +9,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ *
  */
 
 #include <linux/clk.h>
@@ -22,10 +27,8 @@ int add_axi_qos(void)
 	ebi1_clk = clk_get(NULL, "ebi1_vfe_clk");
 	if (IS_ERR(ebi1_clk))
 		ebi1_clk = NULL;
-	else {
-		clk_prepare(ebi1_clk);
+	else
 		clk_enable(ebi1_clk);
-	}
 
 	return 0;
 }
@@ -44,7 +47,6 @@ void release_axi_qos(void)
 		return;
 
 	clk_disable(ebi1_clk);
-	clk_unprepare(ebi1_clk);
 	clk_put(ebi1_clk);
 	ebi1_clk = NULL;
 }

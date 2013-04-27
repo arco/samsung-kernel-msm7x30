@@ -1,13 +1,29 @@
-/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *     * Neither the name of Code Aurora Forum, Inc. nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
 
@@ -40,9 +56,6 @@
 
 /* clear the halt bit. */
 #define AXI_HALT_CLEAR  0x00000000
-
-/* clear axi_halt_irq */
-#define MASK_AXI_HALT_IRQ	0xFF7FFFFF
 
 /* reset the pipeline when stop command is issued.
  * (without reset the register.) bit 26-31 = 0,
@@ -86,7 +99,6 @@
 #define VFE_CLEAR_ALL_IRQS   0xffffffff
 
 #define VFE_IRQ_STATUS0_CAMIF_SOF_MASK            0x00000001
-#define VFE_IRQ_STATUS0_CAMIF_EOF_MASK            0x00000004
 #define VFE_IRQ_STATUS0_REG_UPDATE_MASK           0x00000020
 #define VFE_IRQ_STATUS0_IMAGE_COMPOSIT_DONE0_MASK 0x00200000
 #define VFE_IRQ_STATUS0_IMAGE_COMPOSIT_DONE1_MASK 0x00400000
@@ -115,10 +127,7 @@
  * irq_status_1, bit 22 for reset irq, bit 23 for axi_halt_ack
    irq */
 #define VFE_IMASK_WHILE_STOPPING_0  0xF0000000
-#define VFE_IMASK_WHILE_STOPPING_1  0x00C00000
-#define VFE_IMASK_RESET             0x00400000
-#define VFE_IMASK_AXI_HALT          0x00800000
-
+#define VFE_IMASK_WHILE_STOPPING_1  0x00400000
 
 /* no error irq in mask 0 */
 #define VFE_IMASK_ERROR_ONLY_0  0x0
@@ -145,7 +154,7 @@
 #define RS_ENABLE_MASK 0x00000100      /* bit 8  */
 #define CS_ENABLE_MASK 0x00000200      /* bit 9  */
 #define RS_CS_ENABLE_MASK 0x00000300   /* bit 8,9  */
-#define STATS_ENABLE_MASK 0x000483E0   /* bit 18,15,9,8,7,6,5*/
+
 
 #define VFE_REG_UPDATE_TRIGGER           1
 #define VFE_PM_BUF_MAX_CNT_MASK          0xFF
@@ -154,9 +163,7 @@
 #define VFE_AE_PINGPONG_STATUS_BIT       0x80
 #define VFE_AF_PINGPONG_STATUS_BIT       0x100
 #define VFE_AWB_PINGPONG_STATUS_BIT      0x200
-#define PINGPONG_LOWER                   0x7
 
-#define HFR_MODE_OFF 1
 
 enum VFE31_DMI_RAM_SEL {
 	 NO_MEM_SELECTED          = 0,
@@ -177,14 +184,6 @@ enum VFE31_DMI_RAM_SEL {
 enum  VFE_STATE {
 	VFE_STATE_IDLE,
 	VFE_STATE_ACTIVE
-};
-
-enum  vfe_recording_state {
-	VFE_REC_STATE_IDLE,
-	VFE_REC_STATE_START_REQUESTED,
-	VFE_REC_STATE_STARTED,
-	VFE_REC_STATE_STOP_REQUESTED,
-	VFE_REC_STATE_STOPPED,
 };
 
 #define V31_DUMMY_0               0
@@ -294,11 +293,6 @@ enum  vfe_recording_state {
 #define V31_SYNC_TIMER_SETTING    104
 #define V31_ASYNC_TIMER_SETTING   105
 #define V31_LIVESHOT              106
-#define V31_ZSL                   107
-#define V31_STEREOCAM             108
-#define V31_LA_SETUP              109
-#define V31_XBAR_CFG              110
-#define V31_EZTUNE_CFG            111
 
 #define V31_CAMIF_OFF             0x000001E4
 #define V31_CAMIF_LEN             32
@@ -315,19 +309,13 @@ enum  vfe_recording_state {
 #define V31_DEMOSAIC_2_OFF        0x0000029C
 #define V31_DEMOSAIC_2_LEN        8
 
-/* gamma VFE_LUT_BANK_SEL*/
-#define V31_GAMMA_CFG_OFF         0x000003BC
-#define V31_LUMA_CFG_OFF          0x000003C0
-
 #define V31_OUT_CLAMP_OFF         0x00000524
 #define V31_OUT_CLAMP_LEN         8
 
-#define V31_OPERATION_CFG_LEN     32
+#define V31_OPERATION_CFG_LEN     28
 
 #define V31_AXI_OUT_OFF           0x00000038
-#define V31_AXI_OUT_LEN           212
-#define V31_AXI_CH_INF_LEN        24
-#define V31_AXI_CFG_LEN           47
+#define V31_AXI_OUT_LEN           188
 
 #define V31_FRAME_SKIP_OFF        0x00000504
 #define V31_FRAME_SKIP_LEN        32
@@ -382,7 +370,7 @@ enum  vfe_recording_state {
 #define V31_CHROMA_SUP_OFF 0x000003E8
 #define V31_CHROMA_SUP_LEN 12
 
-#define V31_MCE_OFF 0x000003F4
+#define V31_MCE_OFF 0x000003E8
 #define V31_MCE_LEN 36
 #define V31_STATS_AF_OFF 0x0000053c
 #define V31_STATS_AF_LEN 16
@@ -402,11 +390,6 @@ enum  vfe_recording_state {
 #define V31_STATS_CS_OFF 0x00000574
 #define V31_STATS_CS_LEN 8
 
-#define V31_XBAR_CFG_OFF 0x00000040
-#define V31_XBAR_CFG_LEN 8
-
-#define V31_EZTUNE_CFG_OFF 0x00000010
-#define V31_EZTUNE_CFG_LEN 4
 
 #define V31_ASF_OFF 0x000004A0
 #define V31_ASF_LEN 48
@@ -537,6 +520,11 @@ enum VFE_START_INPUT_SOURCE {
 	VFE_START_INPUT_SOURCE_INVALID
 };
 
+enum VFE_START_OPERATION_MODE {
+	VFE_START_OPERATION_MODE_CONTINUOUS,
+	VFE_START_OPERATION_MODE_SNAPSHOT
+};
+
 enum VFE_START_PIXEL_PATTERN {
 	VFE_BAYER_RGRGRG,
 	VFE_BAYER_GRGRGR,
@@ -569,8 +557,6 @@ enum VFE_YUV_INPUT_COSITING_MODE {
 #define VFE31_GAMMA_NUM_ENTRIES  64
 
 #define VFE31_LA_TABLE_LENGTH    64
-
-#define VFE31_HIST_TABLE_LENGTH  256
 
 struct vfe_cmds_demosaic_abf {
 	uint8_t   enable;
@@ -771,47 +757,40 @@ enum VFE31_MESSAGE_ID {
 	MSG_ID_OUTPUT_S,
 	MSG_ID_OUTPUT_V,
 	MSG_ID_SNAPSHOT_DONE,
-	MSG_ID_COMMON,
-	MSG_ID_EPOCH1, /* 10 */
+	MSG_ID_STATS_AEC,
+	MSG_ID_STATS_AF, /* 10 */
+	MSG_ID_STATS_AWB,
+	MSG_ID_STATS_RS,
+	MSG_ID_STATS_CS,
+	MSG_ID_STATS_IHIST,
+	MSG_ID_STATS_SKIN,
+	MSG_ID_EPOCH1,
 	MSG_ID_EPOCH2,
 	MSG_ID_SYNC_TIMER0_DONE,
 	MSG_ID_SYNC_TIMER1_DONE,
-	MSG_ID_SYNC_TIMER2_DONE,
+	MSG_ID_SYNC_TIMER2_DONE, /* 20 */
 	MSG_ID_ASYNC_TIMER0_DONE,
 	MSG_ID_ASYNC_TIMER1_DONE,
 	MSG_ID_ASYNC_TIMER2_DONE,
 	MSG_ID_ASYNC_TIMER3_DONE,
 	MSG_ID_AE_OVERFLOW,
-	MSG_ID_AF_OVERFLOW, /* 20 */
+	MSG_ID_AF_OVERFLOW,
 	MSG_ID_AWB_OVERFLOW,
 	MSG_ID_RS_OVERFLOW,
 	MSG_ID_CS_OVERFLOW,
-	MSG_ID_IHIST_OVERFLOW,
+	MSG_ID_IHIST_OVERFLOW, /* 30 */
 	MSG_ID_SKIN_OVERFLOW,
 	MSG_ID_AXI_ERROR,
 	MSG_ID_CAMIF_OVERFLOW,
 	MSG_ID_VIOLATION,
 	MSG_ID_CAMIF_ERROR,
-	MSG_ID_BUS_OVERFLOW, /* 30 */
+	MSG_ID_BUS_OVERFLOW,
 	MSG_ID_SOF_ACK,
-	MSG_ID_STOP_REC_ACK,
 };
 
-struct stats_buffer {
-	uint8_t awb_ymin;
-	uint32_t aec;
-	uint32_t awb;
-	uint32_t af;
-	uint32_t ihist;
-	uint32_t rs;
-	uint32_t cs;
-	uint32_t skin;
-};
-
-struct vfe_msg_stats {
-	struct stats_buffer buff;
+struct vfe_msg_stats{
+	uint32_t    buffer;
 	uint32_t    frameCounter;
-	uint32_t    status_bits;
 };
 
 
@@ -838,14 +817,12 @@ struct vfe31_irq_status {
 	uint32_t camifStatus;
 	uint32_t demosaicStatus;
 	uint32_t asfMaxEdge;
-	uint32_t vfePingPongStatus;
 };
 
 struct vfe_msg_output {
 	uint8_t   output_id;
-	uint32_t  p0_addr;
-	uint32_t  p1_addr;
-	uint32_t  p2_addr;
+	uint32_t  yBuffer;
+	uint32_t  cbcrBuffer;
 	struct vfe_frame_bpc_info bpcInfo;
 	struct vfe_frame_asf_info asfInfo;
 	uint32_t  frameCounter;
@@ -874,25 +851,24 @@ struct vfe31_cmd_type {
 	uint16_t id;
 	uint32_t length;
 	uint32_t offset;
-	uint32_t flag;
+  uint32_t flag;
 };
 
 struct vfe31_free_buf {
-	struct list_head node;
+	spinlock_t f_lock;
+	uint8_t available;
 	uint32_t paddr;
-	uint32_t planar0_off;
-	uint32_t planar1_off;
-	uint32_t planar2_off;
+	uint32_t y_off;
 	uint32_t cbcr_off;
 };
 
 struct vfe31_output_ch {
-	struct list_head free_buf_head;
-	spinlock_t free_buf_lock;
+	struct vfe31_free_buf free_buf;
 	uint16_t output_fmt;
 	int8_t ch0;
 	int8_t ch1;
 	int8_t ch2;
+	uint32_t  capture_cnt;
 	uint32_t  frame_drop_cnt;
 };
 
@@ -924,8 +900,6 @@ struct vfe31_output_ch {
 #define VFE31_IMASK_STATS_SKIN_BUS_OVFL       (0x00000001<<20)
 #define VFE31_IMASK_AXI_ERROR                 (0x00000001<<21)
 
-#define VFE_COM_STATUS 0x000FE000
-
 struct vfe31_output_path {
 	uint16_t output_mode;     /* bitmask  */
 
@@ -949,41 +923,36 @@ struct vfe31_frame_extra {
 	uint32_t  frameCounter;
 };
 
-#define VFE_DISABLE_ALL_IRQS             0
-#define VFE_CLEAR_ALL_IRQS               0xffffffff
+#define VFE_DISABLE_ALL_IRQS            0
+#define VFE_CLEAR_ALL_IRQS              0xffffffff
 
-#define VFE_GLOBAL_RESET                 0x00000004
-#define VFE_CGC_OVERRIDE                 0x0000000C
-#define VFE_MODULE_CFG                   0x00000010
-#define VFE_CFG_OFF                      0x00000014
-#define VFE_IRQ_CMD                      0x00000018
-#define VFE_IRQ_MASK_0                   0x0000001C
-#define VFE_IRQ_MASK_1                   0x00000020
-#define VFE_IRQ_CLEAR_0                  0x00000024
-#define VFE_IRQ_CLEAR_1                  0x00000028
-#define VFE_IRQ_STATUS_0                 0x0000002C
-#define VFE_IRQ_STATUS_1                 0x00000030
-#define VFE_IRQ_COMP_MASK                0x00000034
-#define VFE_BUS_CMD                      0x00000038
-#define VFE_BUS_PING_PONG_STATUS         0x00000180
-#define VFE_BUS_OPERATION_STATUS         0x00000184
+#define VFE_GLOBAL_RESET                0x00000004
+#define VFE_CGC_OVERRIDE                0x0000000C
+#define VFE_MODULE_CFG                  0x00000010
+#define VFE_CFG_OFF                     0x00000014
+#define VFE_IRQ_CMD                     0x00000018
+#define VFE_IRQ_MASK_0                  0x0000001C
+#define VFE_IRQ_MASK_1                  0x00000020
+#define VFE_IRQ_CLEAR_0                 0x00000024
+#define VFE_IRQ_CLEAR_1                 0x00000028
+#define VFE_IRQ_STATUS_0                0x0000002C
+#define VFE_IRQ_STATUS_1                0x00000030
+#define VFE_IRQ_COMP_MASK               0x00000034
+#define VFE_BUS_CMD                     0x00000038
+#define VFE_BUS_PING_PONG_STATUS        0x00000180
+#define VFE_AXI_CMD                     0x000001D8
+#define VFE_AXI_STATUS        0x000001DC
+#define VFE_BUS_STATS_PING_PONG_BASE    0x000000F4
 
-#define VFE_BUS_IMAGE_MASTER_0_WR_PM_STATS_0        0x00000190
-#define VFE_BUS_IMAGE_MASTER_0_WR_PM_STATS_1        0x00000194
-
-#define VFE_AXI_CMD                      0x000001D8
-#define VFE_AXI_STATUS                   0x000001DC
-#define VFE_BUS_STATS_PING_PONG_BASE     0x000000F4
-
-#define VFE_BUS_STATS_AEC_WR_PING_ADDR   0x000000F4
-#define VFE_BUS_STATS_AEC_WR_PONG_ADDR   0x000000F8
-#define VFE_BUS_STATS_AEC_UB_CFG         0x000000FC
-#define VFE_BUS_STATS_AF_WR_PING_ADDR    0x00000100
-#define VFE_BUS_STATS_AF_WR_PONG_ADDR    0x00000104
-#define VFE_BUS_STATS_AF_UB_CFG          0x00000108
-#define VFE_BUS_STATS_AWB_WR_PING_ADDR   0x0000010C
-#define VFE_BUS_STATS_AWB_WR_PONG_ADDR   0x00000110
-#define VFE_BUS_STATS_AWB_UB_CFG         0x00000114
+#define VFE_BUS_STATS_AEC_WR_PING_ADDR    0x000000F4
+#define VFE_BUS_STATS_AEC_WR_PONG_ADDR    0x000000F8
+#define VFE_BUS_STATS_AEC_UB_CFG          0x000000FC
+#define VFE_BUS_STATS_AF_WR_PING_ADDR     0x00000100
+#define VFE_BUS_STATS_AF_WR_PONG_ADDR     0x00000104
+#define VFE_BUS_STATS_AF_UB_CFG           0x00000108
+#define VFE_BUS_STATS_AWB_WR_PING_ADDR    0x0000010C
+#define VFE_BUS_STATS_AWB_WR_PONG_ADDR    0x00000110
+#define VFE_BUS_STATS_AWB_UB_CFG          0x00000114
 #define VFE_BUS_STATS_RS_WR_PING_ADDR    0x00000118
 #define VFE_BUS_STATS_RS_WR_PONG_ADDR    0x0000011C
 #define VFE_BUS_STATS_RS_UB_CFG          0x00000120
@@ -991,37 +960,33 @@ struct vfe31_frame_extra {
 #define VFE_BUS_STATS_CS_WR_PING_ADDR    0x00000124
 #define VFE_BUS_STATS_CS_WR_PONG_ADDR    0x00000128
 #define VFE_BUS_STATS_CS_UB_CFG          0x0000012C
-#define VFE_BUS_STATS_HIST_WR_PING_ADDR  0x00000130
-#define VFE_BUS_STATS_HIST_WR_PONG_ADDR  0x00000134
-#define VFE_BUS_STATS_HIST_UB_CFG        0x00000138
-#define VFE_BUS_STATS_SKIN_WR_PING_ADDR  0x0000013C
-#define VFE_BUS_STATS_SKIN_WR_PONG_ADDR  0x00000140
-#define VFE_BUS_STATS_SKIN_UB_CFG        0x00000144
-#define VFE_BUS_PM_CMD                   0x00000188
-#define VFE_BUS_PM_CFG                   0x0000018C
-#define VFE_CAMIF_COMMAND                0x000001E0
-#define VFE_CAMIF_STATUS                 0x00000204
-#define VFE_REG_UPDATE_CMD               0x00000260
-#define VFE_DEMUX_GAIN_0                 0x00000288
-#define VFE_DEMUX_GAIN_1                 0x0000028C
-#define VFE_CHROMA_UP                    0x0000035C
-#define VFE_FRAMEDROP_ENC_Y_CFG          0x00000504
-#define VFE_FRAMEDROP_ENC_CBCR_CFG       0x00000508
-#define VFE_FRAMEDROP_ENC_Y_PATTERN      0x0000050C
-#define VFE_FRAMEDROP_ENC_CBCR_PATTERN   0x00000510
-#define VFE_FRAMEDROP_VIEW_Y             0x00000514
-#define VFE_FRAMEDROP_VIEW_CBCR          0x00000518
-#define VFE_FRAMEDROP_VIEW_Y_PATTERN     0x0000051C
-#define VFE_FRAMEDROP_VIEW_CBCR_PATTERN  0x00000520
-#define VFE_CLAMP_MAX                    0x00000524
-#define VFE_CLAMP_MIN                    0x00000528
-#define VFE_REALIGN_BUF                  0x0000052C
-#define VFE_STATS_CFG                    0x00000530
-#define VFE_STATS_AWB_SGW_CFG            0x00000554
-#define VFE_DMI_CFG                      0x00000598
-#define VFE_DMI_ADDR                     0x0000059C
-#define VFE_DMI_DATA_LO                  0x000005A4
-#define VFE_AXI_CFG                      0x00000600
+#define VFE_BUS_STATS_HIST_WR_PING_ADDR   0x00000130
+#define VFE_BUS_STATS_HIST_WR_PONG_ADDR   0x00000134
+#define VFE_BUS_STATS_HIST_UB_CFG          0x00000138
+#define VFE_BUS_STATS_SKIN_WR_PING_ADDR    0x0000013C
+#define VFE_BUS_STATS_SKIN_WR_PONG_ADDR    0x00000140
+#define VFE_BUS_STATS_SKIN_UB_CFG          0x00000144
+#define VFE_CAMIF_COMMAND               0x000001E0
+#define VFE_CAMIF_STATUS                0x00000204
+#define VFE_REG_UPDATE_CMD              0x00000260
+#define VFE_DEMUX_GAIN_0                0x00000288
+#define VFE_DEMUX_GAIN_1                0x0000028C
+#define VFE_CHROMA_UP                   0x0000035C
+#define VFE_FRAMEDROP_ENC_Y_CFG         0x00000504
+#define VFE_FRAMEDROP_ENC_CBCR_CFG      0x00000508
+#define VFE_FRAMEDROP_ENC_Y_PATTERN     0x0000050C
+#define VFE_FRAMEDROP_ENC_CBCR_PATTERN  0x00000510
+#define VFE_FRAMEDROP_VIEW_Y            0x00000514
+#define VFE_FRAMEDROP_VIEW_CBCR         0x00000518
+#define VFE_FRAMEDROP_VIEW_Y_PATTERN    0x0000051C
+#define VFE_FRAMEDROP_VIEW_CBCR_PATTERN 0x00000520
+#define VFE_CLAMP_MAX                   0x00000524
+#define VFE_CLAMP_MIN                   0x00000528
+#define VFE_REALIGN_BUF                 0x0000052C
+#define VFE_STATS_CFG                   0x00000530
+#define VFE_DMI_CFG                     0x00000598
+#define VFE_DMI_ADDR                    0x0000059C
+#define VFE_DMI_DATA_LO                 0x000005A4
 
 struct vfe_stats_control {
 	uint8_t  ackPending;
@@ -1036,29 +1001,26 @@ struct vfe31_ctrl_type {
 
 	uint32_t vfeImaskCompositePacked;
 
+	spinlock_t  stop_flag_lock;
 	spinlock_t  update_ack_lock;
+	spinlock_t  state_lock;
 	spinlock_t  io_lock;
 
-	int8_t aec_ack_pending;
-	int8_t awb_ack_pending;
-	int8_t af_ack_pending;
-	int8_t ihist_ack_pending;
-	int8_t rs_ack_pending;
-	int8_t cs_ack_pending;
+	spinlock_t  aec_ack_lock;
+	spinlock_t  awb_ack_lock;
+	spinlock_t  af_ack_lock;
 
 	struct msm_vfe_callback *resp;
 	uint32_t extlen;
 	void *extdata;
 
 	int8_t start_ack_pending;
-	atomic_t stop_ack_pending;
+	int8_t stop_ack_pending;
 	int8_t reset_ack_pending;
 	int8_t update_ack_pending;
-	enum vfe_recording_state recording_state;
-	int8_t output0_available;
-	int8_t output1_available;
-	int8_t update_gamma;
-	int8_t update_luma;
+	int8_t req_start_video_rec;
+	int8_t req_stop_video_rec;
+
 	spinlock_t  tasklet_lock;
 	struct list_head tasklet_q;
 	int vfeirq;
@@ -1069,8 +1031,7 @@ struct vfe31_ctrl_type {
 	struct resource *vfeio;
 
 	uint32_t stats_comp;
-	uint32_t hfr_mode;
-	atomic_t vstate;
+	uint8_t vstate;
 	uint32_t vfe_capture_count;
 	uint32_t sync_timer_repeat_count;
 	uint32_t sync_timer_state;
@@ -1083,20 +1044,12 @@ struct vfe31_ctrl_type {
 	uint32_t output2Period;
 	uint32_t vfeFrameSkipCount;
 	uint32_t vfeFrameSkipPeriod;
-	uint32_t status_bits;
 	struct vfe_stats_control afStatsControl;
 	struct vfe_stats_control awbStatsControl;
 	struct vfe_stats_control aecStatsControl;
 	struct vfe_stats_control ihistStatsControl;
 	struct vfe_stats_control rsStatsControl;
 	struct vfe_stats_control csStatsControl;
-	struct msm_camera_sensor_info *s_info;
-	struct vfe_message vMsgHold_Snap;
-	struct vfe_message vMsgHold_Thumb;
-	int8_t xbar_update_pending;
-	uint32_t xbar_cfg[2];
-	spinlock_t xbar_lock;
-	uint32_t while_stopping_mask;
 };
 
 #define statsAeNum      0
