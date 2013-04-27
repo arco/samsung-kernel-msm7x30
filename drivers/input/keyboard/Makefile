@@ -54,3 +54,7 @@ obj-$(CONFIG_KEYBOARD_XTKBD)		+= xtkbd.o
 obj-$(CONFIG_KEYBOARD_QCIKBD)       += qci_kbd.o
 obj-$(CONFIG_KEYBOARD_W90P910)		+= w90p910_keypad.o
 obj-$(CONFIG_KEYBOARD_PMIC8058)		+= pmic8058-keypad.o
+obj-$(CONFIG_KEYPAD_CYPRESS_TOUCH)     += cypress-touchkey.o
+obj-$(CONFIG_KEYPAD_CYPRESS_TOUCH)     += issp_driver_routines.o
+obj-$(CONFIG_KEYPAD_CYPRESS_TOUCH)     += issp_main.o
+obj-$(CONFIG_KEYPAD_CYPRESS_TOUCH)     += issp_routines.o
