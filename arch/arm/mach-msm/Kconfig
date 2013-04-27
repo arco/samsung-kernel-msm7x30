@@ -676,6 +676,15 @@ config MACH_MSM7X30_FLUID
        help
          Support for the Qualcomm MSM7x30 FLUID eval board.
 
+config MACH_ARIESVE
+	depends on ARCH_MSM7X30
+	depends on !MSM_STACKED_MEMORY
+	select APPSBOOT_3M_CONFIG
+	default n
+	bool "ARIESVE"
+	help
+	  Support for the Samsung Aries VE board.
+
 config MACH_ANCORA
 	depends on ARCH_MSM7X30
 	depends on !MSM_STACKED_MEMORY
