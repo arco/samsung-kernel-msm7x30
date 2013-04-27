@@ -14,6 +14,7 @@ obj-$(CONFIG_DEBUG_FS) += mdp_debugfs.o
 
 ifeq ($(CONFIG_FB_MSM_MDP40),y)
 obj-y += mdp4_util.o
+obj-y += mdp4_video_enhance.o
 else
 obj-y += mdp_hw_init.o
 obj-y += mdp_ppp.o
@@ -173,6 +174,7 @@ obj-$(CONFIG_FB_MSM_LVDS_CHIMEI_WXGA) += lvds_chimei_wxga.o
 obj-$(CONFIG_FB_MSM_LVDS_FRC_FHD) += lvds_frc_fhd.o
 obj-$(CONFIG_FB_MSM_HDMI_MSM_PANEL) += hdmi_msm.o
 obj-$(CONFIG_FB_MSM_LCDC_SAMSUNG_ANCORA) += lcdc_samsung_ancora.o
+obj-$(CONFIG_FB_MSM_LCDC_S6E63M0_WVGA) += lcdc_s6e63m0.o
 obj-$(CONFIG_FB_MSM_EXT_INTERFACE_COMMON) += external_common.o
 obj-$(CONFIG_FB_MSM_LCDC_TRULY_HVGA_IPS3P2335) += lcdc_truly_ips3p2335.o
 
