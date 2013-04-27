@@ -28,7 +28,7 @@
 #include <linux/cdev.h>
 #include <linux/major.h>
 #include <linux/input.h>
-#include <mach/gpio.h>
+#include <linux/gpio.h>
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 
