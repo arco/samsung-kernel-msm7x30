@@ -22,8 +22,9 @@
 #include <linux/i2c.h>
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
+#include <linux/module.h>
 #include <media/msm_camera.h>
-#include <mach/gpio.h>
+#include <linux/gpio.h>
 
 #if defined(CONFIG_MACH_ANCORA)
 #include "s5k4ecgx.h"
