@@ -452,6 +452,18 @@ config TOUCHSCREEN_MSM
 	  connected to the TSSC touchscreen controller on a
 	  Qualcomm MSM/QSD based SoC.
 
+config TOUCHSCREEN_QT602240
+	tristate "QT602240 I2C Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have the AT42QT602240/ATMXT224 I2C touchscreen
+	  connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be 
+
 config TOUCHSCREEN_MIGOR
 	tristate "Renesas MIGO-R touchscreen"
 	depends on SH_MIGOR && I2C
