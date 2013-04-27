@@ -616,6 +616,7 @@ static int _sha_ce_setup(struct qce_device *pce_dev, struct qce_sha_req *sreq)
 	} else
 		_byte_stream_to_net_words(auth32, sreq->digest, diglen);
 
+	clk_prepare(pce_dev->ce_clk);
 	rc = clk_enable(pce_dev->ce_clk);
 	if (rc)
 		return rc;
@@ -689,6 +690,7 @@ static int _ce_setup(struct qce_device *pce_dev, struct qce_req *q_req,
 	uint32_t cfg;
 	uint32_t ivsize = q_req->ivsize;
 
+	clk_prepare(pce_dev->ce_clk);
 	rc = clk_enable(pce_dev->ce_clk);
 	if (rc)
 		return rc;
@@ -936,7 +938,9 @@ static int _aead_complete(struct qce_device *pce_dev)
 			"Qualcomm Crypto Error at 0x%x, status%x\n",
 			pce_dev->phy_iobase, status);
 		_init_ce_engine(pce_dev);
+		
 		clk_disable(pce_dev->ce_clk);
+		clk_unprepare(pce_dev->ce_clk);
 		pce_dev->qce_cb(areq, pce_dev->dig_result, NULL, -ENXIO);
 		return 0;
 	};
@@ -944,6 +948,7 @@ static int _aead_complete(struct qce_device *pce_dev)
 	/* get iv out */
 	if (pce_dev->mode == QCE_MODE_ECB) {
 		clk_disable(pce_dev->ce_clk);
+		clk_unprepare(pce_dev->ce_clk);
 		pce_dev->qce_cb(areq, pce_dev->dig_result, NULL,
 				pce_dev->chan_ce_in_status |
 				pce_dev->chan_ce_out_status);
@@ -960,6 +965,7 @@ static int _aead_complete(struct qce_device *pce_dev)
 
 		_net_words_to_byte_stream(iv_out, iv, sizeof(iv));
 		clk_disable(pce_dev->ce_clk);
+		clk_unprepare(pce_dev->ce_clk);
 		pce_dev->qce_cb(areq, pce_dev->dig_result, iv,
 				pce_dev->chan_ce_in_status |
 				pce_dev->chan_ce_out_status);
@@ -987,6 +993,7 @@ static void _sha_complete(struct qce_device *pce_dev)
 			pce_dev->phy_iobase, status);
 		_init_ce_engine(pce_dev);
 		clk_disable(pce_dev->ce_clk);
+		clk_unprepare(pce_dev->ce_clk);
 		pce_dev->qce_cb(areq, pce_dev->dig_result, NULL, -ENXIO);
 		return;
 	};
@@ -1000,6 +1007,7 @@ static void _sha_complete(struct qce_device *pce_dev)
 	 */
 	mb();
 	clk_disable(pce_dev->ce_clk);
+	clk_unprepare(pce_dev->ce_clk);
 	pce_dev->qce_cb(areq,  pce_dev->dig_result, (unsigned char *)auth_data,
 				pce_dev->chan_ce_in_status);
 };
@@ -1030,6 +1038,7 @@ static int _ablk_cipher_complete(struct qce_device *pce_dev)
 			pce_dev->phy_iobase, status);
 		_init_ce_engine(pce_dev);
 		clk_disable(pce_dev->ce_clk);
+		clk_unprepare(pce_dev->ce_clk);
 		pce_dev->qce_cb(areq, NULL, NULL, -ENXIO);
 		return 0;
 	};
@@ -1037,6 +1046,7 @@ static int _ablk_cipher_complete(struct qce_device *pce_dev)
 	/* get iv out */
 	if (pce_dev->mode == QCE_MODE_ECB) {
 		clk_disable(pce_dev->ce_clk);
+		clk_unprepare(pce_dev->ce_clk);
 		pce_dev->qce_cb(areq, NULL, NULL, pce_dev->chan_ce_in_status |
 					pce_dev->chan_ce_out_status);
 	} else {
@@ -1051,6 +1061,7 @@ static int _ablk_cipher_complete(struct qce_device *pce_dev)
 
 		_net_words_to_byte_stream(iv_out, iv, sizeof(iv));
 		clk_disable(pce_dev->ce_clk);
+		clk_unprepare(pce_dev->ce_clk);
 		pce_dev->qce_cb(areq, NULL, iv, pce_dev->chan_ce_in_status |
 					pce_dev->chan_ce_out_status);
 	}
@@ -1076,6 +1087,7 @@ static int _ablk_cipher_use_pmem_complete(struct qce_device *pce_dev)
 			pce_dev->phy_iobase, status);
 		_init_ce_engine(pce_dev);
 		clk_disable(pce_dev->ce_clk);
+		clk_unprepare(pce_dev->ce_clk);
 		pce_dev->qce_cb(areq, NULL, NULL, -ENXIO);
 		return 0;
 	};
@@ -1083,6 +1095,7 @@ static int _ablk_cipher_use_pmem_complete(struct qce_device *pce_dev)
 	/* get iv out */
 	if (pce_dev->mode == QCE_MODE_ECB) {
 		clk_disable(pce_dev->ce_clk);
+		clk_unprepare(pce_dev->ce_clk);
 		pce_dev->qce_cb(areq, NULL, NULL, pce_dev->chan_ce_in_status |
 					pce_dev->chan_ce_out_status);
 	} else {
@@ -1097,6 +1110,7 @@ static int _ablk_cipher_use_pmem_complete(struct qce_device *pce_dev)
 
 		_net_words_to_byte_stream(iv_out, iv, sizeof(iv));
 		clk_disable(pce_dev->ce_clk);
+		clk_unprepare(pce_dev->ce_clk);
 		pce_dev->qce_cb(areq, NULL, iv, pce_dev->chan_ce_in_status |
 					pce_dev->chan_ce_out_status);
 	}
@@ -2324,6 +2338,7 @@ void *qce_open(struct platform_device *pdev, int *rc)
 		return NULL;
 	}
 	pce_dev->ce_clk = ce_clk;
+	clk_prepare(pce_dev->ce_clk);
 	*rc = clk_enable(pce_dev->ce_clk);
 	if (*rc) {
 		kfree(pce_dev);
@@ -2405,10 +2420,12 @@ void *qce_open(struct platform_device *pdev, int *rc)
 	if (_init_ce_engine(pce_dev)) {
 		*rc = -ENXIO;
 		clk_disable(pce_dev->ce_clk);
+		clk_unprepare(pce_dev->ce_clk);
 		goto err;
 	}
 	*rc = 0;
 	clk_disable(pce_dev->ce_clk);
+	clk_unprepare(pce_dev->ce_clk);
 
 	pce_dev->err = 0;
 
