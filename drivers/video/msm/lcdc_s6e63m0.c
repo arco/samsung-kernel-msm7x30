@@ -94,7 +94,7 @@
 // brightness tuning
 #define MAX_BRIGHTNESS_LEVEL 255
 #define LOW_BRIGHTNESS_LEVEL 20
-#define DFT_BACKLIGHT_VALUE 16
+#define DEFAULT_GAMMA_LEVEL GAMMA_160CD
 // static DEFINE_SPINLOCK(bl_ctrl_lock);
 
 extern int board_hw_revision;
@@ -575,15 +575,6 @@ static int lcdc_s6e63m0_panel_off(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef MAPPING_TBL_AUTO_BRIGHTNESS
-#define CANDELA_TABLE_SIZE 24
-static const unsigned int candela_table[CANDELA_TABLE_SIZE] = {
-	 30,  40,  50,  60,  70,  80,  90, 100, 110, 120,
-	130, 140, 150, 160, 170, 180, 190, 200, 210, 220,
-	230, 240, 250, 300
-};
-#endif
-
 static void s6e63m0_gamma_ctl(struct s6e63m0 *lcd)
 {
 	int tune_level = lcd->bl;
@@ -623,26 +614,93 @@ static int get_gamma_value_from_bl(int bl)
 	int gamma_val_x10 =0;
 	
 #ifdef MAPPING_TBL_AUTO_BRIGHTNESS
-	if (unlikely(!lcd.auto_brightness && bl > 250))	bl = 250;
-  
-        	switch (bl) {
-		case 0 ... 29:
-		gamma_value = 0; // 30cd
-		break;
+	if (unlikely(!lcd.auto_brightness && bl > 250)) bl = 250;
 
-		case 30 ... 254:
-		gamma_value = (bl - candela_table[0]) / 10;
-		break;
+	/* brightness setting from platform is from 0 to 255
+	 * But in this driver, brightness is
+	  only supported from 0 to 24 */
 
-		case 255:
-		gamma_value = CANDELA_TABLE_SIZE - 1;
+	switch (bl) {
+	case 0 ... 29:
+		gamma_value = GAMMA_20CD;
 		break;
-					
-	        	default:
-	              DPRINT("%s >>> bl_value:%d , do not gamma_update. \n ",__func__,bl);
-	              break;
-        	}
-      
+	case 30 ... 39:
+		gamma_value = GAMMA_30CD;
+		break;
+	case 40 ... 49:
+		gamma_value = GAMMA_40CD;
+		break;
+	case 50 ... 59:
+		gamma_value = GAMMA_50CD;
+		break;
+	case 60 ... 69:
+		gamma_value = GAMMA_60CD;
+		break;
+	case 70 ... 79:
+		gamma_value = GAMMA_70CD;
+		break;
+	case 80 ... 89:
+		gamma_value = GAMMA_80CD;
+		break;
+	case 90 ... 99:
+		gamma_value = GAMMA_90CD;
+		break;
+	case 100 ... 109:
+		gamma_value = GAMMA_100CD;
+		break;
+	case 110 ... 119:
+		gamma_value = GAMMA_110CD;
+		break;
+	case 120 ... 129:
+		gamma_value = GAMMA_120CD;
+		break;
+	case 130 ... 139:
+		gamma_value = GAMMA_130CD;
+		break;
+	case 140 ... 149:
+		gamma_value = GAMMA_140CD;
+		break;
+	case 150 ... 159:
+		gamma_value = GAMMA_150CD;
+		break;
+	case 160 ... 169:
+		gamma_value = GAMMA_160CD;
+		break;
+	case 170 ... 179:
+		gamma_value = GAMMA_170CD;
+		break;
+	case 180 ... 189:
+		gamma_value = GAMMA_180CD;
+		break;
+	case 190 ... 199:
+		gamma_value = GAMMA_190CD;
+		break;
+	case 200 ... 209:
+		gamma_value = GAMMA_200CD;
+		break;
+	case 210 ... 219:
+		gamma_value = GAMMA_210CD;
+		break;
+	case 220 ... 229:
+		gamma_value = GAMMA_220CD;
+		break;
+	case 230 ... 239:
+		gamma_value = GAMMA_230CD;
+		break;
+	case 240 ... 249:
+		gamma_value = GAMMA_240CD;
+		break;
+	case 250 ... 254:
+		gamma_value = GAMMA_250CD;
+		break;
+	case 255:
+		gamma_value = GAMMA_300CD;
+		break;
+	default:
+		gamma_value = DEFAULT_GAMMA_LEVEL;
+		break;
+	}
+
 	DPRINT("%s >>> bl_value:%d, gamma_value: %d. \n ",__func__,bl,gamma_value);	
 #else
 
@@ -763,6 +821,22 @@ static void s6e63m0_set_elvss(struct s6e63m0 *lcd)
 		}
 	} else {
 		switch (lcd->bl) {
+#ifdef MAPPING_TBL_AUTO_BRIGHTNESS
+			case GAMMA_30CD ... GAMMA_100CD: /* 30cd ~ 100cd */
+				setting_table_write(SEQ_ELVSS_set[0]);
+				break;
+			case GAMMA_110CD ... GAMMA_160CD: /* 110cd ~ 160cd */
+				setting_table_write(SEQ_ELVSS_set[1]);
+				break;
+			case GAMMA_170CD ... GAMMA_200CD: /* 170cd ~ 200cd */
+				setting_table_write(SEQ_ELVSS_set[2]);
+				break;
+			case GAMMA_210CD ... GAMMA_300CD: /* 210cd ~ 300cd */
+				setting_table_write(SEQ_ELVSS_set[3]);
+				break;
+			default:
+				break;
+#else
 			case 0 ... 7: /* 30cd ~ 100cd */
 				setting_table_write(SEQ_ELVSS_set[0]);
 				break;
@@ -777,6 +851,7 @@ static void s6e63m0_set_elvss(struct s6e63m0 *lcd)
 				break;
 			default:
 				break;
+#endif
 		}
 	}
 }
@@ -788,21 +863,51 @@ static void s6e63m0_set_acl(struct s6e63m0 *lcd)
 
 	if (lcd->acl_enable) {	
 #ifdef MAPPING_TBL_AUTO_BRIGHTNESS
-		switch (candela_table[lcd->bl]) {
-		case 30 ... 40: /* 30cd ~ 40cd */
+		switch (lcd->bl) {
+		case GAMMA_20CD ... GAMMA_40CD: /* 30cd ~ 40cd */
 			if (lcd->cur_acl != 0) {
 			setting_table_write(ACL_cutoff_set[0]);
 			DPRINT("ACL_cutoff_set Percentage : off!!\n");
 			lcd->cur_acl = 0;
 			}
 			break;
-		case 50 ... 250: /* 50cd ~ 250cd */
+			
+		case GAMMA_50CD ... GAMMA_180CD: /* 50cd ~ 180cd */
 			if (lcd->cur_acl != 40) {
 			setting_table_write(ACL_cutoff_set[1]);
 			DPRINT("ACL_cutoff_set Percentage : 40!!\n");
 			lcd->cur_acl = 40;
 			}
-			break;	
+			break;
+
+		case GAMMA_190CD: /* 190cd */
+			if (lcd->cur_acl != 43) {
+			setting_table_write(ACL_cutoff_set[2]);
+			DPRINT("ACL_cutoff_set Percentage : 43!!\n");
+			lcd->cur_acl = 43;
+			}
+			break;
+		case GAMMA_200CD: /* 200cd */
+			if (lcd->cur_acl != 45) {
+			setting_table_write(ACL_cutoff_set[3]);
+			DPRINT("ACL_cutoff_set Percentage : 45!!\n");
+			lcd->cur_acl = 45;
+			}
+			break;
+		case GAMMA_210CD: /* 210cd */
+			if (lcd->cur_acl != 47) {
+			setting_table_write(ACL_cutoff_set[4]);
+			DPRINT("ACL_cutoff_set Percentage : 47!!\n");
+			lcd->cur_acl = 47;
+			}
+			break;
+		case GAMMA_220CD: /* 220cd */
+			if (lcd->cur_acl != 48) {
+			setting_table_write(ACL_cutoff_set[5]);
+			DPRINT("ACL_cutoff_set Percentage : 48!!\n");
+			lcd->cur_acl = 48;
+			}
+			break;
 		default: /* 300cd */
 			if (lcd->cur_acl != 50) {
 			setting_table_write(ACL_cutoff_set[6]);
@@ -1150,13 +1255,13 @@ static int __devinit s6e63m0_probe(struct platform_device *pdev)
 	if(IS_ERR(lcd_dev))
 		pr_err("Failed to create device(lcd)!\n");
 
-	lcd.bl = DFT_BACKLIGHT_VALUE;
+	lcd.bl = DEFAULT_GAMMA_LEVEL;
 	lcd.goal_brightness = lcd.bl;
 
 	lcd.acl_enable = 1;
 	lcd.cur_acl = 0;
 #ifdef MAPPING_TBL_AUTO_BRIGHTNESS
-	lcd.auto_brightness = 0;
+	lcd.auto_brightness = 1;
 #endif
 	ret = device_create_file(lcd_dev, &dev_attr_power_reduce);
 	if (ret < 0)
@@ -1297,7 +1402,7 @@ static int __init lcdc_s6e63m0_panel_init(void)
 	pinfo->bl_min = 1;
 
 	pinfo->lcdc.border_clr = 0;     /* blk */
-	pinfo->lcdc.underflow_clr = 0xff0000; /* red */
+	pinfo->lcdc.underflow_clr = 0x00; /* black */ //0xff0000; /* red */
 	pinfo->lcdc.hsync_skew = 0;
 
 	ret = platform_device_register(&this_device);
