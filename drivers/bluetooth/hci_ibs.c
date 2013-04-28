@@ -689,9 +689,10 @@ static int ibs_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		/* save packet for later */
 		skb_queue_tail(&ibs->tx_wait_q, skb);
 
-		ibs->tx_ibs_state = HCI_IBS_TX_WAKING;
 		/* schedule a work queue to wake up device */
 		queue_work(ibs->workqueue, &ibs->ws_awake_device);
+
+		ibs->tx_ibs_state = HCI_IBS_TX_WAKING;
 		break;
 
 	case HCI_IBS_TX_WAKING:
