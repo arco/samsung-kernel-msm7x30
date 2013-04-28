@@ -204,18 +204,11 @@ static void bluesleep_sleep_work(struct work_struct *work)
 		}
 
 		if (bsi->uport != NULL && msm_hs_tx_empty(bsi->uport)) {
-			if (sleep_cnt > 2) {
-				BT_DBG("going to sleep...");
-				set_bit(BT_ASLEEP, &flags);
-				/* Deactivating UART */
-				sleep_cnt=0;
-				hsuart_power(0);
-			} else {
-				BT_DBG("delaying...");
-				sleep_cnt++;
-				mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL * HZ));
-				return;
-			}
+			BT_DBG("going to sleep...");
+			set_bit(BT_ASLEEP, &flags);
+			/* Deactivating UART */
+			sleep_cnt=0;
+			hsuart_power(0);
 		} else {
 
 			mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL * HZ));
