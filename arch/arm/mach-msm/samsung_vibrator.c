@@ -11,7 +11,7 @@
 
 //#include <mach/clk.h>
 #include <mach/samsung_vibe.h>
-#include <mach/gpio.h>
+#include <linux/gpio.h>
 #include <mach/vreg.h>
 
 struct clk *android_vib_clk; /* gp_clk */
