@@ -25,10 +25,11 @@
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <media/msm_camera.h>
-#include <mach/gpio.h>
+#include <linux/gpio.h>
 #include <mach/camera.h>
 #include <mach/vreg.h>
 #include <linux/io.h>
+#include <linux/module.h>
 
 #undef PCAM_ENABLE_DEBUG
 //#define PCAM_ENABLE_DEBUG
