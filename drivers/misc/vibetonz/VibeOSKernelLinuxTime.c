@@ -47,7 +47,7 @@ static struct hrtimer g_tspTimer;
 static ktime_t g_ktFiveMs;
 static int g_nWatchdogCounter = 0;
 
-DECLARE_MUTEX(g_hMutex);
+DEFINE_SEMAPHORE(g_hMutex);
 
 /* Forward declarations */
 static void VibeOSKernelLinuxStartTimer(void);

@@ -1132,8 +1132,8 @@ geomagnetic_probe(struct i2c_client *client, const struct i2c_device_id *id)
     }
     atomic_set(&data->last_status, 0);
     INIT_DELAYED_WORK(&data->work, geomagnetic_input_work_func);
-    init_MUTEX(&data->driver_lock);
-    init_MUTEX(&data->multi_lock);
+    sema_init(&data->driver_lock,1);
+    sema_init(&data->multi_lock,1);
 
     input_data = input_allocate_device();
     if (input_data == NULL) {
