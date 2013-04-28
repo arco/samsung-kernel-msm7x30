@@ -374,7 +374,7 @@ static int __devinit msm_vibrator_probe(struct platform_device *pdev)
 
     if(board_hw_revision>= 2)
     {
-	vreg_vib = vreg_get(NULL, "wlan2");
+	vreg_vib = vreg_get(NULL, "gp4");
     	if (IS_ERR(vreg_vib)) {
     		pr_err("%s: gp4 vreg get failed (%ld)",
     				__func__, PTR_ERR(vreg_vib));
