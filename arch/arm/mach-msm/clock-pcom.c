@@ -233,7 +233,6 @@ struct clk_ops clk_ops_pcom_div2 = {
 	.is_enabled = pc_clk_is_enabled,
 	.round_rate = pc_clk_round_rate,
 	.is_local = pc_clk_is_local,
-	.handoff = pc_clk_handoff,
 };
 #endif
 
