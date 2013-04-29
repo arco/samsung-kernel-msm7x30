@@ -43,8 +43,8 @@ struct work_struct *p_batt_init;
 //#define __FULL_CHARGE_TEST__
 
 /* North America TMO Features */
-#define EVENT_TEMPERATURE_CONTROL
-#define BATT_DRV_VER				0x10
+/* #define EVENT_TEMPERATURE_CONTROL 
+#define BATT_DRV_VER				0x10 */
 
 #ifndef CONFIG_HW_REV_USING_SMB328
 #define CONFIG_HW_REV_USING_SMB328 0x06
@@ -121,7 +121,7 @@ extern bool power_down;
 #define BATTERY_CB_ID_ALL_ACTIV       	1
 #define BATTERY_CB_ID_LOW_VOL		2
 
-#define MILLI_VOLT (1)
+/* #define MILLI_VOLT (1)
 #define MICRO_VOLT (1000)
 
 #if defined(CONFIG_BATT_MICROVOLT_UNIT)
@@ -130,10 +130,10 @@ extern bool power_down;
 #else
 #define VOLT_UNIT MILLI_VOLT
 #define VOLT_UNIT_STRING "mV"
-#endif
+#endif */
 
-#define BATTERY_LOW            	(3400*VOLT_UNIT)	//2800
-#define BATTERY_HIGH           	(4200*VOLT_UNIT)	//4300
+#define BATTERY_LOW            	3400	//2800
+#define BATTERY_HIGH           	4200	//4300
 
 #define ONCRPC_CHG_GET_GENERAL_STATUS_PROC 	12
 #define ONCRPC_CHARGER_API_VERSIONS_PROC 	0xffffffff
@@ -308,12 +308,12 @@ int batt_temp_adc_info = -1;
 #define BATT_TEMP_LPM_LOW_BLOCK   	1730 	// fixed 20110730  
 #define BATT_TEMP_LPM_LOW_RECOVER  	1720 
 
-#define BATT_FULL_CHARGING_VOLTAGE	(4170*VOLT_UNIT)
+#define BATT_FULL_CHARGING_VOLTAGE	4183
 #define BATT_FULL_CHARGING_CURRENT	180
 #define BATT_FULL_CHARGING_CURRENT_REV_5	380
 
-#define BATT_RECHARGING_VOLTAGE_1	(4140*VOLT_UNIT)
-#define BATT_RECHARGING_VOLTAGE_2	(4000*VOLT_UNIT)
+#define BATT_RECHARGING_VOLTAGE_1	4140
+#define BATT_RECHARGING_VOLTAGE_2	4000
 
 #ifdef __BATT_TEST_DEVICE__
 static int temp_test_adc = 0;
@@ -676,16 +676,6 @@ static void msm_batt_check_event(struct work_struct *work)
 	msm_batt_update_psy_status();
 }
 
-
-#ifdef EVENT_TEMPERATURE_CONTROL
-#define MSM_BATTERY_ATTR(_name)		\
-{			\
-	.attr = { .name = #_name, .mode =  S_IRUGO | S_IWGRP | S_IWUSR },	\
-	.show = msm_batt_show_property,			\
-	.store = msm_batt_store_property,		\
-}
-
-#else
 #define MSM_BATTERY_ATTR(_name)		\
 {			\
 	.attr = { .name = #_name, .mode = 0664 },	\
@@ -693,7 +683,6 @@ static void msm_batt_check_event(struct work_struct *work)
 	.store = msm_batt_store_property,		\
 }
 
-#endif
 
 static struct device_attribute ancora_battery_attrs[] = {
 #ifdef CONFIG_MAX17043_FUEL_GAUGE
@@ -2455,7 +2444,7 @@ static void msm_batt_update_psy_status(void)
 			(charging_boot == 1)?"PWR-OFF":"PWR-ON",
 			(msm_batt_info.charger_type==CHARGER_TYPE_NONE)?"NONE":(msm_batt_info.charger_type==CHARGER_TYPE_WALL)?"WALL":(msm_batt_info.charger_type==CHARGER_TYPE_USB_PC)?"USB_PC":(msm_batt_info.charger_type==CHARGER_TYPE_USB_WALL)?"USB_WALL":(msm_batt_info.charger_type==CHARGER_TYPE_USB_CARKIT)?"USB_CARKIT":"INVALID", 
 			(msm_batt_info.batt_health==BATTERY_STATUS_GOOD)?"OK":(msm_batt_info.batt_health==BATTERY_STATUS_BAD_TEMP)?"TEMP":(msm_batt_info.batt_health==BATTERY_STATUS_BAD)?"BAD":(msm_batt_info.batt_health==BATTERY_STATUS_REMOVED)?"REMOVED":"INVALID", 
-			msm_batt_info.battery_voltage,VOLT_UNIT_STRING,
+			msm_batt_info.battery_voltage,
 			msm_batt_info.batt_capacity,
 			((msm_batt_info.batt_status==POWER_SUPPLY_STATUS_CHARGING)&&(msm_batt_info.batt_recharging==1))?"RE-CHARGING": \
 				((msm_batt_info.batt_status==POWER_SUPPLY_STATUS_CHARGING)&&(msm_batt_info.batt_recharging==0))?"CHARGING": \
@@ -2474,7 +2463,7 @@ static void msm_batt_update_psy_status(void)
 			(charging_boot == 1)?"PWR-OFF":"PWR-ON",
 			(msm_batt_info.charger_type==CHARGER_TYPE_NONE)?"NONE":(msm_batt_info.charger_type==CHARGER_TYPE_WALL)?"WALL":(msm_batt_info.charger_type==CHARGER_TYPE_USB_PC)?"USB_PC":(msm_batt_info.charger_type==CHARGER_TYPE_USB_WALL)?"USB_WALL":(msm_batt_info.charger_type==CHARGER_TYPE_USB_CARKIT)?"USB_CARKIT":"INVALID", 
 			(msm_batt_info.batt_health==BATTERY_STATUS_GOOD)?"OK":(msm_batt_info.batt_health==BATTERY_STATUS_BAD_TEMP)?"TEMP":(msm_batt_info.batt_health==BATTERY_STATUS_BAD)?"BAD":(msm_batt_info.batt_health==BATTERY_STATUS_REMOVED)?"REMOVED":"INVALID", 
-			msm_batt_info.battery_voltage,VOLT_UNIT_STRING,
+			msm_batt_info.battery_voltage,
 			msm_batt_info.batt_capacity,
 			((msm_batt_info.batt_status==POWER_SUPPLY_STATUS_CHARGING)&&(msm_batt_info.batt_recharging==1))?"RE-CHARGING": \
 				((msm_batt_info.batt_status==POWER_SUPPLY_STATUS_CHARGING)&&(msm_batt_info.batt_recharging==0))?"CHARGING": \
