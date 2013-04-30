@@ -636,14 +636,14 @@ void msm_snddev_audience_call_route_config(void);
 void msm_snddev_audience_call_route_deconfig(void);
 void msm_snddev_audience_call_route_speaker_config(void);
 void msm_snddev_audience_call_route_speaker_deconfig(void);
-int msm_snddev_audience_speaker_on(void);
-int msm_snddev_audience_speaker_off(void);
+void msm_snddev_audience_speaker_on(void);
+void msm_snddev_audience_speaker_off(void);
 void msm_snddev_audience_call_route_headset_config(void);
 void msm_snddev_audience_call_route_headset_deconfig(void);
-int msm_snddev_audience_poweramp_on_headset(void);
+void msm_snddev_audience_poweramp_on_headset(void);
 void  msm_snddev_audience_poweramp_off_headset(void);
-int msm_snddev_setting_audience_call_connect(void);
-int msm_snddev_setting_audience_call_disconnect(void);
+void msm_snddev_setting_audience_call_connect(void);
+void msm_snddev_setting_audience_call_disconnect(void);
 #endif
 
 extern unsigned int msm_shared_ram_phys; /* defined in arch/arm/mach-msm/io.c */

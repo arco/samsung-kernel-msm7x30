@@ -20,8 +20,9 @@
 #include <linux/i2c.h>
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
+#include <linux/module.h>
 #include <media/msm_camera.h>
-#include <mach/gpio.h>
+#include <linux/gpio.h>
 #include "sr130pc10.h"
 #include <linux/slab.h>
 #include <mach/vreg.h>
@@ -999,7 +1000,7 @@ int sr130pc10_sensor_ext_config(void __user *argp)
          		brightness = 1;
 			}
 			//P110909-1364 : running camera, control  Brightness, take a shot and then check image in quick view, return to preview 
-			//error : there’s difference on brightness before Quick view and after
+			//error : there\92s difference on brightness before Quick view and after
 			//This created a side effect so chaged the condition to  ||  
 			if((brightness) || (preview_enable))
 				//This enables when the used tries to change the exposure from UI
