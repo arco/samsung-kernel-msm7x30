@@ -457,6 +457,13 @@ config BATTERY_ANCORA_TMO
 	help
 	  Say Y to enable support for the battery in Samsung Ancora.
 
+config BATTERY_APACHE
+	tristate "Apache battery"
+	depends on MACH_APACHE
+	default n
+	help
+	  Say Y to enable support for the battery in Samsung Apache.
+
 config BATTERY_ARIESVE
 	tristate "Ariesve battery"
 	depends on MACH_ARIESVE

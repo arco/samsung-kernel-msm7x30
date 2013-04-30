@@ -161,5 +161,8 @@ endif
 if MACH_ARIESVE
 source "drivers/sensors_ariesve/Kconfig"
 endif
+if MACH_APACHE
+source "drivers/sensors_ancora/Kconfig"
+endif
 
 endmenu
