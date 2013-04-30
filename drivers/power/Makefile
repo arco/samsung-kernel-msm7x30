@@ -62,4 +62,5 @@ obj-$(CONFIG_BATTERY_BCL)	+= battery_current_limit.o
 obj-$(CONFIG_BATTERY_ARIESVE)	+= ariesve_battery.o
 obj-$(CONFIG_BATTERY_ANCORA)	+= ancora_battery.o
 obj-$(CONFIG_BATTERY_ANCORA_TMO)+= ancora_tmo_battery.o
+obj-$(CONFIG_BATTERY_APACHE)	+= apache_battery.o
 obj-$(CONFIG_CHARGER_SMB328A)	+= smb328a_charger.o

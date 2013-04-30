@@ -703,6 +703,14 @@ config MACH_ANCORA_TMO
        help
          Support for the Samsung Ancora TMO board.
 
+config MACH_APACHE
+	depends on ARCH_MSM7X30
+	depends on !MSM_STACKED_MEMORY
+	select APPSBOOT_3M_CONFIG
+	default n
+	bool "APACHE"
+	help
+	  Support for the Samsung Apache board.
 
 config BOARD_REVISION
 	hex "Select H/W Revision"

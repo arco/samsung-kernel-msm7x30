@@ -74,4 +74,5 @@ obj-$(CONFIG_SLIMPORT_ANX7808)	+= slimport_anx7808/
 obj-$(CONFIG_SAMSUNG_JACK) += sec_jack.o
 obj-$(CONFIG_SAMSUNG_FM_SI4709) += fm_si4709/
 obj-$(CONFIG_VIBETONZ)		+= vibetonz/
-obj-$(CONFIG_GENERIC_BLN) += bln.o
+obj-$(CONFIG_GENERIC_BLN) += bln.o 
+obj-$(CONFIG_VP_A2220) += a2220.o
