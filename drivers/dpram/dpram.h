@@ -17,7 +17,7 @@
 
 //hsil
 //#define DPRAM_16MB
-#if defined(CONFIG_MACH_ANCORA_TMO)
+#if defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
 #define DPRAM_64K
 #else
 #define DPRAM_32MB

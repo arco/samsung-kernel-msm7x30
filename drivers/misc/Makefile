@@ -71,4 +71,5 @@ obj-$(CONFIG_QFP_FUSE) += qfp_fuse.o
 obj-$(CONFIG_SAMSUNG_JACK) += sec_jack.o
 obj-$(CONFIG_SAMSUNG_FM_SI4709) += fm_si4709/
 obj-$(CONFIG_VIBETONZ)		+= vibetonz/
-obj-$(CONFIG_GENERIC_BLN) += bln.o
+obj-$(CONFIG_GENERIC_BLN) += bln.o 
+obj-$(CONFIG_VP_A2220) += a2220.o
