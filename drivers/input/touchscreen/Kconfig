@@ -352,6 +352,18 @@ config TOUCHSCREEN_MCS5000
 	  To compile this driver as a module, choose M here: the
 	  module will be called mcs5000_ts.
 
+config TOUCHSCREEN_MXT224
+	tristate "MXT224 I2C Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have the MXT224/MXT224E I2C touchscreen
+	  connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mxt224-ts.
+	  
 config TOUCHSCREEN_MTOUCH
 	tristate "MicroTouch serial touchscreens"
 	select SERIO

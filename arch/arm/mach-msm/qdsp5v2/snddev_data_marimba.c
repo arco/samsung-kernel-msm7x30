@@ -1479,11 +1479,18 @@ static struct adie_codec_action_unit headset_gtalk_rx_48KHz_osr256_actions[] =
 static struct adie_codec_action_unit headset_gtalk_tx_48KHz_osr256_actions[] =
 	ADIE_HEADSET_GTALK_TX_48000_256;
 #endif
-#ifdef CONFIG_MACH_ANCORA_TMO
+#if defined (CONFIG_MACH_ANCORA_TMO) || defined (CONFIG_MACH_APACHE)
 static struct adie_codec_action_unit speaker_loopback_rx_48KHz_osr256_actions[] =
 	ADIE_SPEAKER_LOOPBACK_RX_48000_256;
 static struct adie_codec_action_unit speaker_loopback_tx_48KHz_osr256_actions[] =
 	ADIE_SPEAKER_LOOPBACK_TX_48000_256;
+#endif
+
+#if defined (CONFIG_MACH_APACHE)
+static struct adie_codec_action_unit handset_audience_call_rx_48KHz_osr256_actions[] =
+	ADIE_HANDSET_AUDIENCE_CALL_RX_48000_256;
+static struct adie_codec_action_unit handset_audience_call_tx_48KHz_osr256_actions[] =
+	ADIE_HANDSET_AUDIENCE_CALL_TX_48000_256;
 #endif
 
 static struct adie_codec_hwsetting_entry handset_rx_settings[] = {
@@ -2099,7 +2106,7 @@ static struct adie_codec_hwsetting_entry headset_gtalk_tx_settings[] = {
 };
 #endif
 
-#ifdef CONFIG_MACH_ANCORA_TMO
+#if defined (CONFIG_MACH_ANCORA_TMO) || defined (CONFIG_MACH_APACHE)
 static struct adie_codec_hwsetting_entry speaker_loopback_rx_settings[] = {
 	{
 #ifdef CONFIG_VP_A2220_16KHZ
@@ -2122,6 +2129,33 @@ static struct adie_codec_hwsetting_entry speaker_loopback_tx_settings[] = {
 		.osr = 256,
 		.actions = speaker_loopback_tx_48KHz_osr256_actions,
 		.action_sz = ARRAY_SIZE(speaker_loopback_tx_48KHz_osr256_actions),
+	}
+};
+#endif
+
+#if defined (CONFIG_MACH_APACHE)
+static struct adie_codec_hwsetting_entry handset_audience_call_rx_settings[] = {
+	{
+#ifdef CONFIG_VP_A2220_16KHZ
+		.freq_plan = 16000,
+#else
+		.freq_plan = 48000,
+#endif
+		.osr = 256,
+		.actions = handset_audience_call_rx_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(handset_audience_call_rx_48KHz_osr256_actions),
+	}
+};
+static struct adie_codec_hwsetting_entry handset_audience_call_tx_settings[] = {
+	{
+#ifdef CONFIG_VP_A2220_16KHZ
+		.freq_plan = 16000,
+#else
+		.freq_plan = 48000,
+#endif
+		.osr = 256,
+		.actions = handset_audience_call_tx_48KHz_osr256_actions,
+		.action_sz = ARRAY_SIZE(handset_audience_call_tx_48KHz_osr256_actions),
 	}
 };
 #endif
@@ -2374,7 +2408,7 @@ static struct adie_codec_dev_profile headset_gtalk_tx_profile = {
 
 #endif
 
-#ifdef CONFIG_MACH_ANCORA_TMO
+#if defined (CONFIG_MACH_ANCORA_TMO) || defined (CONFIG_MACH_APACHE)
 static struct adie_codec_dev_profile speaker_loopback_rx_profile = {
 	.path_type = ADIE_CODEC_RX,
 	.settings = speaker_loopback_rx_settings,
@@ -2387,6 +2421,18 @@ static struct adie_codec_dev_profile speaker_loopback_tx_profile = {
 };
 #endif
 
+#if defined (CONFIG_MACH_APACHE)
+static struct adie_codec_dev_profile handset_audience_call_rx_profile = {
+	.path_type = ADIE_CODEC_RX,
+	.settings = handset_audience_call_rx_settings,
+	.setting_sz = ARRAY_SIZE(handset_audience_call_rx_settings),
+};
+static struct adie_codec_dev_profile handset_audience_call_tx_profile = {
+	.path_type = ADIE_CODEC_TX,
+	.settings = handset_audience_call_tx_settings,
+	.setting_sz = ARRAY_SIZE(handset_audience_call_tx_settings),
+};
+#endif
 
 static struct snddev_icodec_data handset_rx_data = {
 	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
@@ -2637,23 +2683,39 @@ static struct snddev_icodec_data handset_call_rx_data = {
 };
 static enum hsed_controller handset_call_tx_pmctl_id[] = {PM_HSED_CONTROLLER_0};
 static struct snddev_icodec_data handset_call_tx_data = {
-#ifdef CONFIG_VP_A2220
-	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
-	.name = "handset_call_tx",
-	.copp_id = 0,	//PRIMARY_I2S_TX,	// mdhwang_Test
-	.acdb_id = ACDB_ID_HANDSET_CALL_TX,
-	.profile = &dualmic_handset_call_tx_profile,
-	.channel_mode = 2,
-	.pmctl_id = handset_call_tx_pmctl_id,
-	.pmctl_id_sz = ARRAY_SIZE(handset_call_tx_pmctl_id),
+#ifdef CONFIG_MACH_APACHE
+static struct snddev_icodec_data handset_audience_call_rx_data = {
+	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
+	.name = "handset_audience_call_rx",
+	.copp_id = 0,
+	.acdb_id = ACDB_ID_HANDSET_AUDIENCE_CALL_RX,
+	.profile = &handset_audience_call_rx_profile,
+	.channel_mode = 1,
+	.pmctl_id = NULL,
+	.pmctl_id_sz = 0,
 #ifdef CONFIG_VP_A2220_16KHZ
 	.default_sample_rate = 16000,
 #else
 	.default_sample_rate = 48000,
 #endif
-	.pamp_on = msm_snddev_tx_route_config,
-	.pamp_off = msm_snddev_tx_route_deconfig,
+#ifdef CONFIG_VP_A2220
+	.pamp_on = msm_snddev_setting_audience_call_connect,
+	.pamp_off = msm_snddev_setting_audience_call_disconnect,
 #else
+	.pamp_on = NULL,
+	.pamp_off = NULL,
+#endif
+	.property = SIDE_TONE_MASK,
+	.max_voice_rx_vol[VOC_NB_INDEX] = -200,
+	.min_voice_rx_vol[VOC_NB_INDEX] = -1700,
+	.max_voice_rx_vol[VOC_WB_INDEX] = -200,
+	.min_voice_rx_vol[VOC_WB_INDEX] = -1700
+};
+#endif
+
+static enum hsed_controller handset_call_tx_pmctl_id[] = {PM_HSED_CONTROLLER_0};
+static struct snddev_icodec_data handset_call_tx_data = {
+//#ifdef CONFIG_VP_A2220 -- SAME AS NON-A2220 STRUCT
 	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
 	.name = "handset_call_tx",
 	.copp_id = 0,
@@ -2662,11 +2724,36 @@ static struct snddev_icodec_data handset_call_tx_data = {
 	.channel_mode = 1,
 	.pmctl_id = handset_call_tx_pmctl_id,
 	.pmctl_id_sz = ARRAY_SIZE(handset_call_tx_pmctl_id),
+#ifdef CONFIG_VP_A2220_16KHZ
+	.default_sample_rate = 16000,	
+#else
 	.default_sample_rate = 48000,
+#endif
 	.pamp_on = msm_snddev_tx_route_config,
 	.pamp_off = msm_snddev_tx_route_deconfig,
-#endif
 };
+
+#ifdef CONFIG_MACH_APACHE
+static enum hsed_controller handset_audience_call_tx_pmctl_id[] = {PM_HSED_CONTROLLER_0};
+static struct snddev_icodec_data handset_audience_call_tx_data = {
+	.capability = (SNDDEV_CAP_TX | SNDDEV_CAP_VOICE),
+	.name = "handset_audience_call_tx",
+	.copp_id = 0,	//PRIMARY_I2S_TX,	// mdhwang_Test
+	.acdb_id = ACDB_ID_HANDSET_AUDIENCE_CALL_TX,
+	.profile = &handset_audience_call_tx_profile,
+	.channel_mode = 2,
+	.pmctl_id = handset_audience_call_tx_pmctl_id,
+	.pmctl_id_sz = ARRAY_SIZE(handset_audience_call_tx_pmctl_id),
+#ifdef CONFIG_VP_A2220_16KHZ
+	.default_sample_rate = 16000,	
+#else
+	.default_sample_rate = 48000,
+#endif
+	.pamp_on = msm_snddev_tx_route_config,
+	.pamp_off = msm_snddev_tx_route_deconfig,
+};
+#endif
+
 static struct snddev_icodec_data speaker_call_rx_data = {
 	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
 	.name = "speaker_call_rx",
@@ -3181,6 +3268,11 @@ static struct snddev_icodec_data handset_call_hac_tx_data = {
 	.pamp_on = msm_snddev_tx_route_config,
 	.pamp_off = msm_snddev_tx_route_deconfig,
 #endif
+#ifdef CONFIG_VP_A2220_16KHZ
+	.default_sample_rate = 16000,
+#else
+	.default_sample_rate = 48000,
+#endif
 };
 #endif
 
@@ -3427,7 +3519,7 @@ static struct snddev_ecodec_data bt_sco_gtalk_tx_data = {
 };
 #endif
 
-#ifdef CONFIG_MACH_ANCORA_TMO
+#if defined (CONFIG_MACH_ANCORA_TMO) || defined (CONFIG_MACH_APACHE)
 static struct snddev_icodec_data speaker_loopback_rx_data = {
 	.capability = (SNDDEV_CAP_RX | SNDDEV_CAP_VOICE),
 	.name = "speaker_loopback_rx",
@@ -3807,7 +3899,7 @@ static struct platform_device device_handset_hac_call_tx = {
 	.dev = { .platform_data = &handset_call_hac_tx_data },
 };
 #endif
-#ifdef CONFIG_MACH_ANCORA_TMO
+#if defined (CONFIG_MACH_ANCORA_TMO) || defined (CONFIG_MACH_APACHE)
 static struct platform_device device_speaker_loopback_rx = {
 	.name = "snddev_icodec",
 	.id = 153,
@@ -3817,6 +3909,19 @@ static struct platform_device device_speaker_loopback_tx = {
 	.name = "snddev_icodec",
 	.id = 154,
 	.dev = { .platform_data = &speaker_loopback_tx_data },
+};
+#endif
+
+#if defined (CONFIG_MACH_APACHE)
+static struct platform_device device_handset_audience_call_rx = {
+	.name = "snddev_icodec",
+	.id = 155,
+	.dev = { .platform_data = &handset_audience_call_rx_data },
+};
+static struct platform_device device_handset_audience_call_tx = {
+	.name = "snddev_icodec",
+	.id = 156,
+	.dev = { .platform_data = &handset_audience_call_tx_data },
 };
 #endif
 
@@ -4052,7 +4157,11 @@ static struct platform_device *snd_devices_ancora[] __initdata = {
 	&device_headset_gtalk_rx,
 	&device_headset_gtalk_tx,
 	&device_bt_sco_gtalk_rx,
-	&device_bt_sco_gtalk_tx,
+	&device_bt_sco_gtalk_tx,	
+	&device_speaker_loopback_rx,
+	&device_speaker_loopback_tx,	
+	&device_handset_audience_call_rx,
+	&device_handset_audience_call_tx,
 };
 #endif
 
@@ -4262,7 +4371,7 @@ void __ref msm_snddev_init(void)
 
 #ifdef CONFIG_VP_A2220
 	printk("msm_snddev_init() : a2220_ioctl2() :  A2220_BOOTUP_INIT\n");
-	a2220_ioctl2(A2220_BOOTUP_INIT , 0);
+//	a2220_ioctl2(A2220_BOOTUP_INIT , 0);
 	printk("msm_snddev_init() : end\n");
 #endif
 
