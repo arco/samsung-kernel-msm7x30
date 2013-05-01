@@ -78,9 +78,6 @@
 #include <linux/platform_data/qcom_crypto_device.h>
 
 #include "devices.h"
-#ifdef CONFIG_ANDROID_RAM_CONSOLE
-#include "devices-msm7x30.h"
-#endif
 #include "timer.h"
 #ifdef CONFIG_USB_G_ANDROID
 #include <linux/usb/android.h>
@@ -5865,6 +5862,9 @@ static struct platform_device *devices[] __initdata = {
 //#if defined(CONFIG_SERIAL_MSM) || defined(CONFIG_MSM_SERIAL_DEBUGGER)
 //	&msm_device_uart2,
 //#endif
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+	&ram_console_device,
+#endif
 #ifdef CONFIG_MSM_PROC_COMM_REGULATOR
 	&msm_proccomm_regulator_dev,
 #endif
@@ -6035,9 +6035,6 @@ static struct platform_device *devices[] __initdata = {
 	&msm_adsp_device,
 #ifdef CONFIG_SAMSUNG_JACK
 	&sec_device_jack,
-#endif
-#ifdef CONFIG_ANDROID_RAM_CONSOLE
-	&ram_console_device,
 #endif
 #ifdef CONFIG_VP_A2220
 	&a2220_i2c_device,
@@ -7881,6 +7878,9 @@ static void __init msm7x30_reserve(void)
 {
 	reserve_info = &msm7x30_reserve_info;
 	msm_reserve();
+#ifdef CONFIG_ANDROID_PERSISTENT_RAM
+	add_persistent_ram();
+#endif
 }
 
 static void __init msm7x30_allocate_memory_regions(void)
@@ -7894,18 +7894,6 @@ static void __init msm7x30_allocate_memory_regions(void)
 	msm_fb_resources[0].end = msm_fb_resources[0].start + size - 1;
 	pr_info("allocating %lu bytes at %p (%lx physical) for fb\n",
 		size, addr, __pa(addr));
-
-#ifdef CONFIG_ANDROID_RAM_CONSOLE
-	/* RAM Console can't use alloc_bootmem(), since that zeroes the
-	 * region */
-	size = MSM_RAM_CONSOLE_SIZE;
-	ram_console_resources[0].start = msm_fb_resources[0].end+1;
-	ram_console_resources[0].end = ram_console_resources[0].start + size - 1;
-	pr_info("allocating %lu bytes at (%lx physical) for ram console\n",
-		size, (unsigned long)ram_console_resources[0].start);
-	/* We still have to reserve it, though */
-	reserve_bootmem(ram_console_resources[0].start,size,0);
-#endif
 }
 
 static void __init msm7x30_map_io(void)
