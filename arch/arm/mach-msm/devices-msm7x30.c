@@ -21,6 +21,9 @@
 #include <linux/android_pmem.h>
 #include <linux/regulator/machine.h>
 #include <linux/init.h>
+#ifdef CONFIG_ANDROID_PERSISTENT_RAM
+#include <linux/persistent_ram.h>
+#endif
 #include <mach/irqs.h>
 #include <mach/msm_iomap.h>
 #include <mach/dma.h>
@@ -538,6 +541,40 @@ struct platform_device msm_device_hsusb_host = {
 		.coherent_dma_mask	= 0xffffffffULL,
 	},
 };
+
+#ifdef CONFIG_ANDROID_PERSISTENT_RAM
+#define PERSISTENT_RAM_SIZE SZ_512K
+#define RAM_CONSOLE_SIZE (124*SZ_1K * 2)
+#define PERSISTENT_RAM_BASE 0x1ce0000
+
+static struct persistent_ram_descriptor pram_descs[] = {
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+	{
+		.name = "ram_console",
+		.size = RAM_CONSOLE_SIZE,
+	},
+#endif
+};
+
+static struct persistent_ram msm7x30_persistent_ram = {
+	.start = PERSISTENT_RAM_BASE,
+	.size = PERSISTENT_RAM_SIZE,
+	.num_descs = ARRAY_SIZE(pram_descs),
+	.descs = pram_descs,
+};
+
+void __init add_persistent_ram(void)
+{
+	persistent_ram_early_init(&msm7x30_persistent_ram);
+}
+#endif
+
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+struct platform_device ram_console_device = {
+	.name = "ram_console",
+	.id = -1,
+};
+#endif /* CONFIG_ANDROID_RAM_CONSOLE */
 
 static struct platform_device *msm_host_devices[] = {
 	&msm_device_hsusb_host,
