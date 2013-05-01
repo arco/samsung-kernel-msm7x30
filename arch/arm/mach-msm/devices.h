@@ -344,6 +344,14 @@ extern struct platform_device msm_footswitch;
 
 void __init msm_fb_register_device(char *name, void *data);
 void __init msm_camera_register_device(void *, uint32_t, void *);
+
+#ifdef CONFIG_ANDROID_PERSISTENT_RAM
+void __init add_persistent_ram(void);
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+extern struct platform_device ram_console_device;
+#endif
+#endif
+
 struct platform_device *msm_add_gsbi9_uart(void);
 extern struct platform_device msm_device_touchscreen;
 

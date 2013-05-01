@@ -5469,6 +5469,9 @@ static struct platform_device *devices[] __initdata = {
 //#if defined(CONFIG_SERIAL_MSM) || defined(CONFIG_MSM_SERIAL_DEBUGGER)
 //	&msm_device_uart2,
 //#endif
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+	&ram_console_device,
+#endif
 #ifdef CONFIG_MSM_PROC_COMM_REGULATOR
 	&msm_proccomm_regulator_dev,
 #endif
@@ -7464,6 +7467,9 @@ static void __init msm7x30_reserve(void)
 {
 	reserve_info = &msm7x30_reserve_info;
 	msm_reserve();
+#ifdef CONFIG_ANDROID_PERSISTENT_RAM
+	add_persistent_ram();
+#endif
 }
 
 static void __init msm7x30_allocate_memory_regions(void)
