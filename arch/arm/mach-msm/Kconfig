@@ -2433,6 +2433,12 @@ config PM8XXX_RPC_VIBRATOR
 	  is connected on the PM8XXX PMIC. Say Y if you want to enable
 	  this feature.
 
+config VP_A2220
+       tristate "A2220 Voice Processor Driver"
+       depends on I2C
+       help
+         A2220 Voice Processor Driver implemented by ysseo.
+
 config MSM_SPM_V1
 	bool "Driver support for SPM Version 1"
 	help
