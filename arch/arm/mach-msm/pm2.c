@@ -75,7 +75,7 @@ enum {
 	MSM_PM_DEBUG_HOTPLUG = BIT(7),
 };
 
-static int msm_pm_debug_mask;
+static int msm_pm_debug_mask = MSM_PM_DEBUG_SMSM_STATE;
 int power_collapsed;
 module_param_named(
 	debug_mask, msm_pm_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP
