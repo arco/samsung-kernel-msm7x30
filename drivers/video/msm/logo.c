@@ -22,12 +22,14 @@
 #include <linux/syscalls.h>
 
 #include <linux/irq.h>
+#include <asm/cacheflush.h>
 #include <asm/system.h>
 
 #define fb_width(fb)	((fb)->var.xres)
 #define fb_height(fb)	((fb)->var.yres)
 #define fb_size(fb)	((fb)->var.xres * (fb)->var.yres * 2)
 
+#if 0
 static void memset16(void *_ptr, unsigned short val, unsigned count)
 {
 	unsigned short *ptr = _ptr;
@@ -35,14 +37,20 @@ static void memset16(void *_ptr, unsigned short val, unsigned count)
 	while (count--)
 		*ptr++ = val;
 }
+#endif
 
 /* convert RGB565 to RBG8888 */
-static void memset16_rgb8888(void *_ptr, unsigned short val, unsigned count)
+static int total_pixel = 1;
+static int memset16_rgb8888(void *_ptr, unsigned short val, unsigned count,
+				struct fb_info *fb)
 {
 	unsigned short *ptr = _ptr;
 	unsigned short red;
 	unsigned short green;
 	unsigned short blue;
+	int need_align = (fb->fix.line_length >> 2) - fb->var.xres;
+	int align_amount = need_align << 1;
+	int pad = 0;
 
 	red = (val & 0xF800) >> 8;
 	green = (val & 0x7E0) >> 3;
@@ -50,34 +58,21 @@ static void memset16_rgb8888(void *_ptr, unsigned short val, unsigned count)
 
 	count >>= 1;
 	while (count--) {
-		*ptr++ = (red<<8) | green;
+		*ptr++ = (green << 8) | red;
 		*ptr++ = blue;
-	}
-}
 
-#ifndef CONFIG_FRAMEBUFFER_CONSOLE
-static int enable_framebuffer(struct fb_info *fb)
-{
-	int ret = 0;
-	static int status;
-	struct module *owner;
-#endif
-	info = registered_fb[0];
-
-	if (!status) {
-		status = 1;
-		owner = fb->fbops->owner;
-		if (!try_module_get(owner))
-			return -ENODEV;
-		if (fb->fbops->fb_open && fb->fbops->fb_open(fb, 0)) {
-			module_put(owner);
-			return -ENODEV;
+		if (need_align) {
+			if (!(total_pixel % fb->var.xres)) {
+				ptr += align_amount;
+				pad++;
+			}
 		}
+
+		total_pixel++;
 	}
 
-	return ret;
+	return pad * align_amount;
 }
-#endif
 
 /* 565RLE image format: [count(2 bytes), rle(2 bytes)] */
 int load_565rle_image(char *filename, bool bf_supported)
@@ -86,6 +81,8 @@ int load_565rle_image(char *filename, bool bf_supported)
 	int fd, count, err = 0;
 	unsigned max;
 	unsigned short *data, *bits, *ptr;
+	struct module *owner;
+	int pad;
 
 	info = registered_fb[0];
 	if (!info) {
@@ -94,10 +91,13 @@ int load_565rle_image(char *filename, bool bf_supported)
 		return -ENODEV;
 	}
 
-#ifndef CONFIG_FRAMEBUFFER_CONSOLE
-	if (enable_framebuffer(info))
+	owner = info->fbops->owner;
+	if (!try_module_get(owner))
 		return -ENODEV;
-#endif
+	if (info->fbops->fb_open && info->fbops->fb_open(info, 0)) {
+		module_put(owner);
+		return -ENODEV;
+	}
 
 	fd = sys_open(filename, O_RDONLY, 0);
 	if (fd < 0) {
@@ -136,19 +136,17 @@ int load_565rle_image(char *filename, bool bf_supported)
 			unsigned n = ptr[0];
 			if (n > max)
 				break;
-			if (info->var.bits_per_pixel >= 24) {
-				memset16_rgb8888(bits, ptr[1], n << 1);
-				bits += n*2 ;
-			} else {
-				memset16(bits, ptr[1], n << 1);
-				bits += n;
-			}
-
+			pad = memset16_rgb8888(bits, ptr[1], n << 1, info);
+			bits += n << 1;
+			bits += pad;
 			max -= n;
 			ptr += 2;
 			count -= 4;
 		}
 	}
+
+	flush_cache_all();
+	outer_flush_all();
 
 err_logo_free_data:
 	kfree(data);
