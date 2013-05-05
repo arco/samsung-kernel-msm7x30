@@ -176,7 +176,7 @@ struct fb_fix_screeninfo {
 	__u32 accel;			/* Indicate to driver which	*/
 					/*  specific chip/card we have	*/
 	__u16 capabilities;		/* see FB_CAP_*			*/
-	__u16 reserved[2];		/* Reserved for future compatibility */
+	__u16 reserved[3];		/* Reserved for future compatibility */
 };
 
 /* Interpretation of offset for color fields: All offsets are from the right,
