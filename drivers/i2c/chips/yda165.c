@@ -1650,7 +1650,7 @@ static struct miscdevice amp_device = {
 	.fops = &amp_fops,
 };
 
-static int yda165_probe(struct i2c_client *client, const struct i2c_device_id * dev_id)
+static int __devinit yda165_probe(struct i2c_client *client, const struct i2c_device_id * dev_id)
 {
 	int err = 0;
 	
@@ -1693,13 +1693,25 @@ exit_sysfs_create_group_failed:
 	return err;
 }
 
-static int yda165_remove(struct i2c_client *client)
+static int __devexit yda165_remove(struct i2c_client *client)
 {
 	pclient = NULL;
 
 	return 0;
 }
 
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+static void __devexit yda165_shutdown(struct i2c_client *client)
+{
+	pr_info(MODULE_NAME ": %s : amp power off\n", __func__);
+
+	D4Hp3_PowerOff();
+
+	pr_info(MODULE_NAME ": %s : done\n", __func__);
+
+	return;
+}
+#endif
 
 static const struct i2c_device_id yda165_id[] = {
 	{ "yda165", 0 },
@@ -1718,8 +1730,16 @@ static struct i2c_driver yda165_driver = {
 #endif
 	.shutdown 		= yda165_shutdown,
 */
+#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
+	/* If the device power offed with power key while something is playing,
+	 * you colud hear amp off pop-up noise at the end of power off sequence.
+	 * Then, add shutdown function to remove noise.
+	*/
+	.shutdown 		= yda165_shutdown,
+#endif
 	.driver = {
 		.name   = "yda165",
+		.owner	= THIS_MODULE,
 	},
 };
 
