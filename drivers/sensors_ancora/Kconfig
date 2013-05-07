@@ -1,4 +1,4 @@
-menu "Samsung Galaxy W sensor drivers"
+menu "Samsung Galaxy W/Exhibit 4G/Rugby Smart sensor drivers"
 
 config SENSORS_BMA023_ACCEL
 	tristate "Bosch BMA023 Acceleration Sensor"
