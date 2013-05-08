@@ -54,36 +54,29 @@ endif
 
 # For Debug
 EXTRA_CFLAGS += $(DHDCFLAGS) -DWL_CFG80211 -DRSSI_OFFSET=0
-EXTRA_CFLAGS += -DDHD_DEBUG -DSRCBASE=\"$(src)/src\"
+EXTRA_CFLAGS += -DDHD_DEBUG -DSRCBASE=\"$(src)\"
 
-EXTRA_CFLAGS += -I$(src)/src/include/
-EXTRA_CFLAGS += -I$(src)/src/dhd/sys/
-EXTRA_CFLAGS += -I$(src)/src/dongle/
-EXTRA_CFLAGS += -I$(src)/src/bcmsdio/sys/
-EXTRA_CFLAGS += -I$(src)/src/wl/sys/
-EXTRA_CFLAGS += -I$(src)/src/shared/
-EXTRA_CFLAGS += -I$(src)/src/wl/bcmwifi/src/
-EXTRA_CFLAGS += -I$(src)/src/wl/bcmwifi/include/
+EXTRA_CFLAGS += -I$(src)/include/ -I$(src)/
 
 EXTRA_LDFLAGS += --strip-debug
 KBUILD_CFLAGS += -I$(LINUXDIR)/include -I$(shell pwd)
 
 obj-m   += dhd.o
 
-dhd-y := src/bcmsdio/sys/bcmsdh.o	src/bcmsdio/sys/bcmsdh_linux.o \
-	 src/bcmsdio/sys/bcmsdh_sdmmc.o	src/bcmsdio/sys/bcmsdh_sdmmc_linux.o \
-	 src/dhd/sys/dhd_bta.o		src/dhd/sys/dhd_cdc.o \
-	 src/dhd/sys/dhd_common.o	src/dhd/sys/dhd_custom_gpio.o \
-	 src/dhd/sys/dhd_custom_sec.o \
-	 src/dhd/sys/dhd_linux.o	src/dhd/sys/dhd_linux_sched.o \
-	 src/dhd/sys/dhd_cfg80211.o	src/dhd/sys/dhd_sdio.o \
-	 src/shared/aiutils.o		src/shared/bcmevent.o \
-	 src/shared/bcmutils.o		src/wl/bcmwifi/src/bcmwifi_channels.o \
-	 src/shared/hndpmu.o		src/shared/linux_osl.o \
-	 src/shared/sbutils.o		src/shared/siutils.o \
-	 src/wl/sys/wl_android.o	src/wl/sys/wl_cfg80211.o \
-	 src/wl/sys/wl_cfgp2p.o		src/wl/sys/wldev_common.o \
-	 src/wl/sys/wl_linux_mon.o	src/wl/sys/wl_roam.o
+dhd-y := bcmsdh.o	bcmsdh_linux.o \
+	 bcmsdh_sdmmc.o	bcmsdh_sdmmc_linux.o \
+	 dhd_bta.o	dhd_cdc.o \
+	 dhd_common.o	dhd_custom_gpio.o \
+	 dhd_custom_sec.o \
+	 dhd_linux.o	dhd_linux_sched.o \
+	 dhd_cfg80211.o	dhd_sdio.o \
+	 aiutils.o	bcmevent.o \
+	 bcmutils.o	bcmwifi_channels.o \
+	 hndpmu.o	linux_osl.o \
+	 sbutils.o	siutils.o \
+	 wl_android.o	wl_cfg80211.o \
+	 wl_cfgp2p.o	wldev_common.o \
+	 wl_linux_mon.o	wl_roam.o
 
 all:
 	@echo "$(MAKE) --no-print-directory -C $(KDIR) SUBDIRS=$(CURDIR) modules"
@@ -93,20 +86,20 @@ all:
 clean:
 	rm -rf *.o *.ko *.mod.c *~ .*.cmd \
 	Module.symvers modules.order .tmp_versions modules.builtin \
-	src/bcmsdio/sys/*.o \
-	src/bcmsdio/sys/*.o.cmd \
-	src/bcmsdio/sys/.*.o.cmd \
-        src/dhd/sys/*.o \
-	src/dhd/sys/*.o.cmd \
-        src/dhd/sys/.*.o.cmd \
-        src/shared/*.o \
-	src/shared/*.o.cmd \
-        src/shared/.*.o.cmd \
-        src/wl/sys/*.o \
-        src/wl/sys/*.o.cmd \
-	src/wl/sys/.*.o.cmd \
-	src/wl/bcmwifi/src/bcmwifi_channels.o \
-	src/wl/bcmwifi/src/.*.o.cmd
+	bcmsdio/sys/*.o \
+	bcmsdio/sys/*.o.cmd \
+	bcmsdio/sys/.*.o.cmd \
+        dhd/sys/*.o \
+	dhd/sys/*.o.cmd \
+        dhd/sys/.*.o.cmd \
+        shared/*.o \
+	shared/*.o.cmd \
+        shared/.*.o.cmd \
+        wl/sys/*.o \
+        wl/sys/*.o.cmd \
+	wl/sys/.*.o.cmd \
+	wl/bcmwifi/src/bcmwifi_channels.o \
+	wl/bcmwifi/src/.*.o.cmd
 
 install:
 	@$(MAKE) --no-print-directory -C $(KDIR) \
