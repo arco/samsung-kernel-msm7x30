@@ -2,14 +2,14 @@
  * SDIO spec header file
  * Protocol and standard (common) device definitions
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
- *
+ * Copyright (C) 1999-2012, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,12 +17,12 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: sdio.h 288543 2011-10-07 12:15:31Z $
+ * $Id: sdio.h 308973 2012-01-18 04:19:34Z $
  */
 
 #ifndef	_SDIO_H
@@ -89,7 +89,7 @@ typedef volatile struct {
 #define SDIOD_CCCR_BRCM_CARDCAP_CMD14_EXT	0x04
 #define SDIOD_CCCR_BRCM_CARDCAP_CMD_NODEC	0x08
 #define SDIOD_CCCR_BRCM_CARDCTL			0xf1
-#define SDIOD_CCCR_BRCM_SEPINT		0xf2
+#define SDIOD_CCCR_BRCM_SEPINT			0xf2
 
 /* cccr_sdio_rev */
 #define SDIO_REV_SDIOID_MASK	0xf0	/* SDIO spec revision number */
@@ -406,7 +406,7 @@ typedef volatile struct {
 /* ------------------------------------------------
  * SDIO Command structures. I/O only commands are:
  *
- *	CMD0, CMD3, CMD5, CMD7, CMD15, CMD52, CMD53
+ * 	CMD0, CMD3, CMD5, CMD7, CMD15, CMD52, CMD53
  * ------------------------------------------------
  */
 
