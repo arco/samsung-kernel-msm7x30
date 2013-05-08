@@ -1,14 +1,14 @@
 /*
  * Broadcom HND chip & on-chip-interconnect-related definitions.
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
- *
+ * Copyright (C) 1999-2012, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,12 +16,12 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: hndsoc.h 283666 2011-09-15 00:27:45Z $
+ * $Id: hndsoc.h 309193 2012-01-19 00:03:57Z $
  */
 
 #ifndef	_HNDSOC_H
@@ -42,10 +42,10 @@
 #define	SI_SDRAM_SWAPPED	0x10000000	/* Byteswapped Physical SDRAM */
 #define SI_SDRAM_R2		0x80000000	/* Region 2 for sdram (512 MB) */
 
-#define SI_ENUM_BASE		0x18000000	/* Enumeration space base */
+#define SI_ENUM_BASE    	0x18000000	/* Enumeration space base */
 
-#define SI_WRAP_BASE		0x18100000	/* Wrapper space base */
-#define SI_CORE_SIZE		0x1000		/* each core gets 4Kbytes for registers */
+#define SI_WRAP_BASE    	0x18100000	/* Wrapper space base */
+#define SI_CORE_SIZE    	0x1000		/* each core gets 4Kbytes for registers */
 #define	SI_MAXCORES		16		/* Max cores (this is arbitrary, for software
 						 * convenience and could be changed if we
 						 * make any larger chips
@@ -136,13 +136,13 @@
 
 #define ACPHY_CORE_ID		0x83b		/* Dot11 ACPHY */
 #define PCIE2_CORE_ID		0x83c		/* pci express Gen2 core */
-#define	USB30D_CORE_ID		0x83d		/* usb 3.0 device core */
+#define USB30D_CORE_ID		0x83d		/* usb 3.0 device core */
 #define ARMCR4_CORE_ID		0x83e		/* ARM CR4 CPU */
-#define	APB_BRIDGE_CORE_ID	0x135		/* APB bridge core ID */
-#define	AXI_CORE_ID		0x301		/* AXI/GPV core ID */
-#define	EROM_CORE_ID		0x366		/* EROM core ID */
+#define APB_BRIDGE_CORE_ID	0x135		/* APB bridge core ID */
+#define AXI_CORE_ID		0x301		/* AXI/GPV core ID */
+#define EROM_CORE_ID		0x366		/* EROM core ID */
 #define OOB_ROUTER_CORE_ID	0x367		/* OOB router core ID */
-#define	DEF_AI_COMP		0xfff		/* Default component, in ai chips it maps all
+#define DEF_AI_COMP		0xfff		/* Default component, in ai chips it maps all
 						 * unused address ranges
 						 */
 

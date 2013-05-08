@@ -1,14 +1,14 @@
 /*
  * NVRAM variable manipulation
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
- *
+ * Copyright (C) 1999-2012, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,12 +16,12 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmnvram.h 288000 2011-10-05 19:05:16Z $
+ * $Id: bcmnvram.h 320632 2012-03-12 19:22:42Z $
  */
 
 #ifndef _bcmnvram_h_
@@ -35,9 +35,9 @@
 struct nvram_header {
 	uint32 magic;
 	uint32 len;
-	uint32 crc_ver_init;
-	uint32 config_refresh;
-	uint32 config_ncdl;
+	uint32 crc_ver_init;	
+	uint32 config_refresh;	
+	uint32 config_ncdl;	
 };
 
 struct nvram_tuple {
@@ -109,12 +109,12 @@ extern int nvram_getall(char *nvram_buf, int count);
 
 uint8 nvram_calc_crc(struct nvram_header * nvh);
 
-#endif
+#endif 
 
 
 #define NVRAM_SOFTWARE_VERSION	"1"
 
-#define NVRAM_MAGIC		0x48534C46
+#define NVRAM_MAGIC		0x48534C46	
 #define NVRAM_CLEAR_MAGIC	0x0
 #define NVRAM_INVALID_MAGIC	0xFFFFFFFF
 #define NVRAM_VERSION		1
@@ -124,8 +124,8 @@ uint8 nvram_calc_crc(struct nvram_header * nvh);
 #define NVRAM_MAX_VALUE_LEN 255
 #define NVRAM_MAX_PARAM_LEN 64
 
-#define NVRAM_CRC_START_POSITION	9
-#define NVRAM_CRC_VER_MASK	0xffffff00
+#define NVRAM_CRC_START_POSITION	9 
+#define NVRAM_CRC_VER_MASK	0xffffff00 
 
 
 #define NVRAM_START_COMPRESSED	0x400
@@ -133,4 +133,47 @@ uint8 nvram_calc_crc(struct nvram_header * nvh);
 
 #define BCM_JUMBO_NVRAM_DELIMIT '\n'
 #define BCM_JUMBO_START "Broadcom Jumbo Nvram file"
+
+#if (defined(FAILSAFE_UPGRADE) || defined(CONFIG_FAILSAFE_UPGRADE) || \
+	defined(__CONFIG_FAILSAFE_UPGRADE_SUPPORT__))
+#define IMAGE_SIZE "image_size"
+#define BOOTPARTITION "bootpartition"
+#define IMAGE_BOOT BOOTPARTITION
+#define PARTIALBOOTS "partialboots"
+#define MAXPARTIALBOOTS "maxpartialboots"
+#define IMAGE_1ST_FLASH_TRX "flash0.trx"
+#define IMAGE_1ST_FLASH_OS "flash0.os"
+#define IMAGE_2ND_FLASH_TRX "flash0.trx2"
+#define IMAGE_2ND_FLASH_OS "flash0.os2"
+#define IMAGE_FIRST_OFFSET "image_first_offset"
+#define IMAGE_SECOND_OFFSET "image_second_offset"
+#define LINUX_FIRST "linux"
+#define LINUX_SECOND "linux2"
 #endif
+
+#if (defined(DUAL_IMAGE) || defined(CONFIG_DUAL_IMAGE) || \
+	defined(__CONFIG_DUAL_IMAGE_FLASH_SUPPORT__))
+
+#define IMAGE_BOOT "image_boot"
+#define BOOTPARTITION IMAGE_BOOT
+
+#define IMAGE_1ST_FLASH_TRX "flash0.trx"
+#define IMAGE_1ST_FLASH_OS "flash0.os"
+#define IMAGE_2ND_FLASH_TRX "flash0.trx2"
+#define IMAGE_2ND_FLASH_OS "flash0.os2"
+#define IMAGE_SIZE "image_size"
+
+
+#define IMAGE_FIRST_OFFSET "image_first_offset"
+#define IMAGE_SECOND_OFFSET "image_second_offset"
+
+
+#define LINUX_FIRST "linux"
+#define LINUX_SECOND "linux2"
+#define POLICY_TOGGLE "toggle"
+#define LINUX_PART_TO_FLASH "linux_to_flash"
+#define LINUX_FLASH_POLICY "linux_flash_policy"
+
+#endif 
+
+#endif 
