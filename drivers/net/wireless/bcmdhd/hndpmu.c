@@ -2,14 +2,14 @@
  * Misc utility routines for accessing PMU corerev specific features
  * of the SiliconBackplane-based Broadcom chips.
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
- *
+ * Copyright (C) 1999-2012, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,12 +17,12 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: hndpmu.c 306766 2012-01-09 00:57:57Z $
+ * $Id: hndpmu.c 357871 2012-09-20 07:17:35Z $
  */
 
 #include <bcm_cfg.h>
@@ -109,6 +109,13 @@ static const sdiod_drive_str_t sdiod_drive_strength_tab5_1v8[] = {
 
 /* SDIO Drive Strength to sel value table for PMU Rev 13 (3.3v) */
 
+/* SDIO Drive Strength to sel value table for PMU Rev 17 (1.8v) */
+static const sdiod_drive_str_t sdiod_drive_strength_tab6_1v8[] = {
+	{3, 0x3},
+	{2, 0x2},
+	{1, 0x1},
+	{0, 0x0} };
+
 
 #define SDIOD_DRVSTR_KEY(chip, pmu)	(((chip) << 16) | (pmu))
 
@@ -162,6 +169,11 @@ si_sdiod_drive_strength_init(si_t *sih, osl_t *osh, uint32 drivestrength)
 		str_mask = 0x00003800;
 		str_shift = 11;
 		break;
+	case SDIOD_DRVSTR_KEY(BCM4334_CHIP_ID, 17):
+		str_tab = (sdiod_drive_str_t *)&sdiod_drive_strength_tab6_1v8;
+		str_mask = 0x00001800;
+		str_shift = 11;
+		break;
 	default:
 		PMU_MSG(("No SDIO Drive strength init done for chip %s rev %d pmurev %d\n",
 		         bcm_chipname(sih->chip, chn, 8), sih->chiprev, sih->pmurev));
@@ -169,7 +181,7 @@ si_sdiod_drive_strength_init(si_t *sih, osl_t *osh, uint32 drivestrength)
 		break;
 	}
 
-	if (str_tab != NULL) {
+	if (str_tab != NULL && cc != NULL) {
 		uint32 cc_data_temp;
 		int i;
 

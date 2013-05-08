@@ -3,14 +3,14 @@
  *     export functions to client drivers
  *     abstract OS and BUS specific details of SDIO
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
- *
+ * Copyright (C) 1999-2012, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -18,12 +18,12 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh.h 299859 2011-12-01 03:53:27Z $
+ * $Id: bcmsdh.h 347614 2012-07-27 10:24:51Z $
  */
 
 /**
@@ -56,7 +56,7 @@ typedef void (*bcmsdh_cb_fn_t)(void *);
  *    most recent one) to enable single-instance implementations to pass NULL.
  */
 
-#if defined(NDIS630)
+#if 0 && (NDISVER >= 0x0630) && 1
 extern bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl,
 	void **regsva, uint irq, shared_info_t *sh);
 #else
@@ -145,6 +145,10 @@ extern int bcmsdh_recv_buf(void *sdh, uint32 addr, uint fn, uint flags,
                            uint8 *buf, uint nbytes, void *pkt,
                            bcmsdh_cmplt_fn_t complete_fn, void *handle);
 
+extern void bcmsdh_glom_post(void *sdh, uint8 *frame, uint len);
+extern void bcmsdh_glom_clear(void *sdh);
+extern uint bcmsdh_set_mode(void *sdh, uint mode);
+extern bool bcmsdh_glom_enabled(void);
 /* Flags bits */
 #define SDIO_REQ_4BYTE	0x1	/* Four-byte target (backplane) width (vs. two-byte) */
 #define SDIO_REQ_FIXED	0x2	/* Fixed address (FIFO) (vs. incrementing address) */
@@ -211,11 +215,11 @@ extern void bcmsdh_device_remove(void * sdh);
 extern int bcmsdh_reg_sdio_notify(void* semaphore);
 extern void bcmsdh_unreg_sdio_notify(void);
 
-#if defined(OOB_INTR_ONLY)
+#if defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID)
 extern int bcmsdh_register_oob_intr(void * dhdp);
 extern void bcmsdh_unregister_oob_intr(void);
 extern void bcmsdh_oob_intr_set(bool enable);
-#endif /* defined(OOB_INTR_ONLY) */
+#endif /* defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID) */
 
 /* Function to pass device-status bits to DHD. */
 extern uint32 bcmsdh_get_dstatus(void *sdh);
@@ -226,6 +230,9 @@ extern uint32 bcmsdh_cur_sbwad(void *sdh);
 /* Function to pass chipid and rev to lower layers for controlling pr's */
 extern void bcmsdh_chipinfo(void *sdh, uint32 chip, uint32 chiprev);
 
+#ifdef BCMSPI
+extern void bcmsdh_dwordmode(void *sdh, bool set);
+#endif /* BCMSPI */
 
 extern int bcmsdh_sleep(void *sdh, bool enab);
 

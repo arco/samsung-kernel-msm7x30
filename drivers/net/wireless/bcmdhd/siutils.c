@@ -2,14 +2,14 @@
  * Misc utility routines for accessing chip-specific features
  * of the SiliconBackplane-based Broadcom chips.
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
- *
+ * Copyright (C) 1999-2012, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,12 +17,12 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: siutils.c 307724 2012-01-12 10:41:05Z $
+ * $Id: siutils.c 347632 2012-07-27 11:00:35Z $
  */
 
 #include <bcm_cfg.h>
@@ -44,6 +44,9 @@
 #include <sbsdpcmdev.h>
 #include <bcmsdpcm.h>
 #include <hndpmu.h>
+#ifdef BCMSPI
+#include <spid.h>
+#endif /* BCMSPI */
 
 #include "siutils_priv.h"
 
@@ -53,6 +56,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh, void *regs
 static bool si_buscore_prep(si_info_t *sii, uint bustype, uint devid, void *sdh);
 static bool si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype, uint32 savewin,
 	uint *origidx, void *regs);
+
 
 
 /* global variable to indicate reservation/release of gpio's */
@@ -105,7 +109,7 @@ si_kattach(osl_t *osh)
 	static bool ksii_attached = FALSE;
 
 	if (!ksii_attached) {
-		void *regs;
+		void *regs = NULL;
 		regs = REG_MAP(SI_ENUM_BASE, SI_CORE_SIZE);
 
 		if (si_doattach(&ksii, BCM4710_DEVICE_ID, osh, regs,
@@ -175,6 +179,24 @@ si_buscore_prep(si_info_t *sii, uint bustype, uint devid, void *sdh)
 		bcmsdh_cfg_write(sdh, SDIO_FUNC_1, SBSDIO_FUNC1_SDIOPULLUP, 0, NULL);
 	}
 
+#ifdef BCMSPI
+	/* Avoid backplane accesses before wake-wlan (i.e. htavail) for spi.
+	 * F1 read accesses may return correct data but with data-not-available dstatus bit set.
+	 */
+	if (BUSTYPE(bustype) == SPI_BUS) {
+
+		int err;
+		uint32 regdata;
+		/* wake up wlan function :WAKE_UP goes as HT_AVAIL request in hardware */
+		regdata = bcmsdh_cfg_read_word(sdh, SDIO_FUNC_0, SPID_CONFIG, NULL);
+		SI_MSG(("F0 REG0 rd = 0x%x\n", regdata));
+		regdata |= WAKE_UP;
+
+		bcmsdh_cfg_write_word(sdh, SDIO_FUNC_0, SPID_CONFIG, regdata, &err);
+
+		OSL_DELAY(100000);
+	}
+#endif /* BCMSPI */
 
 	return TRUE;
 }
@@ -275,7 +297,7 @@ si_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype, uint32 savewin,
 		if (pcie_gen2)
 			sii->pub.buscoretype = PCIE2_CORE_ID;
 		else
-		sii->pub.buscoretype = PCIE_CORE_ID;
+			sii->pub.buscoretype = PCIE_CORE_ID;
 		sii->pub.buscorerev = pcierev;
 		sii->pub.buscoreidx = pcieidx;
 	}
@@ -1130,6 +1152,11 @@ si_watchdog_ms(si_t *sih, uint32 ms)
 	si_watchdog(sih, wd_msticks * ms);
 }
 
+uint32 si_watchdog_msticks(void)
+{
+	return wd_msticks;
+}
+
 bool
 si_taclear(si_t *sih, bool details)
 {
@@ -1921,6 +1948,70 @@ done:
 	return memsize;
 }
 
+
+/* Return the TCM-RAM size of the ARMCR4 core. */
+uint32
+si_tcm_size(si_t *sih)
+{
+	si_info_t *sii;
+	uint origidx;
+	uint intr_val = 0;
+	uint8 *regs;
+	bool wasup;
+	uint32 corecap;
+	uint memsize = 0;
+	uint32 nab = 0;
+	uint32 nbb = 0;
+	uint32 totb = 0;
+	uint32 bxinfo = 0;
+	uint32 idx = 0;
+	uint32 *arm_cap_reg;
+	uint32 *arm_bidx;
+	uint32 *arm_binfo;
+
+	sii = SI_INFO(sih);
+
+	/* Block ints and save current core */
+	INTR_OFF(sii, intr_val);
+	origidx = si_coreidx(sih);
+
+	/* Switch to CR4 core */
+	if (!(regs = si_setcore(sih, ARMCR4_CORE_ID, 0)))
+		goto done;
+
+	/* Get info for determining size. If in reset, come out of reset,
+	 * but remain in halt
+	 */
+	if (!(wasup = si_iscoreup(sih)))
+		si_core_reset(sih, SICF_CPUHALT, SICF_CPUHALT);
+
+	arm_cap_reg = (uint32 *)(regs + SI_CR4_CAP);
+	corecap = R_REG(sii->osh, arm_cap_reg);
+
+	nab = (corecap & ARMCR4_TCBANB_MASK) >> ARMCR4_TCBANB_SHIFT;
+	nbb = (corecap & ARMCR4_TCBBNB_MASK) >> ARMCR4_TCBBNB_SHIFT;
+	totb = nab + nbb;
+
+	arm_bidx = (uint32 *)(regs + SI_CR4_BANKIDX);
+	arm_binfo = (uint32 *)(regs + SI_CR4_BANKINFO);
+	for (idx = 0; idx < totb; idx++) {
+		W_REG(sii->osh, arm_bidx, idx);
+
+		bxinfo = R_REG(sii->osh, arm_binfo);
+		memsize += ((bxinfo & ARMCR4_BSZ_MASK) + 1) * ARMCR4_BSZ_MULT;
+	}
+
+	/* Return to previous state and core */
+	if (!wasup)
+		si_core_disable(sih, 0);
+	si_setcoreidx(sih, origidx);
+
+done:
+	INTR_RESTORE(sii, intr_val);
+
+	return memsize;
+}
+
 uint32
 si_socram_srmem_size(si_t *sih)
 {
@@ -1937,7 +2028,6 @@ si_socram_srmem_size(si_t *sih)
 	if ((CHIPID(sih->chip) == BCM4334_CHIP_ID) && (CHIPREV(sih->chiprev) < 2)) {
 		return (32 * 1024);
 	}
-
 
 	sii = SI_INFO(sih);
 
@@ -2339,6 +2429,9 @@ si_is_sprom_available(si_t *sih)
 	case BCM4324_CHIP_ID:
 		return ((sih->chipst & CST4324_SPROM_MASK) &&
 			!(sih->chipst & CST4324_SFLASH_MASK));
+	case BCM4335_CHIP_ID:
+		return ((sih->chipst & CST4335_SPROM_MASK) &&
+			!(sih->chipst & CST4335_SFLASH_MASK));
 	case BCM43131_CHIP_ID:
 	case BCM43217_CHIP_ID:
 	case BCM43227_CHIP_ID:
@@ -2348,4 +2441,47 @@ si_is_sprom_available(si_t *sih)
 	default:
 		return TRUE;
 	}
+}
+
+
+uint32 si_get_sromctl(si_t *sih)
+{
+	chipcregs_t *cc;
+	uint origidx;
+	uint32 sromctl;
+	osl_t *osh;
+
+	osh = si_osh(sih);
+	origidx = si_coreidx(sih);
+	cc = si_setcoreidx(sih, SI_CC_IDX);
+	ASSERT((uintptr)cc);
+
+	sromctl = R_REG(osh, &cc->sromcontrol);
+
+	/* return to the original core */
+	si_setcoreidx(sih, origidx);
+	return sromctl;
+}
+
+int si_set_sromctl(si_t *sih, uint32 value)
+{
+	chipcregs_t *cc;
+	uint origidx;
+	osl_t *osh;
+
+	osh = si_osh(sih);
+	origidx = si_coreidx(sih);
+	cc = si_setcoreidx(sih, SI_CC_IDX);
+	ASSERT((uintptr)cc);
+
+	/* get chipcommon rev */
+	if (si_corerev(sih) < 32)
+		return BCME_UNSUPPORTED;
+
+	W_REG(osh, &cc->sromcontrol, value);
+
+	/* return to the original core */
+	si_setcoreidx(sih, origidx);
+	return BCME_OK;
+
 }
