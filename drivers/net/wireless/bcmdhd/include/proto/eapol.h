@@ -75,7 +75,7 @@ typedef BWL_PRE_PACKED_STRUCT struct {
 	unsigned char key[1];				/* Key (optional) */
 } BWL_POST_PACKED_STRUCT eapol_key_header_t;
 
-#define EAPOL_KEY_HEADER_LEN	44
+#define EAPOL_KEY_HEADER_LEN 	44
 
 /* RC4 EAPOL-Key flags */
 #define EAPOL_KEY_FLAGS_MASK	0x80
@@ -110,7 +110,7 @@ typedef BWL_PRE_PACKED_STRUCT struct {
 	unsigned char data[EAPOL_WPA_KEY_DATA_LEN];	/* Key data */
 } BWL_POST_PACKED_STRUCT eapol_wpa_key_header_t;
 
-#define EAPOL_WPA_KEY_LEN		95
+#define EAPOL_WPA_KEY_LEN 		95
 
 /* WPA/802.11i/WPA2 KEY KEY_INFO bits */
 #define WPA_KEY_DESC_V1		0x01
@@ -146,7 +146,7 @@ typedef BWL_PRE_PACKED_STRUCT struct {
 	uint8 data[1];
 } BWL_POST_PACKED_STRUCT eapol_wpa2_encap_data_t;
 
-#define EAPOL_WPA2_ENCAP_DATA_HDR_LEN	6
+#define EAPOL_WPA2_ENCAP_DATA_HDR_LEN 	6
 
 #define WPA2_KEY_DATA_SUBTYPE_GTK	1
 #define WPA2_KEY_DATA_SUBTYPE_STAKEY	2
@@ -161,7 +161,7 @@ typedef BWL_PRE_PACKED_STRUCT struct {
 	uint8	gtk[EAPOL_WPA_MAX_KEY_SIZE];
 } BWL_POST_PACKED_STRUCT eapol_wpa2_key_gtk_encap_t;
 
-#define EAPOL_WPA2_KEY_GTK_ENCAP_HDR_LEN	2
+#define EAPOL_WPA2_KEY_GTK_ENCAP_HDR_LEN 	2
 
 #define WPA2_GTK_INDEX_MASK	0x03
 #define WPA2_GTK_INDEX_SHIFT	0x00
@@ -175,7 +175,7 @@ typedef BWL_PRE_PACKED_STRUCT struct {
 	uint8	key[EAPOL_WPA_MAX_KEY_SIZE];
 } BWL_POST_PACKED_STRUCT eapol_wpa2_key_igtk_encap_t;
 
-#define EAPOL_WPA2_KEY_IGTK_ENCAP_HDR_LEN	8
+#define EAPOL_WPA2_KEY_IGTK_ENCAP_HDR_LEN 	8
 
 /* STAKey encapsulation */
 typedef BWL_PRE_PACKED_STRUCT struct {

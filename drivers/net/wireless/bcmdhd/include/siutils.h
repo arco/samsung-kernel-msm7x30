@@ -2,14 +2,14 @@
  * Misc utility routines for accessing the SOC Interconnects
  * of Broadcom HNBU chips.
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
- *
+ * Copyright (C) 1999-2012, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -17,12 +17,12 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: siutils.h 300516 2011-12-04 17:39:44Z $
+ * $Id: siutils.h 347614 2012-07-27 10:24:51Z $
  */
 
 #ifndef	_siutils_h_
@@ -30,28 +30,28 @@
 
 
 struct si_pub {
-	uint	socitype;
+	uint	socitype;		
 
-	uint	bustype;
-	uint	buscoretype;
-	uint	buscorerev;
-	uint	buscoreidx;
-	int	ccrev;
-	uint32	cccaps;
-	uint32  cccaps_ext;
-	int	pmurev;
-	uint32	pmucaps;
-	uint	boardtype;
-	uint    boardrev;
-	uint	boardvendor;
-	uint	boardflags;
-	uint	boardflags2;
-	uint	chip;
-	uint	chiprev;
-	uint	chippkg;
-	uint32	chipst;
-	bool	issim;
-	uint    socirev;
+	uint	bustype;		
+	uint	buscoretype;		
+	uint	buscorerev;		
+	uint	buscoreidx;		
+	int	ccrev;			
+	uint32	cccaps;			
+	uint32  cccaps_ext;			
+	int	pmurev;			
+	uint32	pmucaps;		
+	uint	boardtype;		
+	uint    boardrev;               
+	uint	boardvendor;		
+	uint	boardflags;		
+	uint	boardflags2;		
+	uint	chip;			
+	uint	chiprev;		
+	uint	chippkg;		
+	uint32	chipst;			
+	bool	issim;			
+	uint    socirev;		
 	bool	pci_pr32414;
 
 };
@@ -61,34 +61,34 @@ typedef const struct si_pub si_t;
 
 
 
-#define	SI_OSH		NULL
+#define	SI_OSH		NULL	
 
 #define	BADIDX		(SI_MAXCORES + 1)
 
 
-#define	XTAL			0x1
-#define	PLL			0x2
+#define	XTAL			0x1	
+#define	PLL			0x2	
 
 
-#define	CLK_FAST		0
-#define	CLK_DYNAMIC		2
+#define	CLK_FAST		0	
+#define	CLK_DYNAMIC		2	
 
 
-#define GPIO_DRV_PRIORITY	0
-#define GPIO_APP_PRIORITY	1
-#define GPIO_HI_PRIORITY	2
+#define GPIO_DRV_PRIORITY	0	
+#define GPIO_APP_PRIORITY	1	
+#define GPIO_HI_PRIORITY	2	
 
 
 #define GPIO_PULLUP		0
 #define GPIO_PULLDN		1
 
 
-#define GPIO_REGEVT		0
-#define GPIO_REGEVT_INTMSK	1
-#define GPIO_REGEVT_INTPOL	2
+#define GPIO_REGEVT		0	
+#define GPIO_REGEVT_INTMSK	1	
+#define GPIO_REGEVT_INTPOL	2	
 
 
-#define SI_DEVPATH_BUFSZ	16
+#define SI_DEVPATH_BUFSZ	16	
 
 
 #define	SI_DOATTACH	1
@@ -122,6 +122,21 @@ typedef void (*gpio_handler_t)(uint32 stat, void *arg);
 #define GPIO_CTRL_5_6_EN_MASK 0x60
 #define GPIO_CTRL_7_6_EN_MASK 0xC0
 #define GPIO_OUT_7_EN_MASK 0x80
+
+
+
+#define SI_CR4_CAP			(0x04)
+#define SI_CR4_BANKIDX		(0x40)
+#define SI_CR4_BANKINFO		(0x44)
+
+#define	ARMCR4_TCBBNB_MASK	0xf0
+#define	ARMCR4_TCBBNB_SHIFT	4
+#define	ARMCR4_TCBANB_MASK	0xf
+#define	ARMCR4_TCBANB_SHIFT	0
+
+#define	SICF_CPUHALT		(0x0020)
+#define	ARMCR4_BSZ_MASK		0x3f
+#define	ARMCR4_BSZ_MULT		8192
 
 
 
@@ -189,6 +204,7 @@ extern uint32 si_socdevram_remap_size(si_t *sih);
 
 extern void si_watchdog(si_t *sih, uint ticks);
 extern void si_watchdog_ms(si_t *sih, uint32 ms);
+extern uint32 si_watchdog_msticks(void);
 extern void *si_gpiosetcore(si_t *sih);
 extern uint32 si_gpiocontrol(si_t *sih, uint32 mask, uint32 val, uint8 priority);
 extern uint32 si_gpioouten(si_t *sih, uint32 mask, uint32 val, uint8 priority);
@@ -249,10 +265,10 @@ extern int si_cis_source(si_t *sih);
 #define CIS_OTP		2
 
 
-#define	DEFAULT_FAB	0x0
-#define	CSM_FAB7	0x1
-#define	TSMC_FAB12	0x2
-#define	SMIC_FAB4	0x3
+#define	DEFAULT_FAB	0x0	
+#define	CSM_FAB7	0x1	
+#define	TSMC_FAB12	0x2	
+#define	SMIC_FAB4	0x3	
 extern int si_otp_fabid(si_t *sih, uint16 *fabid, bool rw);
 extern uint16 si_fabid(si_t *sih);
 
@@ -309,4 +325,8 @@ extern int si_pcie_configspace_get(si_t *sih, uint8 *buf, uint size);
 char *si_getnvramflvar(si_t *sih, const char *name);
 
 
-#endif
+extern uint32 si_tcm_size(si_t *sih);
+
+extern int si_set_sromctl(si_t *sih, uint32 value);
+extern uint32 si_get_sromctl(si_t *sih);
+#endif	
