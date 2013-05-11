@@ -73,7 +73,8 @@ static void enable_led_notification(void)
 		return;
 
 	if (in_kernel_blink) {
-		wake_lock(&bln_wake_lock);
+		/* Acquire wakelock */
+		bln_wakelock_acquire();
 
 		/* Start timer */
 		blink_timer.expires = jiffies +
@@ -108,8 +109,8 @@ static void disable_led_notification(void)
 	if (in_kernel_blink)
 		del_timer(&blink_timer);
 
-	wake_unlock(&bln_wake_lock);
-
+	/* Release wakelock */
+	bln_wakelock_release();
 }
 
 static ssize_t backlightnotification_status_read(struct device *dev,
@@ -314,12 +315,38 @@ void register_bln_implementation(struct bln_implementation *imp)
 }
 EXPORT_SYMBOL(register_bln_implementation);
 
-bool bln_is_ongoing()
+bool bln_is_ongoing(void)
 {
 	return bln_ongoing;
 }
 EXPORT_SYMBOL(bln_is_ongoing);
 
+static void bln_wakelock_init(void) {
+	pr_info("%s: Initializing BLN wakelock\n", __func__);
+	wake_lock_init(&bln_wake_lock, WAKE_LOCK_SUSPEND, "bln_wake_lock");
+}
+
+void bln_wakelock_destroy(void) {
+	pr_info("%s: Destroying BLN wakelock\n", __func__);
+	wake_lock_destroy(&bln_wake_lock);
+}
+EXPORT_SYMBOL(bln_wakelock_destroy);
+
+void bln_wakelock_acquire(void) {
+	if (!wake_lock_active(&bln_wake_lock)) {
+		pr_info("%s: Acquiring BLN wakelock\n", __func__);
+		wake_lock(&bln_wake_lock);
+	}
+}
+EXPORT_SYMBOL(bln_wakelock_acquire);
+
+void bln_wakelock_release(void) {
+	if (wake_lock_active(&bln_wake_lock)) {
+		pr_info("%s: Releasing BLN wakelock\n", __func__);
+		wake_unlock(&bln_wake_lock);
+	}
+}
+EXPORT_SYMBOL(bln_wakelock_release);
 
 static void blink_callback(struct work_struct *blink_work)
 {
@@ -327,7 +354,7 @@ static void blink_callback(struct work_struct *blink_work)
 		pr_info("%s: notification timed out\n", __FUNCTION__);
 		bln_enable_backlights();
 		del_timer(&blink_timer);
-		wake_unlock(&bln_wake_lock);
+		bln_wakelock_release();
 		return;
 	}
 
@@ -367,8 +394,8 @@ static int __init bln_control_init(void)
 
 	register_early_suspend(&bln_suspend_data);
 
-    /* Initialize wake locks */
-	wake_lock_init(&bln_wake_lock, WAKE_LOCK_SUSPEND, "bln_wake");
+	/* Initialize wake locks */
+	bln_wakelock_init();
 
 	return 0;
 }
