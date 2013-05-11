@@ -101,7 +101,6 @@ struct cypress_touchkey_devdata {
 static struct cypress_touchkey_devdata *devdata_global;
 #ifdef CONFIG_GENERIC_BLN
 static struct cypress_touchkey_devdata *blndevdata;
-static struct wake_lock bln_wake_lock;
 #endif
 static struct hrtimer cypress_wdog_timer;
 
@@ -431,6 +430,10 @@ static void cypress_touchkey_early_resume(struct early_suspend *h)
 	devdata->is_powering_on = false;
 	devdata->is_sleeping = false;
 
+#ifdef CONFIG_GENERIC_BLN
+	/* release the possible pending wakelock for bln */
+	bln_wakelock_release();
+#endif
 }
 #endif
 
@@ -446,8 +449,8 @@ static void disable_touchkey_backlights(void){
 static void cypress_touchkey_enable_led_notification(void){
   /* is_powering_on signals whether touchkey lights are used for touchmode */
   if (blndevdata->is_powering_on){
-    /* reconfigure gpio for sleep mode */
-    //blndevdata->pdata->touchkey_sleep_onoff(TOUCHKEY_ON);
+    /* acquire wakelock for bln */
+    bln_wakelock_acquire();
 
     /*
      * power on the touchkey controller
@@ -459,11 +462,6 @@ static void cypress_touchkey_enable_led_notification(void){
 
     /* write to i2cbus, enable backlights */
     enable_touchkey_backlights();
-    
-    if( !wake_lock_active(&bln_wake_lock)){
-        printk(KERN_DEBUG "[TouchKey] touchkey get wake_lock\n");
-		wake_lock(&bln_wake_lock);
-    }
   }
   else
       pr_info("%s: cannot set notification led, touchkeys are enabled\n",__FUNCTION__);
@@ -488,13 +486,9 @@ static void cypress_touchkey_disable_led_notification(void){
      */
     blndevdata->pdata->touchkey_onoff(TOUCHKEY_OFF);
     #endif
-    
-    
+
     /* we were using a wakelock, unlock it */
-    if( wake_lock_active(&bln_wake_lock) ){
-        printk(KERN_DEBUG "[TouchKey] touchkey clear wake_lock\n");
-        wake_unlock(&bln_wake_lock);
-    }
+    bln_wakelock_release();
   }
 }
 
@@ -969,8 +963,6 @@ static int cypress_touchkey_probe(struct i2c_client *client,
 #endif
 
 #ifdef CONFIG_GENERIC_BLN
-  /* wake lock for LED Notify */
-  wake_lock_init(&bln_wake_lock, WAKE_LOCK_SUSPEND, "bln_wake_lock");
   blndevdata = devdata;
   register_bln_implementation(&cypress_touchkey_bln);
 #endif
@@ -1011,7 +1003,7 @@ static int __devexit i2c_touchkey_remove(struct i2c_client *client)
 {
 	struct cypress_touchkey_devdata *devdata = i2c_get_clientdata(client);
 
-	wake_lock_destroy(&bln_wake_lock);
+	bln_wakelock_destroy();
 
 	unregister_early_suspend(&devdata->early_suspend);
 	/* If the device is dead IRQs are disabled, we need to rebalance them */
