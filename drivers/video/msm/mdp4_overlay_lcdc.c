@@ -381,6 +381,7 @@ static ssize_t vsync_show_event(struct device *dev,
 	ret = wait_for_completion_interruptible_timeout(&vctrl->vsync_comp,
 		msecs_to_jiffies(VSYNC_PERIOD * 4));
 	if (ret <= 0) {
+		complete_all(&vctrl->vsync_comp);
 		vctrl->wait_vsync_cnt = 0;
 		vctrl->vsync_time = ktime_get();
 	}
