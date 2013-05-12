@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 3.4.43 Kernel Configuration
+# Linux/arm 3.4.44 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1313,9 +1313,13 @@ CONFIG_WLAN=y
 # CONFIG_LIBRA_SDIOIF is not set
 # CONFIG_ATH6K_LEGACY_EXT is not set
 # CONFIG_ATH_COMMON is not set
-CONFIG_BCM4329=m
+CONFIG_BCMDHD=m
+CONFIG_BCM4329=y
+CONFIG_BCMDHD_FW_PATH="/system/etc/firmware/fw_bcmdhd.bin"
+CONFIG_BCMDHD_NVRAM_PATH="/system/etc/wifi/bcmdhd.cal"
+CONFIG_DHD_USE_STATIC_BUF=y
+# CONFIG_DHD_USE_SCHED_SCAN is not set
 CONFIG_BROADCOM_WIFI_RESERVED_MEM=y
-CONFIG_BROADCOM_WIFI=y
 # CONFIG_BRCMFMAC is not set
 # CONFIG_HOSTAP is not set
 # CONFIG_IWM is not set
