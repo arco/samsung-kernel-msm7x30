@@ -1282,7 +1282,7 @@ static int __devinit s6e63m0_probe(struct platform_device *pdev)
 		DPRINT("lcd_power failed to add sysfs entries\n");
 
 	// mdnie sysfs create
-	init_mdnie_class();
+	//init_mdnie_class();
 
 #ifdef MAPPING_TBL_AUTO_BRIGHTNESS
     
