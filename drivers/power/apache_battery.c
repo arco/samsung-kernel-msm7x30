@@ -29,6 +29,9 @@
 // For LPM mode
 extern int charging_boot;
 
+// For SMB328A charger IC
+struct work_struct *p_batt_init;
+
 /* ***** Test Features ***** */
 
 //#define __BATT_TEST_DEVICE__
@@ -170,7 +173,7 @@ const int temp_table[][2] =  {
 	{  333, 	660 },
 };
 
-
+int batt_temp_adc_info = -1;
 
 #define AVERAGE_COUNT		10
 
@@ -1135,7 +1138,7 @@ static int msm_batt_average_temperature(int temp_adc)
 		return 0;
 
 	if (count == 0 && temp_adc == 150)
-		return 0;	// hanapark: 부팅 초기 vbatt task 초기화 이전 값은 무시하도록 방어 코드 추가 
+		return 0;	// hanapark: \BA\CE\C6\C3 \C3珂\E2 vbatt task \C3珂\E2화 \C0\CC\C0\FC \B0\AA\C0\BA \B9\AB\BD\C3\C7溝\B5\B7\CF \B9\E6\BE\EE \C4湄\E5 \C3煞\A1 
 
 #ifdef __BATT_TEST_DEVICE__
 		if (temp_test_adc)
