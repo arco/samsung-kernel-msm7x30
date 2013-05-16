@@ -32,6 +32,8 @@ extern int charging_boot;
 // For SMB328A charger IC
 struct work_struct *p_batt_init;
 
+extern int board_hw_revision;
+
 /* ***** Test Features ***** */
 
 //#define __BATT_TEST_DEVICE__
@@ -205,8 +207,6 @@ int batt_temp_adc_info = -1;
 #ifdef __BATT_TEST_DEVICE__
 static int temp_test_adc = 0;
 #endif
-
-
 
 enum {
 	BATTERY_REGISTRATION_SUCCESSFUL = 0,
@@ -483,12 +483,38 @@ static int msm_batt_average_chg_current(int chg_current_adc);
 static void msm_batt_check_event(struct work_struct *work);
 static void msm_batt_cable_status_update(void);
 
+static void msm_batt_delay_init(struct work_struct *work);
+static DECLARE_DELAYED_WORK(msm_batt_work_init, msm_batt_delay_init);
+
+static int msm_batt_cleanup(void);
+static int msm_batt_init_rpc(void);
+
 /* charging absolute time control */
 static void msm_batt_set_charging_start_time(chg_enable_type enable);
 static int msm_batt_is_over_abs_time(void);
 
 static void msm_batt_update_psy_status(void);
 static DECLARE_WORK(msm_batt_work, msm_batt_check_event);
+
+static void msm_batt_delay_init(struct work_struct *work)
+{	
+	int rc;
+
+//	printk("[SSAM] %s enter!\n", __func__);
+
+	rc = msm_batt_init_rpc();
+
+	if (rc < 0) {
+		pr_err("%s: FAIL: msm_batt_init_rpc.  rc=%d\n", __func__, rc);
+		msm_batt_cleanup();
+		return rc;
+	}
+
+	pr_info("%s: Charger/Battery = 0x%08x/0x%08x (RPC version)\n",
+		__func__, msm_batt_info.chg_api_version,
+		msm_batt_info.batt_api_version);
+	
+}
 
 static void batt_timeover(unsigned long arg )
 {
@@ -508,7 +534,7 @@ static void msm_batt_check_event(struct work_struct *work)
 	.store = msm_batt_store_property,		\
 }
 
-static struct device_attribute ariesve_battery_attrs[] = {
+static struct device_attribute ancora_battery_attrs[] = {
 #ifdef CONFIG_MAX17043_FUEL_GAUGE
 	MSM_BATTERY_ATTR(fg_soc),
 	MSM_BATTERY_ATTR(reset_soc),
@@ -549,9 +575,9 @@ static int msm_batt_create_attrs(struct device * dev)
 	int i, rc;
 
 
-	for (i = 0; i < ARRAY_SIZE(ariesve_battery_attrs); i++)
+	for (i = 0; i < ARRAY_SIZE(ancora_battery_attrs); i++)
 	{
-		rc = device_create_file(dev, &ariesve_battery_attrs[i]);
+		rc = device_create_file(dev, &ancora_battery_attrs[i]);
 		if (rc)
 			goto failed;
 	}
@@ -559,7 +585,7 @@ static int msm_batt_create_attrs(struct device * dev)
 
 failed:
 	while (i--)
-		device_remove_file(dev, &ariesve_battery_attrs[i]);
+		device_remove_file(dev, &ancora_battery_attrs[i]);
 
 succeed:
 	return rc;
@@ -569,9 +595,9 @@ static void msm_batt_remove_attrs(struct device * dev)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(ariesve_battery_attrs); i++)
+	for (i = 0; i < ARRAY_SIZE(ancora_battery_attrs); i++)
 	{
-		device_remove_file(dev, &ariesve_battery_attrs[i]);
+		device_remove_file(dev, &ancora_battery_attrs[i]);
 	}
 }
 
@@ -581,7 +607,7 @@ static ssize_t msm_batt_show_property(struct device *dev,
 				       char *buf)
 {
 	int i = 0;
-	const ptrdiff_t offset = attr - ariesve_battery_attrs;
+	const ptrdiff_t offset = attr - ancora_battery_attrs;
 
 	switch (offset) {
 #ifdef CONFIG_MAX17043_FUEL_GAUGE
@@ -637,7 +663,7 @@ static ssize_t msm_batt_store_property(struct device *dev,
 {
 	int x = 0;
 	int ret = 0;
-	const ptrdiff_t offset = attr - ariesve_battery_attrs;
+	const ptrdiff_t offset = attr - ancora_battery_attrs;
 
 
 	switch (offset) {
@@ -1336,6 +1362,92 @@ static int msm_batt_control_temperature(int temp_adc)
 #define	be32_to_cpu_self(v)	(v = be32_to_cpu(v))
 #define	be16_to_cpu_self(v)	(v = be16_to_cpu(v))
 
+#ifdef BATTERY_CHECK_OVP
+static int msm_batt_block_ovp_chg(void)
+{
+#ifdef CONFIG_CHARGER_SMB328A
+	struct power_supply *psy = power_supply_get_by_name("smb328a-charger");
+	union power_supply_propval val_status;
+	int ret;
+
+    /* check battery charging status */
+    if (msm_batt_info.batt_status != POWER_SUPPLY_STATUS_CHARGING) {
+        return 0;
+    }
+
+    /* check charger connected */
+    if (msm_batt_info.charging_source == NO_CHG) {
+        return 0;
+    }
+
+    /* check ovp status */
+    ret = psy->get_property(psy, POWER_SUPPLY_PROP_STATUS,
+	            &val_status);
+	if (ret) {
+        printk("[BATT] %s fail to get ovp status from SMB328 charger! (%d)\n",
+            __func__, ret);
+        return 0;
+    }
+
+    if (val_status.intval == POWER_SUPPLY_STATUS_DISCHARGING) {
+        msm_batt_info.batt_ovp = 1;
+        printk("\n[BATT] ##### OVP detected!!! ####\n\n");
+    } else {
+        msm_batt_info.batt_ovp = 0;
+    }
+#else
+    msm_batt_info.batt_ovp = 0;
+#endif
+
+    if (msm_batt_info.batt_ovp == 1)
+        return 1;
+    else
+        return 0;
+}
+
+static int msm_batt_resume_ovp_chg(void)
+{
+#ifdef CONFIG_CHARGER_SMB328A
+    struct power_supply *psy = power_supply_get_by_name("smb328a-charger");
+	union power_supply_propval val_status;
+	int ret;
+
+    /* check charging blocked from ovp */
+    if (msm_batt_info.batt_ovp_chg_block == 0)
+        return 0;
+
+    /* check charger connected */
+    if (msm_batt_info.charging_source == NO_CHG) {
+        return 0;
+    }
+
+    /* check battery status is not charging */
+    if (msm_batt_info.batt_status == POWER_SUPPLY_STATUS_CHARGING) {
+        msm_batt_info.batt_ovp_chg_block = 0;
+        return 0;
+    }
+
+    /* check ovp status */
+    ret = psy->get_property(psy, POWER_SUPPLY_PROP_STATUS,
+                &val_status);
+	if (ret) {
+        printk("[BATT] %s fail to get ovp status from SMB328 charger! (%d)\n",
+            __func__, ret);
+        return 0;
+    }
+
+    if (val_status.intval == POWER_SUPPLY_STATUS_CHARGING) {
+        printk("\n[BATT] ##### OVP relesed!!! ####\n\n");
+        msm_batt_info.batt_ovp = 0;
+        return 1;
+    }
+    return 0;
+#else
+    return 0;
+#endif
+}
+#endif
+
 static int msm_batt_get_batt_chg_status(void)
 {
 	int rc ;
@@ -1391,6 +1503,12 @@ static void msm_batt_update_psy_status(void)
 	u32 chg_current_adc;
 #ifdef CONFIG_WIRELESS_CHARGING
 	u32 wc_adc;
+#endif
+
+#ifdef CONFIG_CHARGER_SMB328A	
+	struct power_supply *psy = power_supply_get_by_name("smb328a-charger");
+	union power_supply_propval val_status;
+	int ret;
 #endif
 
 	u32 status_changed = 0;
@@ -2574,7 +2692,7 @@ static struct platform_driver msm_batt_driver = {
 	.probe = msm_batt_probe,
 	.remove = __devexit_p(msm_batt_remove),
 	.driver = {
-		   .name = "ariesve-battery",
+		   .name = "ancora-battery",
 		   .owner = THIS_MODULE,
 		   .pm = &msm_bat_pm_ops,
 		   },
@@ -2689,21 +2807,39 @@ static int __devinit msm_batt_init_rpc(void)
 
 static int __init msm_batt_init(void)
 {
-	int rc;
+//	printk("[SSAM] %s called. version : 0x%x \n", __func__, board_hw_revision);
+	
+	if (board_hw_revision >= 0x06)
+	{		
+		msm_batt_info.msm_batt_wq =
+			create_singlethread_workqueue("msm_battery");	
+		if (!msm_batt_info.msm_batt_wq) {
+			printk(KERN_ERR "%s: create workque failed \n", __func__);
+			return -ENOMEM;
+		}
 
-
-	rc = msm_batt_init_rpc();
-
-	if (rc < 0) {
-		pr_err("%s: FAIL: msm_batt_init_rpc.  rc=%d\n", __func__, rc);
-		msm_batt_cleanup();
-		return rc;
+//		printk("[SSAM] Enter delayed work. \n");
+		
+		schedule_delayed_work(&msm_batt_work_init, msecs_to_jiffies(5000));
+		p_batt_init = &msm_batt_work_init;
 	}
-
-	pr_info("%s: Charger/Battery = 0x%08x/0x%08x (RPC version)\n",
-		__func__, msm_batt_info.chg_api_version,
-		msm_batt_info.batt_api_version);
-
+	else
+	{
+		int rc;
+		
+		rc = msm_batt_init_rpc();
+		
+		if (rc < 0) {
+			pr_err("%s: FAIL: msm_batt_init_rpc.  rc=%d\n", __func__, rc);
+			msm_batt_cleanup();
+			return rc;
+		}
+		
+		pr_info("%s: Charger/Battery = 0x%08x/0x%08x (RPC version)\n",
+			__func__, msm_batt_info.chg_api_version,
+			msm_batt_info.batt_api_version);
+	}
+		
 	//Check jig status
 	if(fsa9480_get_jig_status())
 		batt_jig_on_status = 1;
@@ -2726,5 +2862,5 @@ MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Kiran Kandi, Qualcomm Innovation Center, Inc.");
 MODULE_DESCRIPTION("Battery driver for Qualcomm MSM chipsets.");
 MODULE_VERSION("1.0");
-MODULE_ALIAS("platform:ariesve_battery");
+MODULE_ALIAS("platform:ancora_battery");
 
