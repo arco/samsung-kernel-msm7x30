@@ -2448,10 +2448,10 @@ static long msm_ioctl_control(struct file *filep, unsigned int cmd,
 		else
 	        rc = sr030pc30_sensor_ext_config(argp);
 #elif defined (CONFIG_MACH_APACHE)
-		if(cfg_data.device_id == 0)
+/*		if(cfg_data.device_id == 0)
                rc = s5k4ecgx_sensor_ext_config(argp);
 		else
-	        rc = sr130pc10_sensor_ext_config(argp);//pault
+	        rc = sr130pc10_sensor_ext_config(argp);//pault */
 #elif defined (CONFIG_MACH_GODART)
 		if(cfg_data.device_id == 0)
                rc = s5k4ecgx_sensor_ext_config(argp);
