@@ -33,7 +33,7 @@
 
 #define POWER_SUPPLY_ATTR(_name)					\
 {									\
-	.attr = { .name = #_name, .mode = 0444 },					\
+	.attr = { .name = #_name },					\
 	.show = power_supply_show_property,				\
 	.store = power_supply_store_property,				\
 }
