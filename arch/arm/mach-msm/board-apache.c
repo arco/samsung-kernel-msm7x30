@@ -4613,7 +4613,7 @@ static int lcdc_gpio_array_num[] = {
 				45, /* spi_clk */
 				46, /* spi_cs  */
 				47, /* spi_mosi */
-				129, /* lcd_reset */
+				129, /* spi_miso */
 				};
 
 static struct msm_gpio lcdc_gpio_config_data[] = {
@@ -4624,9 +4624,8 @@ static struct msm_gpio lcdc_gpio_config_data[] = {
 };
 
 /* GPIO TLMM: Status */
-#define GPIO_ENABLE	0
-#define GPIO_DISABLE	1
-
+#define GPIO_ENABLE     0
+#define GPIO_DISABLE    1
 static void config_lcdc_gpio_table(uint32_t *table, int len, unsigned enable)
 {
 	int n, rc;
@@ -4643,16 +4642,16 @@ static void config_lcdc_gpio_table(uint32_t *table, int len, unsigned enable)
 	}
 }
 
-static void lcdc_config_gpios(int enable)
+static void lcdc_s6d04m0_config_gpios(int enable)
 {
-	config_lcdc_gpio_table(lcdc_gpio_config_data,
+	config_lcdc_gpio_table((uint32_t *)lcdc_gpio_config_data,
 		ARRAY_SIZE(lcdc_gpio_config_data), enable);
 }
 #endif
 
 static struct msm_panel_common_pdata lcdc_panel_data = {
 #ifndef CONFIG_SPI_QSD
-	.panel_config_gpio = lcdc_config_gpios,
+	.panel_config_gpio = lcdc_s6d04m0_config_gpios,
 	.gpio_num          = lcdc_gpio_array_num,
 #endif
 };
@@ -4660,16 +4659,6 @@ static struct msm_panel_common_pdata lcdc_panel_data = {
 #ifdef CONFIG_FB_MSM_LCDC_S6E63M0_WVGA_PANEL
 static struct platform_device lcdc_s6e63m0_panel_device = {
 	.name   = "lcdc_s6e63m0_wvga",
-	.id     = 0,
-	.dev    = {
-		.platform_data = &lcdc_panel_data,
-	}
-};
-#endif
-
-#ifdef CONFIG_FB_MSM_LCDC_SAMSUNG_ANCORA_PANEL
-static struct platform_device lcdc_samsung_panel_device = {
-	.name   = "lcdc_samsung_ancora",
 	.id     = 0,
 	.dev    = {
 		.platform_data = &lcdc_panel_data,
@@ -4859,45 +4848,25 @@ static struct platform_device qcedev_device = {
 
 static unsigned char quickvx_mddi_client = 1;
 
-static struct regulator *mddi_ldo20;
-static struct regulator *mddi_lcd;
+static struct regulator *mddi_ldo17;
+static struct regulator *mddi_ldo15;
 
 static int display_common_init(void)
 {
-	struct regulator_bulk_data regs[2] = {
-		{ .supply = "ldo20", /* voltage set in display_common_power */},
-		{ .supply = NULL,    /* mddi_lcd, initialized below */ },
-	};
-
 	int rc = 0;
 
-	/* lcd: LDO15 @3.0V */
-	regs[1].supply = "ldo15";
-	regs[1].min_uV = 2750000;
-	regs[1].max_uV = 2750000;
-
-	rc = regulator_bulk_get(NULL, ARRAY_SIZE(regs), regs);
-	if (rc) {
+	mddi_ldo17 = regulator_get(NULL, "ldo17");
+	if (IS_ERR(mddi_ldo17)) {
 		pr_err("%s: regulator_bulk_get failed: %d\n",
 				__func__, rc);
-		goto bail;
 	}
 
-	rc = regulator_bulk_set_voltage(ARRAY_SIZE(regs), regs);
-	if (rc) {
-		pr_err("%s: regulator_bulk_set_voltage failed: %d\n",
+	mddi_ldo15 = regulator_get(NULL, "ldo15");
+	if (IS_ERR(mddi_ldo15)) {
+		pr_err("%s: regulator_bulk_get failed: %d\n",
 				__func__, rc);
-		goto put_regs;
 	}
 
-	mddi_ldo20 = regs[0].consumer;
-	mddi_lcd   = regs[1].consumer;
-
-	return rc;
-
-put_regs:
-	regulator_bulk_free(ARRAY_SIZE(regs), regs);
-bail:
 	return rc;
 }
 
@@ -4922,26 +4891,17 @@ static int display_common_power(int on)
 		display_regs_initialized = true;
 	}
 
-
-	rc = regulator_set_voltage(mddi_ldo20, 1500000, 1500000);
-
-	if (rc) {
-		pr_err("%s: could not set voltage for ldo20: %d\n",
-				__func__, rc);
-		return rc;
-	}
-
 	if (on) {
-		rc = regulator_enable(mddi_ldo20);
+		rc = regulator_enable(mddi_ldo17);
 		if (rc) {
-			pr_err("%s: LDO20 regulator enable failed (%d)\n",
+			pr_err("%s: LDO17 regulator enable failed (%d)\n",
 			       __func__, rc);
 			return rc;
 		}
 
-		rc = regulator_enable(mddi_lcd);
+		rc = regulator_enable(mddi_ldo15);
 		if (rc) {
-			pr_err("%s: LCD regulator enable failed (%d)\n",
+			pr_err("%s: LCD LDO15 regulator enable failed (%d)\n",
 				__func__, rc);
 			return rc;
 		}
@@ -4949,16 +4909,16 @@ static int display_common_power(int on)
 		mdelay(5);		/* ensure power is stable */
 
 	} else {
-		rc = regulator_disable(mddi_ldo20);
+		rc = regulator_disable(mddi_ldo17);
 		if (rc) {
-			pr_err("%s: LDO20 regulator disable failed (%d)\n",
+			pr_err("%s: LDO17 regulator disable failed (%d)\n",
 			       __func__, rc);
 			return rc;
 		}
 
-		rc = regulator_disable(mddi_lcd);
+		rc = regulator_disable(mddi_ldo15);
 		if (rc) {
-			pr_err("%s: LCD regulator disable failed (%d)\n",
+			pr_err("%s: LCD LDO15 regulator disable failed (%d)\n",
 				__func__, rc);
 			return rc;
 		}
@@ -4975,6 +4935,8 @@ static int msm_fb_mddi_sel_clk(u32 *clk_rate)
 
 static int msm_fb_mddi_client_power(u32 client_id)
 {
+	struct regulator *vreg_ldo20;
+	int rc;
 	printk(KERN_NOTICE "\n client_id = 0x%x", client_id);
 	/* Check if it is Quicklogic client */
 	if (client_id == 0xc5835800) {
@@ -4985,6 +4947,21 @@ static int msm_fb_mddi_client_power(u32 client_id)
 		gpio_set_value(97, 0);
 		gpio_set_value_cansleep(PM8058_GPIO_PM_TO_SYS(
 			PMIC_GPIO_QUICKVX_CLK), 0);
+
+		vreg_ldo20 = regulator_get(NULL, "gp13");
+
+		if (IS_ERR(vreg_ldo20)) {
+			rc = PTR_ERR(vreg_ldo20);
+			pr_err("%s: gp13 vreg get failed (%d)\n",
+				   __func__, rc);
+			return rc;
+		}
+		rc = regulator_enable(vreg_ldo20);
+		if (rc) {
+			pr_err("%s: LDO20 vreg enable failed (%d)\n",
+			       __func__, rc);
+			return rc;
+		}
 	}
 
 	return 0;
@@ -4996,80 +4973,42 @@ static struct mddi_platform_data mddi_pdata = {
 	.mddi_client_power = msm_fb_mddi_client_power,
 };
 
-/*int mdp_core_clk_rate_table[] = {
-	122880000,
-	122880000,
-	192000000,
-	192000000,
-};
-*/
 static struct msm_panel_common_pdata mdp_pdata = {
 	.hw_revision_addr = 0xac001270,
 	.gpio = 30,
-	.mdp_max_clk = 122800000,
+	.mdp_max_clk = 192000000,
 	.mdp_rev = MDP_REV_40,
 };
 
-static struct msm_gpio lcd_panel_on_gpios[] = {
-         GPIO_CFG(18, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(19, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(20, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(21, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(22, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(23, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(24, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(25, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(90, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(91, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(92, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(93, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(94, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(95, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(96, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(97, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(98, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(99, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(100, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(101, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(102, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(103, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(104, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(105, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(106, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(107, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(108, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(109, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-};
-
-static struct msm_gpio lcd_panel_off_gpios[] = {
-         GPIO_CFG(18, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(19, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(20, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(21, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(22, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(23, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(24, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(25, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(90, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(91, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(92, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(93, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(94, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(95, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(96, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(97, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(98, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(99, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(100, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(101, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(102, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(103, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(104, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(105, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(106, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(107, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(108, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-         GPIO_CFG(109, 0, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
+static struct msm_gpio lcd_panel_gpios[] = {
+	{ GPIO_CFG(18, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_grn0" },
+	{ GPIO_CFG(19, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_grn1" },
+	{ GPIO_CFG(20, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_blu0" },
+	{ GPIO_CFG(21, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_blu1" },
+	{ GPIO_CFG(22, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_blu2" },
+	{ GPIO_CFG(23, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_red0" },
+	{ GPIO_CFG(24, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_red1" },
+	{ GPIO_CFG(25, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_red2" },
+	{ GPIO_CFG(90, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_pclk" },
+	{ GPIO_CFG(91, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_en" },
+	{ GPIO_CFG(92, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_vsync" },
+	{ GPIO_CFG(93, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_hsync" },
+	{ GPIO_CFG(94, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_grn2" },
+	{ GPIO_CFG(95, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_grn3" },
+	{ GPIO_CFG(96, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_grn4" },
+	{ GPIO_CFG(97, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_grn5" },
+	{ GPIO_CFG(98, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_grn6" },
+	{ GPIO_CFG(99, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_grn7" },
+	{ GPIO_CFG(100, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_blu3" },
+	{ GPIO_CFG(101, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_blu4" },
+	{ GPIO_CFG(102, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_blu5" },
+	{ GPIO_CFG(103, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_blu6" },
+	{ GPIO_CFG(104, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_blu7" },
+	{ GPIO_CFG(105, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_red3" },
+	{ GPIO_CFG(106, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_red4" },
+	{ GPIO_CFG(107, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_red5" },
+	{ GPIO_CFG(108, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_red6" },
+	{ GPIO_CFG(109, 1, GPIO_CFG_OUTPUT,  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcdc_red7" },
 };
 
 static int lcdc_common_panel_power(int on)
@@ -5085,16 +5024,22 @@ static int lcdc_common_panel_power(int on)
 		return rc;
 	}
 
-	if (on)
-	{
-		config_gpio_table(lcd_panel_on_gpios,
-			ARRAY_SIZE(lcd_panel_on_gpios));
+	if (on) {
+		rc = msm_gpios_enable(lcd_panel_gpios,
+				ARRAY_SIZE(lcd_panel_gpios));
+		if (rc < 0) {
+			printk(KERN_ERR "%s: gpio enable failed: %d\n",
+					__func__, rc);
+		}
+	} else {	/* off */
+		gp = lcd_panel_gpios;
+		for (i = 0; i < ARRAY_SIZE(lcd_panel_gpios); i++) {
+			/* ouput low */
+			gpio_set_value(GPIO_PIN(gp->gpio_cfg), 0);
+			gp++;
+		}
 	}
-	else
-	{
-		config_gpio_table(lcd_panel_off_gpios,
-			ARRAY_SIZE(lcd_panel_off_gpios));
-	}
+
 	return rc;
 }
 
@@ -5102,6 +5047,8 @@ static int lcdc_panel_power(int on)
 {
 	int flag_on = !!on;
 	static int lcdc_power_save_on;
+
+	return 0;	
 
 	if (lcdc_power_save_on == flag_on)
 		return 0;
@@ -5115,11 +5062,84 @@ static struct lcdc_platform_data lcdc_pdata = {
 	.lcdc_power_save   = lcdc_panel_power,
 };
 
+static struct regulator *atv_s4, *atv_ldo9;
+
+static int __init atv_dac_power_init(void)
+{
+	int rc;
+	struct regulator_bulk_data regs[] = {
+		{ .supply = "smps4", .min_uV = 2200000, .max_uV = 2200000 },
+		{ .supply = "ldo9",  .min_uV = 2050000, .max_uV = 2050000 },
+	};
+
+	rc = regulator_bulk_get(NULL, ARRAY_SIZE(regs), regs);
+
+	if (rc) {
+		pr_err("%s: could not get regulators: %d\n", __func__, rc);
+		goto bail;
+	}
+
+	rc = regulator_bulk_set_voltage(ARRAY_SIZE(regs), regs);
+
+	if (rc) {
+		pr_err("%s: could not set voltages: %d\n", __func__, rc);
+		goto reg_free;
+	}
+
+	atv_s4   = regs[0].consumer;
+	atv_ldo9 = regs[1].consumer;
+
+reg_free:
+	regulator_bulk_free(ARRAY_SIZE(regs), regs);
+bail:
+	return rc;
+}
+
+static int atv_dac_power(int on)
+{
+	int rc = 0;
+
+	if (on) {
+		rc = regulator_enable(atv_s4);
+		if (rc) {
+			pr_err("%s: s4 vreg enable failed (%d)\n",
+				__func__, rc);
+			return rc;
+		}
+		rc = regulator_enable(atv_ldo9);
+		if (rc) {
+			pr_err("%s: ldo9 vreg enable failed (%d)\n",
+				__func__, rc);
+			return rc;
+		}
+	} else {
+		rc = regulator_disable(atv_ldo9);
+		if (rc) {
+			pr_err("%s: ldo9 vreg disable failed (%d)\n",
+				   __func__, rc);
+			return rc;
+		}
+		rc = regulator_disable(atv_s4);
+		if (rc) {
+			pr_err("%s: s4 vreg disable failed (%d)\n",
+				   __func__, rc);
+			return rc;
+		}
+	}
+	return rc;
+}
+
+static struct tvenc_platform_data atv_pdata = {
+	.poll		 = 1,
+	.pm_vid_en	 = atv_dac_power,
+};
+
 static void __init msm_fb_add_devices(void)
 {
 	msm_fb_register_device("mdp", &mdp_pdata);
 	msm_fb_register_device("pmdh", &mddi_pdata);
 	msm_fb_register_device("lcdc", &lcdc_pdata);
+	msm_fb_register_device("tvenc", &atv_pdata);
 #ifdef CONFIG_FB_MSM_TVOUT
 	msm_fb_register_device("tvout_device", NULL);
 #endif
