@@ -1862,7 +1862,7 @@ void msm_snddev_poweramp_off_tty(void)
 }
 
 static struct regulator_bulk_data snddev_regs[] = {
-	{ .supply = "gp4", .min_uV = 2600000, .max_uV = 2600000 },
+	{ .supply = "gp4", .min_uV = 1800000, .max_uV = 2600000 },
 	{ .supply = "ncp", .min_uV = 1800000, .max_uV = 1800000 },
 };
 
@@ -3441,7 +3441,7 @@ static int oliver_tsp_ldo_on(void)
 
 	printk("[TSP] M1 TSP LDO init\n");
 	// VREG_TSP_1.8V
-	vreg_ldo2 = regulator_get(NULL, "gp4");		
+	vreg_ldo2 = regulator_get(NULL, "gp4");
 	if (IS_ERR(vreg_ldo2)) {
 		rc = PTR_ERR(vreg_ldo2);
 		pr_err("%s: gp6 vreg get failed (%d)\n",
@@ -3538,7 +3538,7 @@ static struct msm_gpio optnav_config_data[] = {
 
 static struct regulator_bulk_data optnav_regulators[] = {
 	{ .supply = "gp7", .min_uV = 1800000, .max_uV = 1800000 },
-	{ .supply = "gp4", .min_uV = 2600000, .max_uV = 2600000 },
+	{ .supply = "gp4", .min_uV = 1800000, .max_uV = 2600000 },
 	{ .supply = "gp9", .min_uV = 1800000, .max_uV = 1800000 },
 	{ .supply = "usb", .min_uV = 3300000, .max_uV = 3300000 },
 };
@@ -5781,7 +5781,7 @@ static int mbp_init_regs(struct device *dev)
 {
 	struct regulator_bulk_data regs[] = {
 		/* Analog and I/O regs */
-		{ .supply = "gp4",  .min_uV = 2600000, .max_uV = 2600000 },
+		{ .supply = "gp4",  .min_uV = 1800000, .max_uV = 2600000 },
 		{ .supply = "s3",   .min_uV = 1800000, .max_uV = 1800000 },
 		/* RF regs */
 		{ .supply = "s2",   .min_uV = 1300000, .max_uV = 1300000 },
