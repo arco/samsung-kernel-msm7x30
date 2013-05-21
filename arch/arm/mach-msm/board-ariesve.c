@@ -3416,66 +3416,42 @@ static struct i2c_board_info touchkey_info[] __initdata = {
 
 #endif
 
+static struct regulator_bulk_data oliver_tsp_regs[] = {
+	{ .supply = "gp4", .min_uV = 1800000, .max_uV = 1800000 },
+	{ .supply = "xo_out", .min_uV = 3000000, .max_uV = 3000000 },
+};
+
 static int oliver_tsp_ldo_on(void)
 {
-	int rc = 0;
-	struct regulator *vreg_ldo2, *vreg_ldo10 = NULL;
+	int rc;
 
-	printk("[TSP] M1 TSP LDO init\n");
-	// VREG_TSP_1.8V
-	vreg_ldo2 = regulator_get(NULL, "gp4");
-	if (IS_ERR(vreg_ldo2)) {
-		rc = PTR_ERR(vreg_ldo2);
-		pr_err("%s: gp6 vreg get failed (%d)\n",
-		       __func__, rc);
-		return rc;
-	}
-
-	// VREG_TSP_A3.0V
-	// Oliver Board rev univ01 ldo10 is gp11
-	vreg_ldo10 = regulator_get(NULL, "xo_out"); 
-	if (IS_ERR(vreg_ldo10)) {
-		rc = PTR_ERR(vreg_ldo10);
-		pr_err("%s: gp9 vreg get failed (%d)\n",
-		       __func__, rc);
-		return rc;
-	}
-	rc =  regulator_set_voltage(vreg_ldo2, 1800000,1800000);
+	rc = regulator_bulk_get(NULL, ARRAY_SIZE(oliver_tsp_regs), oliver_tsp_regs);
 	if (rc) {
-		pr_err("%s: vreg LDO2 set level failed (%d)\n",
-		       __func__, rc);
-		return rc;
+		pr_err("%s: could not get regulators: %d\n", __func__, rc);
+		goto out;
 	}
 
-	rc = regulator_set_voltage(vreg_ldo10, 3000000,3000000);
+	rc = regulator_bulk_set_voltage(ARRAY_SIZE(oliver_tsp_regs), oliver_tsp_regs);
 	if (rc) {
-		pr_err("%s: vreg LDO10 set level failed (%d)\n",
-		       __func__, rc);
-		return rc;
+		pr_err("%s: could not set voltages: %d\n", __func__, rc);
+		goto regs_free;
 	}
 
-	rc = regulator_enable(vreg_ldo2);
-
+	rc = regulator_bulk_enable(ARRAY_SIZE(oliver_tsp_regs), oliver_tsp_regs);
 	if (rc) {
-		pr_err("%s: LDO2 vreg enable failed (%d)\n",
-		       __func__, rc);
-		return rc;
+		pr_err("%s: could not enable regulators: %d\n", __func__, rc);
+		goto regs_free;
 	}
 
-	rc = regulator_enable(vreg_ldo10);
+	mdelay(5); /* ensure power is stable */
 
-	if (rc) {
-		pr_err("%s: LDO10 vreg enable failed (%d)\n",
-		       __func__, rc);
-		return rc;
-	}
+	return 0;
 
-	mdelay(5);		/* ensure power is stable */
-
+regs_free:
+	regulator_bulk_free(ARRAY_SIZE(oliver_tsp_regs), oliver_tsp_regs);
+out:
 	return rc;
-
 }
-
 #endif
 
 #if defined (CONFIG_SENSOR_CE147)
