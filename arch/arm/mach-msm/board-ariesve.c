@@ -6124,8 +6124,8 @@ static int msm_sdcc_get_wpswitch(struct device *dv)
 }
 #endif
 
-extern int wlan_register_status_notify();
-extern unsigned int wlan_status();
+extern int wlan_register_status_notify(void (*callback)(int, void *), void *dev_id);
+extern unsigned int wlan_status(struct device *dev);
 
 #if defined(CONFIG_MMC_MSM_SDC1_SUPPORT)
 #if defined(CONFIG_CSDIO_VENDOR_ID) && \
