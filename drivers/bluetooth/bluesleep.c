@@ -193,7 +193,6 @@ void bluesleep_sleep_wakeup(void)
  * @brief@  main sleep work handling function which update the flags
  * and activate and deactivate UART ,check FIFO.
  */
-static int sleep_cnt = 0;
 static void bluesleep_sleep_work(struct work_struct *work)
 {
 	if (bluesleep_can_sleep()) {

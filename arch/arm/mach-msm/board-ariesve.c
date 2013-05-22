@@ -1721,7 +1721,6 @@ static int __init snddev_poweramp_gpio_init(void)
 
 smps3_free:
 	regulator_put(smps3);
-out:
 	smps3 = NULL;
 	return rc;
 }
@@ -6092,8 +6091,8 @@ static int msm_sdcc_get_wpswitch(struct device *dv)
 }
 #endif
 
-extern int wlan_register_status_notify();
-extern unsigned int wlan_status();
+extern int wlan_register_status_notify(void (*callback)(int, void *), void *dev_id);
+extern unsigned int wlan_status(struct device *dev);
 
 #if defined(CONFIG_MMC_MSM_SDC1_SUPPORT)
 #if defined(CONFIG_CSDIO_VENDOR_ID) && \
@@ -6264,7 +6263,7 @@ static void __init msm7x30_init_mmc(void)
 	if (machine_is_msm7x30_fluid()) {
 		msm7x30_sdc1_data.ocr_mask =  MMC_VDD_27_28 | MMC_VDD_28_29;
 		if (msm_sdc1_lvlshft_enable()) {
-			pr_err("%s: could not enable level shift\n");
+			pr_err("%s: could not enable level shift\n", __func__);
 			goto out1;
 		}
 	}
