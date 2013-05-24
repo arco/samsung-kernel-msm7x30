@@ -4202,20 +4202,35 @@ static struct regulator *mddi_ldo15;
 
 static int display_common_init(void)
 {
+	struct regulator_bulk_data regs[2] = {
+		{ .supply = "ldo17", .min_uV = 1800000, .max_uV = 1800000},
+		{ .supply = "ldo15", .min_uV = 3000000, .max_uV = 3000000},
+	};
+
 	int rc = 0;
 
-	mddi_ldo17 = regulator_get(NULL, "ldo17");
-	if (IS_ERR(mddi_ldo17)) {
+	rc = regulator_bulk_get(NULL, ARRAY_SIZE(regs), regs);
+	if (rc) {
 		pr_err("%s: regulator_bulk_get failed: %d\n",
-				__func__, rc);
+			__func__, rc);
+		goto bail;
 	}
 
-	mddi_ldo15 = regulator_get(NULL, "ldo15");
-	if (IS_ERR(mddi_ldo15)) {
-		pr_err("%s: regulator_bulk_get failed: %d\n",
-				__func__, rc);
+	rc = regulator_bulk_set_voltage(ARRAY_SIZE(regs), regs);
+	if (rc) {
+		pr_err("%s: regulator_bulk_set_voltage failed: %d\n",
+			__func__, rc);
+		goto put_regs;
 	}
 
+	mddi_ldo17 = regs[0].consumer;
+	mddi_ldo15 = regs[1].consumer;
+
+	return rc;
+
+put_regs:
+	regulator_bulk_free(ARRAY_SIZE(regs), regs);
+bail:
 	return rc;
 }
 
