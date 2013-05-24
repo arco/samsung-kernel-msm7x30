@@ -1073,6 +1073,19 @@ static struct i2c_board_info si4709_info[] __initdata = {
 };
 #endif
 
+static void config_gpio_table(uint32_t *table, int len)
+{
+	int n, rc;
+	for (n = 0; n < len; n++) {
+		rc = gpio_tlmm_config(table[n], GPIO_CFG_ENABLE);
+		if (rc) {
+			pr_err("%s: gpio_tlmm_config(%#x)=%d\n",
+				__func__, table[n], rc);
+			break;
+		}
+	}
+}
+
 #ifdef CONFIG_MSM_CAMERA
 
 #ifdef NOT_SET
@@ -1183,18 +1196,6 @@ static uint32_t camera_on_gpio_table[] = {
 #endif
 };
 
-static void config_gpio_table(uint32_t *table, int len)
-{
-	int n, rc;
-	for (n = 0; n < len; n++) {
-		rc = gpio_tlmm_config(table[n], GPIO_CFG_ENABLE);
-		if (rc) {
-			pr_err("%s: gpio_tlmm_config(%#x)=%d\n",
-				__func__, table[n], rc);
-			break;
-		}
-	}
-}
 static int config_camera_on_gpios(void)
 {
 	config_gpio_table(camera_on_gpio_table,
