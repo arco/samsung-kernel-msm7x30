@@ -4411,6 +4411,7 @@ static struct lcdc_platform_data lcdc_pdata = {
 	.lcdc_power_save   = lcdc_panel_power,
 };
 
+#ifdef CONFIG_FB_MSM_TVOUT
 static struct regulator *atv_s4, *atv_ldo9;
 
 static int __init atv_dac_power_init(void)
@@ -4482,14 +4483,15 @@ static struct tvenc_platform_data atv_pdata = {
 	.poll		 = 1,
 	.pm_vid_en	 = atv_dac_power,
 };
+#endif
 
 static void __init msm_fb_add_devices(void)
 {
 	msm_fb_register_device("mdp", &mdp_pdata);
 	msm_fb_register_device("pmdh", &mddi_pdata);
 	msm_fb_register_device("lcdc", &lcdc_pdata);
-	msm_fb_register_device("tvenc", &atv_pdata);
 #ifdef CONFIG_FB_MSM_TVOUT
+	msm_fb_register_device("tvenc", &atv_pdata);
 	msm_fb_register_device("tvout_device", NULL);
 #endif
 }
@@ -6884,7 +6886,9 @@ static void __init msm7x30_init(void)
 #ifdef CONFIG_DEVICE_NAND
 	msm7x30_init_nand();
 #endif
-
+#ifdef CONFIG_FB_MSM_TVOUT
+	atv_dac_power_init();
+#endif
 //	sensors_ldo_init();
 	msm_fb_add_devices();
 	msm_pm_set_platform_data(msm_pm_data, ARRAY_SIZE(msm_pm_data));
