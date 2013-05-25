@@ -4380,6 +4380,10 @@ static int lcdc_common_panel_power(int on)
 	int rc, i;
 	struct msm_gpio *gp;
 
+	/* s6e63m0 panel requires to enable/disable the regulators before resetting of the display,
+	 * otherwise the switch on/off does not work properly*/
+
+	/*
 	rc = display_common_power(on);
 
 	if (rc < 0) {
@@ -4387,6 +4391,7 @@ static int lcdc_common_panel_power(int on)
 				__func__, rc);
 		return rc;
 	}
+	*/
 
 	if (on) {
 		rc = msm_gpios_enable(lcd_panel_gpios,
