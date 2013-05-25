@@ -323,70 +323,72 @@ static void spi_init(void)
 
 }
 
-static void lcdc_s6e63m0_vreg_config(int on)
+static struct regulator_bulk_data s6e63m0_regs[] = {
+	{ .supply = "ldo17", .min_uV = 1800000, .max_uV = 1800000},
+	{ .supply = "ldo15", .min_uV = 3000000, .max_uV = 3000000},
+};
+
+static int s6e63m0_regulators_init(void)
 {
-#if 0
-    int rc = 0;
-    struct vreg *vreg_ldo15, *vreg_ldo17 = NULL;
-    
-    // VREG_LCD_2.8V
-    vreg_ldo15 = vreg_get(NULL, "gp6");
-    if (IS_ERR(vreg_ldo15)) {
-        rc = PTR_ERR(vreg_ldo15);
-        pr_err("%s: gp6 vreg get failed (%d)\n",
-               __func__, rc);
-        return rc;
-    }
-    
-    // VREG_LCD_1.8V
-    vreg_ldo17 = vreg_get(NULL, "gp11");
-    if (IS_ERR(vreg_ldo17)) {
-        rc = PTR_ERR(vreg_ldo17);
-        pr_err("%s: gp9 vreg get failed (%d)\n",
-               __func__, rc);
-        return rc;
-    }
+	int rc;
 
-    rc = vreg_set_level(vreg_ldo15, 2850);
-    if (rc) {
-        pr_err("%s: vreg LDO15 set level failed (%d)\n",
-               __func__, rc);
-        return rc;
-    }
+	rc = regulator_bulk_get(NULL, ARRAY_SIZE(s6e63m0_regs), s6e63m0_regs);
+	if (rc) {
+		pr_err("%s: could not get regulators: %d\n", __func__, rc);
+		goto out;
+	}
 
-    rc = vreg_set_level(vreg_ldo17, 1800);
-    if (rc) {
-        pr_err("%s: vreg LDO17 set level failed (%d)\n",
-               __func__, rc);
-        return rc;
-    }
+	rc = regulator_bulk_set_voltage(ARRAY_SIZE(s6e63m0_regs), s6e63m0_regs);
+	if (rc) {
+		pr_err("%s: could not set voltages: %d\n", __func__, rc);
+		goto regs_free;
+	}
 
-    if (on)
-        rc = vreg_enable(vreg_ldo17);
-    else
-        rc = vreg_disable(vreg_ldo17);
+	return 0;
 
-    if (rc) {
-        pr_err("%s: LDO17 vreg enable failed (%d)\n",
-               __func__, rc);
-        return rc;
-    }
+regs_free:
+	regulator_bulk_free(ARRAY_SIZE(s6e63m0_regs), s6e63m0_regs);
+out:
+	return rc;
+}
 
-    if (on)
-        rc = vreg_enable(vreg_ldo15);
-    else
-        rc = vreg_disable(vreg_ldo15);
+static int s6e63m0_regulators_power(int on)
+{
+	int rc = 0, flag_on = !!on;
+	static int power_save_on;
+	static bool regs_initialized;
 
-    if (rc) {
-        pr_err("%s: LDO15 vreg enable failed (%d)\n",
-               __func__, rc);
-        return rc;
-    }
+	if (power_save_on == flag_on)
+		return 0;
 
-    mdelay(5);        /* ensure power is stable */
+	power_save_on = flag_on;
 
-    return rc;
-#endif    
+	if (unlikely(!regs_initialized)) {
+		rc = s6e63m0_regulators_init();
+		if (rc) {
+			pr_err("%s: regulator init failed: %d\n", __func__, rc);
+			return rc;
+		}
+		regs_initialized = true;
+	}
+
+	if (on) {
+		rc = regulator_bulk_enable(ARRAY_SIZE(s6e63m0_regs), s6e63m0_regs);
+		if (rc) {
+			pr_err("%s: could not enable regulators: %d\n", __func__, rc);
+			return rc;
+		}
+	} else {
+		rc = regulator_bulk_disable(ARRAY_SIZE(s6e63m0_regs), s6e63m0_regs);
+		if (rc) {
+			pr_err("%s: could not disable regulators: %d\n", __func__, rc);
+			return rc;
+		}
+	}
+
+	mdelay(5); /* ensure power is stable */
+
+	return rc;
 }
 
 static void s6e63m0_disp_powerup(void)
@@ -394,11 +396,10 @@ static void s6e63m0_disp_powerup(void)
 	DPRINT("start %s\n", __func__);	
 
 	if (!s6e63m0_state.disp_powered_up && !s6e63m0_state.display_on) {
-		 /* Reset the hardware first */
-		lcdc_s6e63m0_vreg_config(1);
-        
-        gpio_tlmm_config(GPIO_CFG(129, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-        
+		s6e63m0_regulators_power(1);
+
+		gpio_tlmm_config(GPIO_CFG(129, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+
 		gpio_set_value(lcd_reset, 1);
 		msleep(2);
 		gpio_set_value(lcd_reset, 0);
@@ -415,11 +416,10 @@ static void s6e63m0_disp_powerup(void)
 static void s6e63m0_disp_powerdown(void)
 {
 	DPRINT("start %s\n", __func__);	
-    /* Reset Assert */
-    gpio_tlmm_config(GPIO_CFG(129, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-    gpio_set_value(lcd_reset, 0);        
-    lcdc_s6e63m0_vreg_config(0);
-    mdelay(10);        /* ensure power is stable */
+	/* Reset Assert */
+	gpio_tlmm_config(GPIO_CFG(129, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
+	gpio_set_value(lcd_reset, 0);
+	s6e63m0_regulators_power(0);
 
 	LCD_CSX_LOW
 	LCD_SCL_LOW
@@ -611,8 +611,10 @@ static void lcdc_s6e63m0_set_brightness(int level)
 static int get_gamma_value_from_bl(int bl)
 {
 	int gamma_value =0;
+#ifndef MAPPING_TBL_AUTO_BRIGHTNESS
 	int gamma_val_x10 =0;
-	
+#endif
+
 #ifdef MAPPING_TBL_AUTO_BRIGHTNESS
 	if (unlikely(!lcd.auto_brightness && bl > 250)) bl = 250;
 
@@ -1222,7 +1224,10 @@ static void s6e63m0_late_resume(struct early_suspend *h) {
 static int __devinit s6e63m0_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	
+#ifdef MAPPING_TBL_AUTO_BRIGHTNESS
+	struct backlight_device *pbd = NULL;
+#endif
+
 	//struct msm_fb_data_type *mfd;
 	DPRINT("start %s: pdev->name:%s\n", __func__,pdev->name );	
 
@@ -1285,19 +1290,15 @@ static int __devinit s6e63m0_probe(struct platform_device *pdev)
 	init_mdnie_class();
 
 #ifdef MAPPING_TBL_AUTO_BRIGHTNESS
-    
-      struct backlight_device *pbd = NULL;
-      pbd = backlight_device_register("panel", NULL, NULL,NULL,NULL);
-      if (IS_ERR(pbd)) {
-        DPRINT("Could not register 'panel' backlight device\n");
-      }
-      else
-      {
-        ret = device_create_file(&pbd->dev, &dev_attr_auto_brightness);
-        if (ret < 0)
-          DPRINT("auto_brightness failed to add sysfs entries\n");
-      }
-
+	pbd = backlight_device_register("panel", NULL, NULL,NULL,NULL);
+	if (IS_ERR(pbd)) {
+		DPRINT("Could not register 'panel' backlight device\n");
+	}
+	else {
+		ret = device_create_file(&pbd->dev, &dev_attr_auto_brightness);
+		if (ret < 0)
+			DPRINT("auto_brightness failed to add sysfs entries\n");
+	}
 #endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
