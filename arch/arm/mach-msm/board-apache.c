@@ -1302,6 +1302,11 @@ static struct i2c_board_info msm_camera_boardinfo[] __initdata = {
 		I2C_BOARD_INFO("sr030pc30_i2c", 0x60>>1),
 	},
 #endif
+#ifdef CONFIG_SENSOR_SR130PC10
+	{
+		I2C_BOARD_INFO("sr130pc10_i2c", 0x40>>1),
+	},
+#endif
 };
 
 static struct i2c_board_info msm_camera_rev01_boardinfo[] __initdata = {    //[diony] rear camera slave adress change (rev0.1)
@@ -1349,6 +1354,11 @@ static struct i2c_board_info msm_camera_rev01_boardinfo[] __initdata = {    //[d
 #ifdef CONFIG_SENSOR_SR030PC30
 	{
 		I2C_BOARD_INFO("sr030pc30_i2c", 0x60>>1),
+	},
+#endif
+#ifdef CONFIG_SENSOR_SR130PC10
+	{
+		I2C_BOARD_INFO("sr130pc10_i2c", 0x40>>1),
 	},
 #endif
 };
@@ -1847,6 +1857,31 @@ static struct platform_device msm_camera_sensor_sr030pc30 = {
 	.name  	= "msm_camera_sr030pc30",
 	.dev   	= {
 		.platform_data = &msm_camera_sensor_sr030pc30_data,
+	},
+};
+#endif
+
+#ifdef CONFIG_SR130PC10
+static struct msm_camera_sensor_flash_data flash_sr130pc10 = {
+	.flash_type = MSM_CAMERA_FLASH_NONE,
+	.flash_src  = &msm_flash_src_pwm
+};
+static struct msm_camera_sensor_info msm_camera_sensor_sr130pc10_data = {
+	.sensor_name    = "sr130pc10",
+	.sensor_reset   = 0,
+	.sensor_pwd     = 85,
+	.vcm_pwd        = 1,
+	.vcm_enable     = 0,
+	.pdata          = &msm_camera_device_data,
+	.resource       = msm_camera_resources,
+	.num_resources  = ARRAY_SIZE(msm_camera_resources),
+	.flash_data     = &flash_sr130pc10,
+	.csi_if         = 0
+};
+static struct platform_device msm_camera_sensor_sr130pc10 = {
+	.name  	= "msm_camera_sr130pc10",
+	.dev   	= {
+		.platform_data = &msm_camera_sensor_sr130pc10_data,
 	},
 };
 #endif
@@ -5991,6 +6026,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_SENSOR_SR030PC30
 	&msm_camera_sensor_sr030pc30,
+#endif
+#ifdef CONFIG_SENSOR_SR130PC10
+	&msm_camera_sensor_sr130pc10,
 #endif
 #ifdef CONFIG_MT9T013
 	&msm_camera_sensor_mt9t013,
