@@ -870,7 +870,7 @@ static int frmnet_bind(struct usb_configuration *c, struct usb_function *f)
 				f->hs_descriptors, &rmnet_hs_notify_desc);
 	}
 
-	pr_info("%s: RmNet(%d) %s Speed, IN:%s OUT:%s\n",
+	pr_debug("%s: RmNet(%d) %s Speed, IN:%s OUT:%s\n",
 			__func__, dev->port_num,
 			gadget_is_dualspeed(cdev->gadget) ? "dual" : "full",
 			dev->port.in->name, dev->port.out->name);
