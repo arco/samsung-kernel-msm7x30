@@ -1,5 +1,5 @@
 /*
- * BFQ-v5r1 for 3.0: data structures and common functions prototypes.
+ * BFQ-v6r1 for 3.0: data structures and common functions prototypes.
  *
  * Based on ideas and code from CFQ:
  * Copyright (C) 2003 Jens Axboe <axboe@kernel.dk>
@@ -251,6 +251,8 @@ struct bfq_queue {
  * @rq_pos_tree: rbtree sorted by next_request position,
  *		used when determining if two or more queues
  *		have interleaving requests (see bfq_close_cooperator).
+ * @eqm_lock:  spinlock used to protect all data structures pertaining
+ *             the Early Queue Merge (EQM) mechanism.
  * @busy_queues: number of bfq_queues containing requests (including the
  *		 queue under service, even if it is idling).
  * @queued: number of queued requests.
@@ -317,6 +319,7 @@ struct bfq_data {
 	struct bfq_group *root_group;
 
 	struct rb_root rq_pos_tree;
+	spinlock_t eqm_lock;
 
 	int busy_queues;
 	int queued;
