@@ -1244,22 +1244,6 @@ static void __bfq_bfqq_expire(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 
 	__bfq_bfqd_reset_active(bfqd);
 
-	if (RB_EMPTY_ROOT(&bfqq->sort_list)) {
-		bfq_del_bfqq_busy(bfqd, bfqq, 1);
-		/*
-		 * overloading budget_timeout field to store when
-		 * the queue remains with no backlog, used by
-		 * the weight-raising mechanism
-		 */
-		bfqq->budget_timeout = jiffies ;
-	} else {
-		bfq_activate_bfqq(bfqd, bfqq);
-		/*
-		 * Resort priority tree of potential close cooperators.
-		 */
-		bfq_rq_pos_tree_add(bfqd, bfqq);
-	}
-
 	/*
 	 * If this bfqq is shared between multiple processes, check
 	 * to make sure that those processes are still issuing I/Os
@@ -1268,6 +1252,22 @@ static void __bfq_bfqq_expire(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 	 */
 	if (bfq_bfqq_coop(bfqq) && BFQQ_SEEKY(bfqq))
 		bfq_mark_bfqq_split_coop(bfqq);
+
+	if (RB_EMPTY_ROOT(&bfqq->sort_list)) {
+		/*
+		 * overloading budget_timeout field to store when
+		 * the queue remains with no backlog, used by
+		 * the weight-raising mechanism
+		 */
+		bfqq->budget_timeout = jiffies ;
+		bfq_del_bfqq_busy(bfqd, bfqq, 1);
+	} else {
+		bfq_activate_bfqq(bfqd, bfqq);
+		/*
+		 * Resort priority tree of potential close cooperators.
+		 */
+		bfq_rq_pos_tree_add(bfqd, bfqq);
+	}
 }
 
 /**
@@ -3016,7 +3016,7 @@ static ssize_t								\
 __FUNC(struct elevator_queue *e, const char *page, size_t count)	\
 {									\
 	struct bfq_data *bfqd = e->elevator_data;			\
-	unsigned long __data;						\
+	unsigned long uninitialized_var(__data);			\
 	int ret = bfq_var_store(&__data, (page), count);		\
 	if (__data < (MIN))						\
 		__data = (MIN);						\
@@ -3076,7 +3076,7 @@ static ssize_t bfq_max_budget_store(struct elevator_queue *e,
 				    const char *page, size_t count)
 {
 	struct bfq_data *bfqd = e->elevator_data;
-	unsigned long __data;
+	unsigned long uninitialized_var(__data);
 	int ret = bfq_var_store(&__data, (page), count);
 
 	if (__data == 0)
@@ -3096,7 +3096,7 @@ static ssize_t bfq_timeout_sync_store(struct elevator_queue *e,
 				      const char *page, size_t count)
 {
 	struct bfq_data *bfqd = e->elevator_data;
-	unsigned long __data;
+	unsigned long uninitialized_var(__data);
 	int ret = bfq_var_store(&__data, (page), count);
 
 	if (__data < 1)
@@ -3115,7 +3115,7 @@ static ssize_t bfq_low_latency_store(struct elevator_queue *e,
 				     const char *page, size_t count)
 {
 	struct bfq_data *bfqd = e->elevator_data;
-	unsigned long __data;
+	unsigned long uninitialized_var(__data);
 	int ret = bfq_var_store(&__data, (page), count);
 
 	if (__data > 1)
