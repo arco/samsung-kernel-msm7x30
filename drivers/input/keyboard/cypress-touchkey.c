@@ -62,6 +62,13 @@
 
 #define DEVICE_NAME "melfas_touchkey"
 
+/* Macro and attributes for timeout management of touchkeys backlight */
+#define DEFAULT_BACKLIGHT_TIMEOUT	1600
+static int backlight_timeout = DEFAULT_BACKLIGHT_TIMEOUT;
+static struct timer_list backlight_timer;
+static void backlight_off(struct work_struct *backlight_off_work);
+static DECLARE_WORK(backlight_off_work, backlight_off);
+
 #ifdef CONFIG_PHANTOM_KP_FILTER
 /* Possible key event codes */
 enum key_data_code {
@@ -164,6 +171,47 @@ static void all_keys_up(struct cypress_touchkey_devdata *devdata)
 		hrtimer_cancel(&cypress_wdog_timer);
 }
 
+/*
+ * Turns off the touchkeys backlight
+ */
+static void backlight_off(struct work_struct *backlight_off_work) {
+	bool bln = false;
+
+#ifdef CONFIG_GENERIC_BLN
+	/* Check if there are notifications */
+	bln = bln_is_ongoing();
+#endif
+
+	/* Don't turn off the backlight if there is a notification or
+	 * if the device is dead, is powering or is sleeping */
+	if (bln || devdata_global == NULL || unlikely(devdata_global->is_dead) ||
+		devdata_global->is_powering_on || devdata_global->is_sleeping) {
+		pr_debug("%s: TouchKey backlight off not performed...", __func__);
+		return;
+	}
+
+	/* Turn off the touchkeys backlight */
+	i2c_touchkey_write_byte(devdata_global, devdata_global->backlight_off);
+}
+
+/*
+ * Manages the timeout of touchkeys backlight by turning off the leds
+ */
+void backlight_timer_callback(unsigned long data) {
+	schedule_work(&backlight_off_work);
+}
+
+/*
+ * Sets the timeout of touchkeys backlight
+ */
+static void backlight_set_timeout(void) {
+	/* If the timeout is greater than 0, then set the timer */
+	if (backlight_timeout > 0)
+		mod_timer(&backlight_timer, jiffies + msecs_to_jiffies(backlight_timeout));
+	/* Else directly call the timeout management */
+	else
+		backlight_timer_callback(0);
+}
 
 static int recovery_routine(struct cypress_touchkey_devdata *devdata)
 {
@@ -329,6 +377,10 @@ static irqreturn_t touchkey_interrupt_thread(int irq, void *touchkey_devdata)
 	}
 
 	input_sync(devdata->input_dev);
+
+	/* Set the timeout of touchkeys backlight */
+	backlight_set_timeout();
+
 	return IRQ_HANDLED;
 err:
 #ifdef CONFIG_PHANTOM_KP_FILTER
@@ -418,12 +470,48 @@ static void cypress_touchkey_early_resume(struct early_suspend *h)
 	devdata->is_powering_on = false;
 	devdata->is_sleeping = false;
 
+	/* Set the timeout of touchkeys backlight */
+	backlight_set_timeout();
+
 #ifdef CONFIG_GENERIC_BLN
 	/* release the possible pending wakelock for bln */
 	bln_wakelock_release();
 #endif
 }
 #endif
+
+/*
+ * Function to get the timeout of touchkeys backlight
+ */
+static ssize_t backlight_timeout_read(struct device *dev, struct device_attribute *attr, char *buf) {
+	return sprintf(buf,"%d\n", backlight_timeout);
+}
+
+/*
+ * Function to set the timeout of touchkeys backlight
+ */
+static ssize_t backlight_timeout_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+	sscanf(buf, "%d\n", &backlight_timeout);
+	pr_info("%s: TouchKey backlight timeout changed to %d\n",__func__, backlight_timeout);
+	return size;
+}
+
+static DEVICE_ATTR(bl_timeout, S_IRUGO | S_IWUGO, backlight_timeout_read, backlight_timeout_write);
+
+static struct attribute *backlight_attributes[] = {
+	&dev_attr_bl_timeout.attr,
+	NULL
+};
+
+static struct attribute_group backlight_group = {
+		.attrs  = backlight_attributes,
+};
+
+static struct miscdevice backlight_device = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "notification",
+};
 
 #ifdef CONFIG_GENERIC_BLN
 static void enable_touchkey_backlights(void)
@@ -846,6 +934,14 @@ static int cypress_touchkey_probe(struct i2c_client *client,
 	register_bln_implementation(&cypress_touchkey_bln);
 #endif
 
+	/* Register the device and sysfs interface for backlight timeout */
+	pr_info("%s: Registering %s device\n", __func__, backlight_device.name);
+	ret = misc_register(&backlight_device);
+	if (ret)
+		pr_err("%s: Failed to register %s device\n", __func__, backlight_device.name);
+	else if (sysfs_create_group(&backlight_device.this_device->kobj, &backlight_group) < 0)
+		pr_err("%s: Failed to create sysfs group for %s device\n", __func__, backlight_device.name);
+
 	if (charging_boot) {
 		printk("cypress_touchkey_probe skip (LPM mode)\n");
 
@@ -858,6 +954,9 @@ static int cypress_touchkey_probe(struct i2c_client *client,
 		devdata->pdata->touchkey_onoff(TOUCHKEY_OFF);
 		all_keys_up(devdata);
 	}
+
+	/* Setup the timer for timeout management of touchkeys backlight */
+	setup_timer(&backlight_timer, backlight_timer_callback, 0);
 
 	return 0;
 
@@ -883,6 +982,9 @@ static int __devexit i2c_touchkey_remove(struct i2c_client *client)
 
 	bln_wakelock_destroy();
 
+	/* Deregister the touchkeys backlight device */
+	misc_deregister(&backlight_device);
+
 	unregister_early_suspend(&devdata->early_suspend);
 	/* If the device is dead IRQs are disabled, we need to rebalance them */
 	if (unlikely(devdata->is_dead))
@@ -894,6 +996,10 @@ static int __devexit i2c_touchkey_remove(struct i2c_client *client)
 	free_irq(client->irq, devdata);
 	all_keys_up(devdata);
 	input_unregister_device(devdata->input_dev);
+
+	/* Delete the timer to manage the timeout of touchkeys backlight */
+	del_timer(&backlight_timer);
+
 	kfree(devdata);
 	return 0;
 }
