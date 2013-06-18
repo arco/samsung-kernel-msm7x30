@@ -806,7 +806,7 @@ static void s6e63m0_set_elvss(struct s6e63m0 *lcd)
 {
 	if( (PANEL_TYPE >= SMART_MTP_PANEL_ID) && (PANLE_ELVSS_VALUE)) {
 		switch (lcd->bl) {
-		case 0 ... 7: /* 30cd ~ 100cd */
+		case 0 ... 7: /* 20cd ~ 100cd */
 			dynamic_elvss_cal(0);
 			break;
 		case 8 ... 14: /* 110cd ~ 160cd */
@@ -824,7 +824,7 @@ static void s6e63m0_set_elvss(struct s6e63m0 *lcd)
 	} else {
 		switch (lcd->bl) {
 #ifdef MAPPING_TBL_AUTO_BRIGHTNESS
-			case GAMMA_30CD ... GAMMA_100CD: /* 30cd ~ 100cd */
+			case GAMMA_20CD ... GAMMA_100CD: /* 20cd ~ 100cd */
 				setting_table_write(SEQ_ELVSS_set[0]);
 				break;
 			case GAMMA_110CD ... GAMMA_160CD: /* 110cd ~ 160cd */
@@ -839,7 +839,7 @@ static void s6e63m0_set_elvss(struct s6e63m0 *lcd)
 			default:
 				break;
 #else
-			case 0 ... 7: /* 30cd ~ 100cd */
+			case 0 ... 7: /* 20cd ~ 100cd */
 				setting_table_write(SEQ_ELVSS_set[0]);
 				break;
 			case 8 ... 13: /* 110cd ~ 160cd */
@@ -866,7 +866,7 @@ static void s6e63m0_set_acl(struct s6e63m0 *lcd)
 	if (lcd->acl_enable) {	
 #ifdef MAPPING_TBL_AUTO_BRIGHTNESS
 		switch (lcd->bl) {
-		case GAMMA_20CD ... GAMMA_40CD: /* 30cd ~ 40cd */
+		case GAMMA_20CD ... GAMMA_40CD: /* 20cd ~ 40cd */
 			if (lcd->cur_acl != 0) {
 			setting_table_write(ACL_cutoff_set[0]);
 			DPRINT("ACL_cutoff_set Percentage : off!!\n");
