@@ -737,8 +737,15 @@ static ssize_t touch_led_control(struct device *dev, struct device_attribute *at
 	u8 data = 0x10;
 	if (sscanf(buf, "%d\n", (int *)&data) == 1) {
 		if (!devdata_global->is_powering_on && !devdata_global->is_sleeping) {
-			if (data) // Deactivate led only if BLN is inactive
+			if (data) {
+				/* Turn on/off the touchkeys backlight */
 				i2c_touchkey_write(devdata_global, &data, sizeof(u8));
+
+				/* If the backlight has been turned on, then
+				 * set the timeout of touchkeys backlight */
+				if (data == devdata_global->backlight_on)
+					backlight_set_timeout();
+			}
 		}
 	} else
 		printk("touch_led_control Error\n");
