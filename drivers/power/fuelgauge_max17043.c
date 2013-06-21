@@ -50,7 +50,7 @@ static int fg_i2c_read(struct i2c_client *client, u8 reg, u8 *data)
 	struct i2c_msg msg[2];
 
 
-	buf[0] = reg; 
+	buf[0] = reg;
 
 	msg[0].addr = client->addr;
 	msg[0].flags = 0;
@@ -63,11 +63,11 @@ static int fg_i2c_read(struct i2c_client *client, u8 reg, u8 *data)
 	msg[1].buf = buf;
 
 	ret = i2c_transfer(client->adapter, msg, 2);
-	if (ret != 2) 
+	if (ret != 2)
 		return -EIO;
 
 	*data = buf[0];
-	
+
 	return 0;
 }
 
@@ -88,7 +88,7 @@ static int fg_i2c_write(struct i2c_client *client, u8 reg, u8 *data)
 	msg[0].buf = buf;
 
 	ret = i2c_transfer(client->adapter, msg, 1);
-	if (ret != 1) 
+	if (ret != 1)
 		return -EIO;
 
 	return 0;
@@ -189,7 +189,7 @@ unsigned int fg_read_soc(void)
 		FGSOC = 0;
 
 	if(!power_down)
-		printk("[MAX17043] FGPureSOC = %d (%d.%d)\tFGAdjustSOC = %d\tFGSOC = %d\n", FGPureSOC, data[0], (data[1]*100)/256, FGAdjustSOC, FGSOC); 
+		printk("[MAX17043] FGPureSOC = %d (%d.%d)\tFGAdjustSOC = %d\tFGSOC = %d\n", FGPureSOC, data[0], (data[1]*100)/256, FGAdjustSOC, FGSOC);
 
 
 	return FGSOC;
@@ -277,7 +277,7 @@ unsigned int fg_reset_soc(void)
 	return ret;
 }
 
-// hyeokseon.yu 
+// hyeokseon.yu
 void fuel_gauge_rcomp(void)
 {
 	struct i2c_client *client = fg_max17043->client;
@@ -313,7 +313,7 @@ static irqreturn_t fg_interrupt_handler(int irq, void *data)	// ALARM_INT
 	struct i2c_client *client = fg_max17043->client;
 	u8 rst_cmd[2];
 	int ret = 0;
-	
+
 	if (!client)
 		return IRQ_HANDLED;
 
@@ -339,7 +339,7 @@ static irqreturn_t fg_interrupt_handler(int irq, void *data)	// ALARM_INT
 
 	if(fg_alert_handler) {
 		ret = (*fg_alert_handler)(1);
-	
+
 		if (ret)
 			pr_info("[BATT]: %s: low battery alert, ready to power down (0x%x, 0x%x)\n", __func__, rst_cmd[0], rst_cmd[1]);
 		else
@@ -432,4 +432,3 @@ static struct i2c_driver fg_i2c_driver = {
 	.resume		= fg_i2c_resume,
 	.id_table	= fg_i2c_id,
 };
-
