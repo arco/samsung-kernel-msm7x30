@@ -69,6 +69,9 @@ static struct timer_list backlight_timer;
 static void backlight_off(struct work_struct *backlight_off_work);
 static DECLARE_WORK(backlight_off_work, backlight_off);
 
+/* Attribute to enable/disable the touchkeys backlight on touchscreen press */
+static bool touchlight_enabled = true;
+
 #ifdef CONFIG_PHANTOM_KP_FILTER
 /* Possible key event codes */
 enum key_data_code {
@@ -497,15 +500,38 @@ static ssize_t backlight_timeout_write(struct device *dev, struct device_attribu
 	return size;
 }
 
+/*
+ * Function to get the enabled status of the touchkeys backlight on touchscreen presses
+ */
+static ssize_t touchlight_status_read(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", touchlight_enabled);
+}
+
+/*
+ * Function to set the enabled status of the touchkeys backlight on touchscreen presses
+ */
+static ssize_t touchlight_status_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+	int value;
+	sscanf(buf, "%d", &value);
+	touchlight_enabled = !!value;
+	pr_info("%s: Touchkeys backlight on touchscreen presses %s\n", __func__,
+			(touchlight_enabled) ? "enabled" : "disabled");
+	return size;
+}
+
 static DEVICE_ATTR(bl_timeout, S_IRUGO | S_IWUGO, backlight_timeout_read, backlight_timeout_write);
+static DEVICE_ATTR(touchlight_enabled, S_IRUGO | S_IWUGO, touchlight_status_read, touchlight_status_write);
 
 static struct attribute *backlight_attributes[] = {
 	&dev_attr_bl_timeout.attr,
+	&dev_attr_touchlight_enabled.attr,
 	NULL
 };
 
 static struct attribute_group backlight_group = {
-		.attrs  = backlight_attributes,
+	.attrs  = backlight_attributes,
 };
 
 static struct miscdevice backlight_device = {
@@ -738,13 +764,19 @@ static ssize_t touch_led_control(struct device *dev, struct device_attribute *at
 	if (sscanf(buf, "%d\n", (int *)&data) == 1) {
 		if (!devdata_global->is_powering_on && !devdata_global->is_sleeping) {
 			if (data) {
-				/* Turn on/off the touchkeys backlight */
-				i2c_touchkey_write(devdata_global, &data, sizeof(u8));
+				/* Get the backlight status to set */
+				bool on = (data == devdata_global->backlight_on);
 
-				/* If the backlight has been turned on, then
-				 * set the timeout of touchkeys backlight */
-				if (data == devdata_global->backlight_on)
-					backlight_set_timeout();
+				/* The backlight will be turned on only if the touchlight is enabled */
+				if (!on || touchlight_enabled) {
+					/* Turn on/off the touchkeys backlight */
+					i2c_touchkey_write(devdata_global, &data, sizeof(u8));
+
+					/* If the backlight has been turned on, then
+					 * set the timeout of touchkeys backlight */
+					if (on)
+						backlight_set_timeout();
+				}
 			}
 		}
 	} else
