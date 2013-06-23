@@ -829,11 +829,13 @@ static void dpram_mem_rw(struct _mem_param *param)
 {
 	/* @LDK@ write */
 	if (param->dir) {
+		/* we don't have KBL so let's protect it ourself. */
+		/* use kernel up to 2.6.38, if you use this line */
+		down(&write_mutex);
 		WRITE_TO_DPRAM(param->addr, (void *)&param->data, sizeof(param->data));
-	}
-
-	/* @LDK@ read */
-	else {
+		/* use kernel up to 2.6.38, if you use this line */
+		up(&write_mutex);
+	} else { /* @LDK@ read */
 		READ_FROM_DPRAM((void *)&param->data, param->addr, sizeof(param->data));
 	}
 }
@@ -2015,10 +2017,10 @@ static int __init dpram_init(void)
 		goto error_return;
 	}
 
-	platform_device_register_simple("dpram", -1, NULL, 0);
 	wake_lock_init(&imei_wake_lock, WAKE_LOCK_SUSPEND, "IEMI");
 	wake_lock_init(&dpram_wake_lock, WAKE_LOCK_SUSPEND, "DPRAM");
 	wake_lock_init(&silent_wake_lock, WAKE_LOCK_SUSPEND, "SILENT_RESET");
+	platform_device_register_simple("dpram", -1, NULL, 0);
 
 	// For silent ram dump mode
 	
