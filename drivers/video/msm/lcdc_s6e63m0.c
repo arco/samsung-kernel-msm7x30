@@ -94,7 +94,7 @@
 // brightness tuning
 #define MAX_BRIGHTNESS_LEVEL 255
 #define LOW_BRIGHTNESS_LEVEL 20
-#define DEFAULT_GAMMA_LEVEL GAMMA_20CD
+#define DEFAULT_GAMMA_LEVEL GAMMA_160CD
 // static DEFINE_SPINLOCK(bl_ctrl_lock);
 
 extern int board_hw_revision;
