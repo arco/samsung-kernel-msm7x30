@@ -106,7 +106,7 @@ struct s6e63m0 {
 	struct spi_device		*spi;
 	unsigned int			power;
 	unsigned int			gamma_mode;
-	unsigned int			goal_brightness;
+	int						current_brightness;
 	unsigned int			gamma_table_count;
 	unsigned int			bl;
 	unsigned int			beforepower;
@@ -481,10 +481,14 @@ void s6e63m0_disp_on(void)
 		/* force ACL on */
 		setting_table_write(ACL_cutoff_set[0]);
 		setting_table_write(&SEQ_ACL_ON[0]);
-		
+
 		//set brightness
-		lcdc_s6e63m0_set_brightness(lcd.goal_brightness);
-		
+		if (lcd.current_brightness < 0) {
+			lcdc_s6e63m0_set_brightness(DEFAULT_GAMMA_LEVEL);
+		} else {
+			lcdc_s6e63m0_set_brightness(lcd.current_brightness);
+		}
+
 		msleep(120);
 		// Display On
 		for (i = 0; i < DISPLAY_ON_SEQ; i++)
@@ -530,9 +534,9 @@ static int lcdc_s6e63m0_panel_on(struct platform_device *pdev)
 		s6e63m0_disp_on();
 		s6e63m0_state.disp_initialized = TRUE;
 
-		if(lcd.goal_brightness != lcd.bl)
+		if(lcd.current_brightness != lcd.bl)
 		{
-		        lcdc_s6e63m0_set_brightness(lcd.goal_brightness);
+		        lcdc_s6e63m0_set_brightness(lcd.current_brightness);
 		}		
 	}
 
@@ -560,7 +564,7 @@ static int lcdc_s6e63m0_panel_off(struct platform_device *pdev)
 #endif 
 
 
-	DPRINT("%s +  (%d,%d,%d)\n", __func__,s6e63m0_state.disp_initialized, s6e63m0_state.disp_powered_up, s6e63m0_state.display_on);	
+	DPRINT("%s + (%d,%d,%d)\n", __func__,s6e63m0_state.disp_initialized, s6e63m0_state.disp_powered_up, s6e63m0_state.display_on);
 
 	if (s6e63m0_state.disp_powered_up && s6e63m0_state.display_on) {
 		for (i = 0; i < POWER_OFF_SEQ; i++)
@@ -571,7 +575,7 @@ static int lcdc_s6e63m0_panel_off(struct platform_device *pdev)
 		s6e63m0_disp_powerdown();
 	}
 	
-	DPRINT("%s -\n", __func__);	
+	DPRINT("%s - (%d,%d,%d)\n", __func__,s6e63m0_state.disp_initialized, s6e63m0_state.disp_powered_up, s6e63m0_state.display_on);
 	return 0;
 }
 
@@ -579,8 +583,16 @@ static void s6e63m0_gamma_ctl(struct s6e63m0 *lcd)
 {
 	int tune_level = lcd->bl;
 
+	/* keep back light ON */
+	if(unlikely(lcd->current_brightness < 0)) {
+		lcd->current_brightness = DEFAULT_GAMMA_LEVEL;
+	}
+
 	setting_table_write(lcd_s6e63m0_table_22gamma[tune_level]);
 	
+	DPRINT("%s %d %d\n", __func__,tune_level, lcd->current_brightness);
+	lcd->current_brightness = lcd->bl;
+
 	setting_table_write(&s6e63m0_gamma_update_enable[0]);
 }
 
@@ -723,22 +735,18 @@ static void lcdc_s6e63m0_set_backlight(struct msm_fb_data_type *mfd)
 	tune_level = get_gamma_value_from_bl(bl_level);
 
 	if(s6e63m0_state.disp_initialized)
-		DPRINT("brightness!!! bl_level=%d, tune_level=%d goal=%d\n",bl_level,tune_level,lcd.goal_brightness);
+		DPRINT("brightness!!! bl_level=%d, tune_level=%d current=%d\n",bl_level,tune_level,lcd.current_brightness);
 	
  	if ((s6e63m0_state.disp_initialized) 
 		&& (s6e63m0_state.disp_powered_up) 
-		&& (s6e63m0_state.display_on))
-	{
-		if(lcd.bl != tune_level)
-		{
-			lcdc_s6e63m0_set_brightness(tune_level);
-		}
-	}
-	else
-	{
-		lcd.goal_brightness = tune_level;
-	}
+		&& (s6e63m0_state.display_on)) {
 
+		if (lcd.current_brightness != tune_level)
+			lcdc_s6e63m0_set_brightness(tune_level);
+
+	} else {
+		lcd.current_brightness = tune_level;
+	}
 }
 
 /////////////////////// sysfs
@@ -1261,7 +1269,7 @@ static int __devinit s6e63m0_probe(struct platform_device *pdev)
 		pr_err("Failed to create device(lcd)!\n");
 
 	lcd.bl = DEFAULT_GAMMA_LEVEL;
-	lcd.goal_brightness = lcd.bl;
+	lcd.current_brightness = lcd.bl;
 
 	lcd.acl_enable = 1;
 	lcd.cur_acl = 0;
