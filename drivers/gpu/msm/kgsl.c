@@ -466,7 +466,7 @@ static int kgsl_resume_device(struct kgsl_device *device)
 		 * This will put the device to the right state when
 		 * we resume.
 		 */
-		device->ftbl->idle(device);
+		device->ftbl->idle(device, KGSL_TIMEOUT_DEFAULT);
 		kgsl_pwrctrl_request_state(device, KGSL_STATE_SLUMBER);
 		kgsl_pwrctrl_sleep(device);
 		KGSL_PWR_ERR(device,
