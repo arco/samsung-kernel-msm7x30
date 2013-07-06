@@ -3501,6 +3501,11 @@ static int qt602240_resume(struct i2c_client *client)
             return -1;
     }
 
+    if (write_multitouchscreen_config(0, touchscreen_config) != CFG_WRITE_OK)
+    {
+        printk("[TSP] resume multitouchscreen Configuration Fail!!! , Line %d \n\r", __LINE__);
+    }
+
     //hugh 0312
     good_check_flag=0;
 
@@ -3593,6 +3598,12 @@ static void qt602240_late_resume(struct early_suspend *h)
                 break;
         }
     }
+
+    if (write_multitouchscreen_config(0, touchscreen_config) != CFG_WRITE_OK)
+    {
+        printk("[TSP] resume multitouchscreen Configuration Fail!!! , Line %d \n\r", __LINE__);
+    }
+
     //hugh 0312
     good_check_flag=0;
 
