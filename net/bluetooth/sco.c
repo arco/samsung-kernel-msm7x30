@@ -53,6 +53,9 @@
 #include <net/bluetooth/sco.h>
 
 static bool disable_esco;
+/* HCI callback list */
+LIST_HEAD(sco_cb_list);
+DEFINE_RWLOCK(sco_cb_list_lock);
 
 static const struct proto_ops sco_sock_ops;
 
@@ -959,6 +962,7 @@ static int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 type)
 
 static int sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 {
+	struct list_head *p;
 	BT_DBG("hcon %p bdaddr %s status %d", hcon, batostr(&hcon->dst), status);
 
 	if (hcon->type != SCO_LINK && hcon->type != ESCO_LINK)
@@ -970,6 +974,14 @@ static int sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 		conn = sco_conn_add(hcon, status);
 		if (conn)
 			sco_conn_ready(conn);
+		read_lock_bh(&sco_cb_list_lock);
+		list_for_each(p, &sco_cb_list) {
+			struct sco_cb *cb = list_entry(p, struct sco_cb, list);
+			if (cb->connect_state_changed) {
+				cb->connect_state_changed(true);
+			}
+		}
+		read_unlock_bh(&sco_cb_list_lock);
 	} else
 		sco_conn_del(hcon, bt_err(status), 0);
 
@@ -978,11 +990,20 @@ static int sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 
 static int sco_disconn_cfm(struct hci_conn *hcon, __u8 reason, __u8 is_process)
 {
+	struct list_head *p;
 	BT_DBG("hcon %p reason %d", hcon, reason);
 
 	if (hcon->type != SCO_LINK && hcon->type != ESCO_LINK)
 		return -EINVAL;
 
+	read_lock_bh(&sco_cb_list_lock);
+	list_for_each(p, &sco_cb_list) {
+		struct sco_cb *cb = list_entry(p, struct sco_cb, list);
+		if (cb->connect_state_changed) {
+			cb->connect_state_changed(false);
+		}
+	}
+	read_unlock_bh(&sco_cb_list_lock);
 	sco_conn_del(hcon, bt_err(reason), is_process);
 
 	return 0;
@@ -1058,6 +1079,25 @@ static const struct proto_ops sco_sock_ops = {
 	.getsockopt	= sco_sock_getsockopt
 };
 
+void sco_register_conn_state_cb(struct sco_cb *cb)
+{
+	write_lock_bh(&sco_cb_list_lock);
+	list_add(&cb->list, &sco_cb_list);
+	write_unlock_bh(&sco_cb_list_lock);
+}
+
+void sco_unregister_conn_state_cb(struct sco_cb *cb)
+{
+	write_lock_bh(&sco_cb_list_lock);
+	list_del(&cb->list);
+	write_unlock_bh(&sco_cb_list_lock);
+}
+
+static struct sco_proto sco_protocol = {
+	.register_cb	= sco_register_conn_state_cb,
+	.unregister_cb	= sco_unregister_conn_state_cb,
+};
+
 static const struct net_proto_family sco_sock_family_ops = {
 	.family	= PF_BLUETOOTH,
 	.owner	= THIS_MODULE,
@@ -1094,6 +1134,14 @@ int __init sco_init(void)
 		goto error;
 	}
 
+	err = hci_sco_register_proto(&sco_protocol);
+	if (err < 0) {
+		BT_ERR("SCO protocol registration failed");
+		hci_unregister_proto(&sco_hci_proto);
+		bt_sock_unregister(BTPROTO_SCO);
+		goto error;
+	}
+
 	if (bt_debugfs) {
 		sco_debugfs = debugfs_create_file("sco", 0444,
 					bt_debugfs, NULL, &sco_debugfs_fops);
@@ -1118,6 +1166,9 @@ void __exit sco_exit(void)
 		BT_ERR("SCO socket unregistration failed");
 
 	if (hci_unregister_proto(&sco_hci_proto) < 0)
+		BT_ERR("SCO protocol unregistration failed");
+
+	if (hci_sco_unregister_proto() < 0)
 		BT_ERR("SCO protocol unregistration failed");
 
 	proto_unregister(&sco_proto);
