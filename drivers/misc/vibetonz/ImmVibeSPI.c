@@ -35,7 +35,7 @@
 #include "tspdrv.h"
 #include <linux/clk.h>
 
-#include <../mach-msm/clock.h>
+#include <mach/clk-provider.h>
 
 #ifdef IMMVIBESPIAPI
 #undef IMMVIBESPIAPI
