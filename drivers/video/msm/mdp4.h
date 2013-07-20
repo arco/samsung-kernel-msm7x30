@@ -575,8 +575,6 @@ void mdp4_overlay0_done_dsi_cmd(int cndx);
 void mdp4_primary_rdptr(void);
 void mdp4_dsi_cmd_overlay(struct msm_fb_data_type *mfd);
 int mdp4_overlay_commit(struct fb_info *info);
-int mdp4_dsi_video_pipe_commit(int cndx, int wait);
-int mdp4_dsi_cmd_pipe_commit(int cndx, int wait);
 int mdp4_lcdc_pipe_commit(int cndx, int wait);
 int mdp4_dsi_cmd_update_cnt(int cndx);
 void mdp4_dsi_rdptr_init(int cndx);
@@ -647,7 +645,19 @@ void mdp4_overlay_solidfill_init(struct mdp4_overlay_pipe *pipe);
 #ifndef CONFIG_FB_MSM_MIPI_DSI
 void mdp4_mddi_dma_busy_wait(struct msm_fb_data_type *mfd);
 void mdp4_mddi_overlay_restore(void);
+static inline int mdp4_dsi_video_pipe_commit(int cndx, int wait)
+{
+	/* empty */
+	return 0;
+}
+static inline int mdp4_dsi_cmd_pipe_commit(int cndx, int wait)
+{
+	/* empty */
+	return 0;
+}
 #else
+int mdp4_dsi_video_pipe_commit(int cndx, int wait);
+int mdp4_dsi_cmd_pipe_commit(int cndx, int wait);
 static inline void mdp4_mddi_kickoff_video(struct msm_fb_data_type *mfd,
 				struct mdp4_overlay_pipe *pipe)
 {

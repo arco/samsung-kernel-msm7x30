@@ -272,6 +272,7 @@ static void vid_dec_output_frame_done(struct video_client_ctx *client_ctx,
 				      &buffer_index) ||
 		(vcd_frame_data->flags & VCD_FRAME_FLAG_EOS)) {
 
+#ifdef CONFIG_MSM_VIDC_1080P
 		if (res_trk_check_for_sec_session() &&
 			res_trk_get_enable_sec_metadata() &&
 			event == VCD_EVT_RESP_OUTPUT_DONE) {
@@ -303,6 +304,7 @@ static void vid_dec_output_frame_done(struct video_client_ctx *client_ctx,
 				}
 			}
 		}
+#endif
 
 		/* Buffer address in user space */
 		vdec_msg->vdec_msg_info.msgdata.output_frame.bufferaddr =
@@ -2497,11 +2499,14 @@ static long vid_dec_ioctl(struct file *file,
 		if (copy_from_user(&meta_buffers, vdec_msg.in,
 						   sizeof(meta_buffers)))
 			return -EFAULT;
+
+#ifdef CONFIG_MSM_VIDC_1080P
 		if (res_trk_get_enable_sec_metadata())
 			result =
 			vid_dec_set_meta_buffers(client_ctx, &meta_buffers);
 		else
 			ERR("ERROR : Meta data is not enabled.\n");
+#endif
 
 		if (!result)
 			return -EIO;
@@ -2509,6 +2514,7 @@ static long vid_dec_ioctl(struct file *file,
 	}
 	case VDEC_IOCTL_FREE_META_BUFFERS:
 	{
+#ifdef CONFIG_MSM_VIDC_1080P
 		DBG("VDEC_IOCTL_FREE_META_BUFFERS\n");
 		if (res_trk_get_enable_sec_metadata())
 			result = vid_dec_free_meta_buffers(client_ctx);
@@ -2516,6 +2522,7 @@ static long vid_dec_ioctl(struct file *file,
 			ERR("ERROR : Can't free. Meta data is not enabled.\n");
 		if (!result)
 			return -EIO;
+#endif
 		break;
 	}
 	case VDEC_IOCTL_SET_H264_MV_BUFFER:
