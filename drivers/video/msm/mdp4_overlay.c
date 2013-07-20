@@ -3956,10 +3956,12 @@ int mdp4_overlay_play(struct fb_info *info, struct msmfb_overlay_data *req)
 		if (ctrl->panel_mode & MDP4_PANEL_DTV)
 			mdp4_dtv_pipe_queue(0, pipe);/* cndx = 0 */
 #endif
+#ifdef CONFIG_FB_MSM_WRITEBACK_MSM_PANEL
 	} else if (pipe->mixer_num == MDP4_MIXER2) {
 		ctrl->mixer2_played++;
 		if (ctrl->panel_mode & MDP4_PANEL_WRITEBACK)
 			mdp4_wfd_pipe_queue(0, pipe);/* cndx = 0 */
+#endif
 	}
 
 end:
@@ -4004,9 +4006,11 @@ int mdp4_overlay_commit(struct fb_info *info)
 		mdp4_dtv_pipe_commit(0, 1);
 		break;
 #endif
+#ifdef CONFIG_FB_MSM_WRITEBACK_MSM_PANEL
 	case WRITEBACK_PANEL:
 		mdp4_wfd_pipe_commit(mfd, 0, 1);
 		break;
+#endif
 	default:
 		pr_err("Panel Not Supported for Commit");
 		ret = -EINVAL;
