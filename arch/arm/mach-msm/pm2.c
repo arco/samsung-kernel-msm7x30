@@ -1606,44 +1606,23 @@ void msm_pm_cpu_enter_lowpower(unsigned int cpu)
 	}
 }
 
-/*
- * Initialize the power management subsystem.
- *
- * Return value:
- *      -ENODEV: initialization failed
- *      0: success
- */
-static int __init msm_pm_init(void)
-{
-	int ret;
-	int val;
-	enum msm_pm_time_stats_id enable_stats[] = {
-		MSM_PM_STAT_REQUESTED_IDLE,
-		MSM_PM_STAT_IDLE_SPIN,
-		MSM_PM_STAT_IDLE_WFI,
-		MSM_PM_STAT_IDLE_STANDALONE_POWER_COLLAPSE,
-		MSM_PM_STAT_IDLE_FAILED_STANDALONE_POWER_COLLAPSE,
-		MSM_PM_STAT_IDLE_POWER_COLLAPSE,
-		MSM_PM_STAT_IDLE_FAILED_POWER_COLLAPSE,
-		MSM_PM_STAT_SUSPEND,
-		MSM_PM_STAT_FAILED_SUSPEND,
-		MSM_PM_STAT_NOT_IDLE,
-	};
-
 #ifdef CONFIG_CPU_V7
+static int __init msm_pm_setup_saved_state(void)
+{
 	pgd_t *pc_pgd;
 	pmd_t *pmd;
 	unsigned long pmdval;
 	unsigned long exit_phys;
 
-	exit_phys = virt_to_phys(msm_pm_collapse_exit);
-
 	/* Page table for cores to come back up safely. */
 	pc_pgd = pgd_alloc(&init_mm);
 	if (!pc_pgd)
 		return -ENOMEM;
+
+	exit_phys = virt_to_phys(msm_pm_collapse_exit);
+
 	pmd = pmd_offset(pud_offset(pc_pgd + pgd_index(exit_phys), exit_phys),
-			 exit_phys);
+						exit_phys);
 	pmdval = (exit_phys & PGDIR_MASK) |
 		     PMD_TYPE_SECT | PMD_SECT_AP_WRITE;
 	pmd[0] = __pmd(pmdval);
@@ -1671,7 +1650,35 @@ static int __init msm_pm_init(void)
 	msm_pm_pc_pgd = virt_to_phys(pc_pgd);
 	clean_caches((unsigned long)&msm_pm_pc_pgd, sizeof(msm_pm_pc_pgd),
 		     virt_to_phys(&msm_pm_pc_pgd));
+
+	return 0;
+}
+core_initcall(msm_pm_setup_saved_state);
 #endif
+
+/*
+ * Initialize the power management subsystem.
+ *
+ * Return value:
+ *      -ENODEV: initialization failed
+ *      0: success
+ */
+static int __init msm_pm_init(void)
+{
+	int ret;
+	int val;
+	enum msm_pm_time_stats_id enable_stats[] = {
+		MSM_PM_STAT_REQUESTED_IDLE,
+		MSM_PM_STAT_IDLE_SPIN,
+		MSM_PM_STAT_IDLE_WFI,
+		MSM_PM_STAT_IDLE_STANDALONE_POWER_COLLAPSE,
+		MSM_PM_STAT_IDLE_FAILED_STANDALONE_POWER_COLLAPSE,
+		MSM_PM_STAT_IDLE_POWER_COLLAPSE,
+		MSM_PM_STAT_IDLE_FAILED_POWER_COLLAPSE,
+		MSM_PM_STAT_SUSPEND,
+		MSM_PM_STAT_FAILED_SUSPEND,
+		MSM_PM_STAT_NOT_IDLE,
+	};
 
 	msm_pm_smem_data = smem_alloc(SMEM_APPS_DEM_SLAVE_DATA,
 		sizeof(*msm_pm_smem_data));
