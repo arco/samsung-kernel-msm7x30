@@ -7216,8 +7216,6 @@ unsigned long msm_ion_camera_size;
 
 static void fix_sizes(void)
 {
-	unsigned long size;
-
 	if machine_is_msm7x30_fluid()
 		size = fluid_pmem_adsp_size;
 	else
