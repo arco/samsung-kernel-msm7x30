@@ -122,6 +122,7 @@
 #include <linux/err.h>
 #endif
 
+#define MDP_VSYNC_GPIO		30
 #define GPIO_BT_WAKE		147
 #define GPIO_BT_HOST_WAKE	145
 #define GPIO_BT_WLAN_REG_ON	144
@@ -4351,9 +4352,14 @@ static struct mddi_platform_data mddi_pdata = {
 
 static struct msm_panel_common_pdata mdp_pdata = {
 	.hw_revision_addr = 0xac001270,
-	.gpio = 30,
+	.gpio = MDP_VSYNC_GPIO,
 	.mdp_max_clk = 192000000,
 	.mdp_rev = MDP_REV_40,
+#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
+	.mem_hid = BIT(ION_CP_MM_HEAP_ID),
+#else
+	.mem_hid = MEMTYPE_EBI0,
+#endif
 };
 
 static struct msm_gpio lcd_panel_gpios[] = {
