@@ -39,7 +39,7 @@
 #define LCDC_BASE	0xE0000
 #endif
 
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+#if defined(CONFIG_MACH_ANCORA)
 extern unsigned int board_lcd_hw_revision;
 #endif
 
@@ -665,31 +665,11 @@ int mdp4_lcdc_on(struct platform_device *pdev)
 
 	mdp_histogram_ctrl_all(TRUE);
 
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
-	if (board_lcd_hw_revision == 3)
-	{
-		ret = panel_next_on(pdev);
-		if (ret == 0) {
-			/* enable LCDC block */
-			MDP_OUTP(MDP_BASE + LCDC_BASE, 1);
-			mdp_pipe_ctrl(MDP_OVERLAY0_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-		}
-		/* MDP cmd block disable */
-		mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-	} else {
-		/*
-		 * LCDC Block must be enabled before the time of turn on lcd
-		 * because of the signal timing.
-		*/
-		mdp4_overlay_lcdc_start();
-	}
-#else
 	/*
 	 * LCDC Block must be enabled before the time of turn on lcd
 	 * because of the signal timing.
 	 */
 	mdp4_overlay_lcdc_start();
-#endif
 
 	if (!vctrl->sysfs_created) {
 		ret = sysfs_create_group(&vctrl->dev->kobj,
