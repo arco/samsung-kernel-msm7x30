@@ -7277,6 +7277,7 @@ static void __init reserve_ion_memory(void)
 	msm7x30_reserve_table[MEMTYPE_EBI0].size += msm_ion_camera_size;
 	msm7x30_reserve_table[MEMTYPE_EBI0].size += MSM_ION_AUDIO_SIZE;
 	msm7x30_reserve_table[MEMTYPE_EBI0].size += MSM_ION_SF_SIZE;
+	msm7x30_reserve_table[MEMTYPE_EBI0].size += 1;
 #endif
 }
 
