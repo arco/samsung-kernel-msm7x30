@@ -545,7 +545,7 @@ struct platform_device msm_device_hsusb_host = {
 #ifdef CONFIG_ANDROID_PERSISTENT_RAM
 #define PERSISTENT_RAM_SIZE SZ_512K
 #define RAM_CONSOLE_SIZE (124*SZ_1K * 2)
-#define PERSISTENT_RAM_BASE 0x1ce0000
+#define PERSISTENT_RAM_BASE 0x1cca000
 
 static struct persistent_ram_descriptor pram_descs[] = {
 #ifdef CONFIG_ANDROID_RAM_CONSOLE
