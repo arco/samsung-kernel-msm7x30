@@ -3684,6 +3684,37 @@ static int msmfb_notify_update(struct fb_info *info, void __user *argp)
 	return (ret > 0) ? 0 : ret;
 }
 
+int msmfb_validate_start_req(struct mdp_histogram_start_req *req)
+{
+	if (req->frame_cnt >= MSM_FB_HISTOGRAM_FRAME_COUNT_MAX) {
+		pr_err("%s invalid req frame_cnt\n", __func__);
+		return -EINVAL;
+	}
+	if (req->bit_mask >= MSM_FB_HISTOGRAM_BIT_MASK_MAX) {
+		pr_err("%s invalid req bit mask\n", __func__);
+		return -EINVAL;
+	}
+	if (req->block != MDP_BLOCK_DMA_P ||
+		req->num_bins != MSM_FB_HISTOGRAM_BIN_NUM) {
+		pr_err("msmfb_histogram_start invalid request\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
+int msmfb_validate_scale_config(struct mdp_bl_scale_data *data)
+{
+	if (data->scale > MSM_FB_BL_SCALE_MAX) {
+		pr_err("%s invalid bl_scale\n", __func__);
+		return -EINVAL;
+	}
+	if (data->min_lvl > MSM_FB_BL_LEVEL_MAX) {
+		pr_err("%s invalid bl_min_lvl\n", __func__);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int msmfb_handle_pp_ioctl(struct msm_fb_data_type *mfd,
 						struct msmfb_mdp_pp *pp_ptr)
 {
@@ -3746,6 +3777,11 @@ static int msmfb_handle_pp_ioctl(struct msm_fb_data_type *mfd,
 		break;
 #endif
 	case mdp_bl_scale_cfg:
+		ret = msmfb_validate_scale_config(&pp_ptr->data.bl_scale_data);
+		if (ret) {
+			pr_err("%s: invalid scale config\n", __func__);
+			break;
+		}
 		ret = mdp_bl_scale_config(mfd, (struct mdp_bl_scale_data *)
 				&pp_ptr->data.bl_scale_data);
 		break;
@@ -4121,6 +4157,10 @@ static int msm_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			return -ENODEV;
 
 		ret = copy_from_user(&hist_req, argp, sizeof(hist_req));
+		if (ret)
+			return ret;
+
+		ret = msmfb_validate_start_req(&hist_req);
 		if (ret)
 			return ret;
 
