@@ -2336,7 +2336,7 @@ static void vfe31_process_camif_sof_irq(void)
 				VFE_CAMIF_COMMAND);
 		}
 	} /* if raw snapshot mode. */
-	vfe31_send_msg_no_payload(MSG_ID_SOF_ACK);
+	//vfe31_send_msg_no_payload(MSG_ID_SOF_ACK);
 	vfe31_ctrl->vfeFrameId++;
 	CDBG("camif_sof_irq, frameId = %d\n", vfe31_ctrl->vfeFrameId);
 
