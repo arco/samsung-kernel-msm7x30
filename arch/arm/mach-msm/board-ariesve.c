@@ -157,14 +157,18 @@ EXPORT_SYMBOL(switch_dev);
 
 #define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE, 4096)
 
-#define MSM_PMEM_ADSP_SIZE		0x2800000
+#define MSM_PMEM_ADSP_SIZE		0x1200000
 #define MSM_FLUID_PMEM_ADSP_SIZE	0x2800000
-#define PMEM_KERNEL_EBI0_SIZE		0x600000
+#define PMEM_KERNEL_EBI0_SIZE		0x0600000
+#define MSM_PMEM_AUDIO_SIZE		0x0200000
 
 #ifdef CONFIG_ION_MSM
 static struct platform_device ion_dev;
-#define MSM_ION_AUDIO_SIZE	PMEM_KERNEL_EBI0_SIZE
+#define MSM_ION_AUDIO_SIZE	MSM_PMEM_AUDIO_SIZE
 #define MSM_ION_SF_SIZE		MSM_PMEM_SF_SIZE
+#ifdef CONFIG_MSM_ADSP_USE_PMEM
+#define MSM_ION_VIDC_SIZE	0x1800000
+#endif
 #define MSM_ION_HEAP_NUM	4
 #endif
 
@@ -7231,7 +7235,7 @@ static struct memtype_reserve msm7x30_reserve_table[] __initdata = {
 };
 
 unsigned long size;
-unsigned long msm_ion_camera_size;
+unsigned long msm_ion_camera_size = MSM_ION_VIDC_SIZE;
 
 static void fix_sizes(void)
 {
@@ -7239,24 +7243,22 @@ static void fix_sizes(void)
 		size = fluid_pmem_adsp_size;
 	else
 		size = pmem_adsp_size;
-
-#ifdef CONFIG_ION_MSM
-	msm_ion_camera_size = size;
-#endif
 }
 
 static void __init size_pmem_devices(void)
 {
 #ifdef CONFIG_ANDROID_PMEM
-#ifndef CONFIG_MSM_MULTIMEDIA_USE_ION
+#ifdef CONFIG_MSM_ADSP_USE_PMEM
 	android_pmem_adsp_pdata.size = size;
+#endif
+#ifndef CONFIG_MSM_MULTIMEDIA_USE_ION
 	android_pmem_pdata.size = pmem_sf_size;
 #endif
 #endif
 }
 
 #ifdef CONFIG_ANDROID_PMEM
-#ifndef CONFIG_MSM_MULTIMEDIA_USE_ION
+#if !defined(CONFIG_MSM_MULTIMEDIA_USE_ION) || defined(CONFIG_MSM_ADSP_USE_PMEM)
 static void __init reserve_memory_for(struct android_pmem_platform_data *p)
 {
 	msm7x30_reserve_table[p->memory_type].size += p->size;
@@ -7267,8 +7269,10 @@ static void __init reserve_memory_for(struct android_pmem_platform_data *p)
 static void __init reserve_pmem_memory(void)
 {
 #ifdef CONFIG_ANDROID_PMEM
-#ifndef CONFIG_MSM_MULTIMEDIA_USE_ION
+#if !defined(CONFIG_MSM_MULTIMEDIA_USE_ION) || defined(CONFIG_MSM_ADSP_USE_PMEM)
 	reserve_memory_for(&android_pmem_adsp_pdata);
+#endif
+#ifndef CONFIG_MSM_MULTIMEDIA_USE_ION
 	reserve_memory_for(&android_pmem_pdata);
 	msm7x30_reserve_table[MEMTYPE_EBI0].size += pmem_kernel_ebi0_size;
 #endif
