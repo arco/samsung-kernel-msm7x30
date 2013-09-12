@@ -721,8 +721,8 @@ static int __init vid_enc_init(void)
 		__func__, rc);
 		goto error_vid_enc_cdev_add;
 	}
-	vid_enc_vcd_init();
-	return 0;
+	rc = vid_enc_vcd_init();
+	return rc;
 
 error_vid_enc_cdev_add:
 	device_destroy(vid_enc_class, vid_enc_dev_num);
