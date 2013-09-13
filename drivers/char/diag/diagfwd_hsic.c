@@ -21,6 +21,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <linux/smux.h>
+#include <linux/signal.h>
 #include <asm/current.h>
 #ifdef CONFIG_DIAG_OVER_USB
 #include <mach/usbdiag.h>
@@ -411,6 +412,8 @@ void diag_read_usb_hsic_work_fn(struct work_struct *work)
 static int diag_hsic_probe(struct platform_device *pdev)
 {
 	int err = 0;
+	int stat;
+	struct siginfo info;
 
 	/* pdev->Id will indicate which HSIC is working. 0 stands for HSIC
 	 *  or CP1 1 indicates HS-USB or CP2
@@ -485,6 +488,24 @@ static int diag_hsic_probe(struct platform_device *pdev)
 	}
 	/* The HSIC (diag_bridge) platform device driver is enabled */
 	diag_hsic[pdev->id].hsic_device_enabled = 1;
+
+	/* Send signal to userspace to send masks to MDM*/
+	if (driver->logging_mode == MEMORY_DEVICE_MODE) {
+			memset(&info, 0, sizeof(struct siginfo));
+			info.si_code = SI_QUEUE;
+			info.si_errno = 0;
+			info.si_signo = SIGRTMIN;
+			pr_info("diag: sending signal to userspace to send masks\n");
+			if (mdlog_process) {
+				stat = send_sig_info(SIGRTMIN, &info,
+							mdlog_process);
+				if (stat)
+					pr_err("diag:Err sending mask signal,stat:%d\n",
+							stat);
+			}
+	}
+	/*-------------------------------------------------*/
+
 	mutex_unlock(&diag_bridge[pdev->id].bridge_mutex);
 	return err;
 }

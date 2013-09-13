@@ -82,6 +82,9 @@ module_param(itemsize, uint, 0);
 module_param(poolsize, uint, 0);
 module_param(max_clients, uint, 0);
 
+/*Diag Mdlog signal*/
+struct task_struct *mdlog_process;
+
 /* delayed_rsp_id 0 represents no delay in the response. Any other number
     means that the diag packet has a delayed response. */
 static uint16_t delayed_rsp_id = 1;
@@ -279,6 +282,9 @@ static int diagchar_close(struct inode *inode, struct file *file)
 		(driver->callback_process->tgid == current->tgid)) {
 		driver->callback_process = NULL;
 	}
+	if (mdlog_process &&
+		mdlog_process->tgid == current->tgid)
+			mdlog_process = NULL;
 	mutex_unlock(&driver->diagchar_mutex);
 
 #ifdef CONFIG_DIAG_OVER_USB
@@ -825,6 +831,7 @@ int diag_switch_logging(unsigned long ioarg)
 	}
 
 	if (driver->logging_mode == MEMORY_DEVICE_MODE) {
+		mdlog_process = current;
 		diag_clear_hsic_tbl();
 		driver->mask_check = 1;
 		if (driver->socket_process) {

@@ -93,6 +93,9 @@
 extern int diag_max_reg;
 extern int diag_threshold_reg;
 
+/*Diag_mdlog signal*/
+extern struct task_struct *mdlog_process;
+
 #define APPEND_DEBUG(ch) \
 do {							\
 	diag_debug_buf[diag_debug_buf_idx] = ch; \
