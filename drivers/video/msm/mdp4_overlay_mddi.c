@@ -380,36 +380,11 @@ int mdp4_mddi_pipe_commit(void)
 	return cnt;
 }
 
-static void mdp4_mddi_vsync_irq_ctrl(int cndx, int enable)
-{
-	struct vsycn_ctrl *vctrl;
-	static int vsync_irq_cnt;
-
-	vctrl = &vsync_ctrl_db[cndx];
-
-	mutex_lock(&vctrl->update_lock);
-	if (enable) {
-		if (vsync_irq_cnt == 0)
-			vsync_irq_enable(INTR_PRIMARY_VSYNC,
-						MDP_PRIM_VSYNC_TERM);
-		vsync_irq_cnt++;
-	} else {
-		if (vsync_irq_cnt) {
-			vsync_irq_cnt--;
-			if (vsync_irq_cnt == 0)
-				vsync_irq_disable(INTR_PRIMARY_VSYNC,
-						MDP_PRIM_VSYNC_TERM);
-		}
-	}
-	pr_debug("%s: enable=%d cnt=%d\n", __func__, enable, vsync_irq_cnt);
-	mutex_unlock(&vctrl->update_lock);
-}
-
 void mdp4_mddi_vsync_ctrl(struct fb_info *info, int enable)
 {
 	struct vsycn_ctrl *vctrl;
-//	unsigned long flags;
-//	int clk_set_on = 0;
+	unsigned long flags;
+	int clk_set_on = 0;
 	int cndx = 0;
 
 	vctrl = &vsync_ctrl_db[cndx];
@@ -426,13 +401,36 @@ void mdp4_mddi_vsync_ctrl(struct fb_info *info, int enable)
 
 	vctrl->vsync_enabled = enable;
 
-	mdp4_mddi_vsync_irq_ctrl(cndx, enable);
+	if (enable) {
+		if (vctrl->clk_enabled == 0) {
+			pr_debug("%s: SET_CLK_ON\n", __func__);
+			mdp_clk_ctrl(1);
+			vctrl->clk_enabled = 1;
+			clk_set_on = 1;
+		}
+		spin_lock_irqsave(&vctrl->spin_lock, flags);
+		vctrl->clk_control = 0;
+		vctrl->expire_tick = 0;
+		vctrl->new_update = 1;
+		if (clk_set_on) {
+			vsync_irq_enable(INTR_PRIMARY_RDPTR,
+						MDP_PRIM_RDPTR_TERM);
+		}
+		spin_unlock_irqrestore(&vctrl->spin_lock, flags);
+	} else {
+		spin_lock_irqsave(&vctrl->spin_lock, flags);
+		vctrl->clk_control = 1;
+		if (vctrl->clk_enabled)
+			vctrl->expire_tick = VSYNC_EXPIRE_TICK;
+		spin_unlock_irqrestore(&vctrl->spin_lock, flags);
+	}
+	mutex_unlock(&vctrl->update_lock);
 
 	if (vctrl->vsync_enabled &&  atomic_read(&vctrl->suspend) == 0)
 		atomic_set(&vctrl->vsync_resume, 1);
 }
 
-void mdp4_mddi_wait4vsync(int cndx)
+void mdp4_mddi_wait4vsync(int cndx, long long *vtime)
 {
 	struct vsycn_ctrl *vctrl;
 	struct mdp4_overlay_pipe *pipe;
@@ -446,10 +444,10 @@ void mdp4_mddi_wait4vsync(int cndx)
 	vctrl = &vsync_ctrl_db[cndx];
 	pipe = vctrl->base_pipe;
 
-	if (atomic_read(&vctrl->suspend) > 0)
+	if (atomic_read(&vctrl->suspend) > 0) {
+		*vtime = -1;
 		return;
-
-	mdp4_mddi_vsync_irq_ctrl(cndx, 1);
+	}
 
 	spin_lock_irqsave(&vctrl->spin_lock, flags);
 	if (vctrl->wait_vsync_cnt == 0)
@@ -458,8 +456,9 @@ void mdp4_mddi_wait4vsync(int cndx)
 	spin_unlock_irqrestore(&vctrl->spin_lock, flags);
 
 	wait_for_completion(&vctrl->vsync_comp);
-	mdp4_mddi_vsync_irq_ctrl(cndx, 0);
 	mdp4_stat.wait4vsync0++;
+
+	*vtime = ktime_to_ns(vctrl->vsync_time);
 }
 
 static void mdp4_mddi_wait4dmap(int cndx)
