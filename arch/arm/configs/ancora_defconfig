@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.95 Kernel Configuration
+# Linux/arm 3.0.99 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1827,6 +1827,7 @@ CONFIG_VIDEO_HELPER_CHIPS_AUTO=y
 #
 # Miscelaneous helper chips
 #
+# CONFIG_VIDEO_VIVI is not set
 # CONFIG_VIDEO_CPIA2 is not set
 # CONFIG_VIDEO_NOON010PC30 is not set
 # CONFIG_SOC_CAMERA is not set
@@ -2069,7 +2070,12 @@ CONFIG_BACKLIGHT_CLASS_DEVICE=y
 # Console display driver support
 #
 CONFIG_DUMMY_CONSOLE=y
-# CONFIG_FRAMEBUFFER_CONSOLE is not set
+CONFIG_FRAMEBUFFER_CONSOLE=y
+# CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY is not set
+# CONFIG_FRAMEBUFFER_CONSOLE_ROTATION is not set
+# CONFIG_FONTS is not set
+CONFIG_FONT_8x8=y
+CONFIG_FONT_8x16=y
 # CONFIG_LOGO is not set
 CONFIG_SOUND=y
 # CONFIG_SOUND_OSS_CORE is not set
