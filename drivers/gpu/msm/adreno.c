@@ -1364,6 +1364,11 @@ int adreno_idle(struct kgsl_device *device)
 		adreno_dev->gpudev->reg_rbbm_status << 2,
 		0x00000000, 0x80000000);
 
+
+	/* If the device clock is off, it's already idle. Don't wake it up */
+	if (!kgsl_pwrctrl_isenabled(device))
+		return 0;
+
 retry:
 	/* First, wait for the ringbuffer to drain */
 	if (adreno_ringbuffer_drain(device, prev_reg_val))

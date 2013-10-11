@@ -73,6 +73,7 @@ void kgsl_pwrctrl_pwrlevel_change(struct kgsl_device *device,
 	unsigned int level);
 int kgsl_pwrctrl_init_sysfs(struct kgsl_device *device);
 void kgsl_pwrctrl_uninit_sysfs(struct kgsl_device *device);
+bool kgsl_pwrctrl_isenabled(struct kgsl_device *device);
 void kgsl_pwrctrl_enable(struct kgsl_device *device);
 void kgsl_pwrctrl_disable(struct kgsl_device *device);
 static inline unsigned long kgsl_get_clkrate(struct clk *clk)
