@@ -192,7 +192,7 @@ static struct platform_device ion_dev;
 /* 2011-06-27 hyeokseon.yu */
 #ifdef CONFIG_OPTICAL_GP2A
 #define PMIC_GPIO_PROX_EN	15 /* PMIC GPIO 16 */
-#define MSM_GPIO_PS_VOUT	118// [HSS]125 for Test
+#define PMIC_GPIO_PS_VOUT	118// [HSS]125 for Test
 #endif
 
 #ifdef CONFIG_KEYPAD_CYPRESS_TOUCH
@@ -345,10 +345,10 @@ static struct platform_device sec_device_jack = {
 #ifdef CONFIG_OPTICAL_GP2A
 static int __init opt_gp2a_gpio_init(void)
 {
-	if (gpio_tlmm_config(GPIO_CFG(MSM_GPIO_PS_VOUT, 0, GPIO_CFG_INPUT,
+	if (gpio_tlmm_config(GPIO_CFG(PMIC_GPIO_PS_VOUT, 0, GPIO_CFG_INPUT,
             GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE))
 		pr_err("[HSS] %s: gpio_tlmm_config (gpio=%d) failed\n",
-		       __func__, MSM_GPIO_PS_VOUT);
+		       __func__, PMIC_GPIO_PS_VOUT);
 
 	return 0;
 }
@@ -3211,9 +3211,22 @@ static struct i2c_board_info opt_i2c_borad_info[] = {
 	},
 };
 
+struct opt_gp2a_platform_data {
+    int gp2a_irq;
+    int gp2a_gpio;
+};
+
+static struct opt_gp2a_platform_data opt_gp2a_data = {
+	.gp2a_irq = MSM_GPIO_TO_INT(PMIC_GPIO_PS_VOUT),
+	.gp2a_gpio = PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_PROX_EN),
+};
+
 static struct platform_device opt_gp2a = {
 	.name       = "gp2a-opt",
 	.id         = -1,
+	.dev        = {
+		.platform_data  = &opt_gp2a_data,
+	},
 };
 #endif /* CONFIG_OPTICAL_GP2A */
 
@@ -3232,7 +3245,7 @@ static struct platform_device fmradio_i2c_gpio_device = {
 };
 #endif
 
-#ifdef CONFIG_SENSORS_BMA023_ACCEL
+#ifdef CONFIG_SENSORS_BMA222_ACCEL
 static struct i2c_gpio_platform_data acc_i2c_gpio_data = {
 	.sda_pin    = 149,
 	.scl_pin    = 148,
@@ -5305,7 +5318,7 @@ static struct platform_device *devices[] __initdata = {
 	&opt_i2c_gpio_device,
 	&opt_gp2a,
 #endif
-#ifdef CONFIG_SENSORS_BMA023_ACCEL
+#ifdef CONFIG_SENSORS_BMA222_ACCEL
 	&acc_i2c_gpio_device,
 #endif
 #ifdef CONFIG_SENSORS_YAS529_MAGNETIC
@@ -7014,7 +7027,7 @@ static void __init msm7x30_init(void)
 	i2c_register_board_info(20, touchkey_info, ARRAY_SIZE(touchkey_info));	
 #endif
 
-#ifdef CONFIG_SENSORS_BMA023_ACCEL
+#ifdef CONFIG_SENSORS_BMA222_ACCEL
 	if(board_hw_revision >0)
 	{
 		i2c_register_board_info(8, acc_i2c_devices,

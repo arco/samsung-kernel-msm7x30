@@ -23,6 +23,7 @@
 
 #define YAS_MAG_DRIVER_YAS529               (1)
 #define YAS_MAG_DRIVER_YAS530               (2)
+#define YAS_MAG_DRIVER_YAS532               (3)
 
 #define YAS_ACC_DRIVER_ADXL345              (0)
 #define YAS_ACC_DRIVER_ADXL346              (1)
@@ -32,12 +33,13 @@
 #define YAS_ACC_DRIVER_KXSD9                (5)
 #define YAS_ACC_DRIVER_KXTE9                (6)
 #define YAS_ACC_DRIVER_KXTF9                (7)
-#define YAS_ACC_DRIVER_LIS331DL             (8)
-#define YAS_ACC_DRIVER_LIS331DLH            (9)
-#define YAS_ACC_DRIVER_LIS331DLM            (10)
-#define YAS_ACC_DRIVER_LIS3DH               (11)
-#define YAS_ACC_DRIVER_MMA8452Q             (12)
-#define YAS_ACC_DRIVER_MMA8453Q             (13)
+#define YAS_ACC_DRIVER_KXUD9                (8)
+#define YAS_ACC_DRIVER_LIS331DL             (9)
+#define YAS_ACC_DRIVER_LIS331DLH            (10)
+#define YAS_ACC_DRIVER_LIS331DLM            (11)
+#define YAS_ACC_DRIVER_LIS3DH               (12)
+#define YAS_ACC_DRIVER_MMA8452Q             (13)
+#define YAS_ACC_DRIVER_MMA8453Q             (14)
 
 /*----------------------------------------------------------------------------*/
 /*                               Configuration                                */
@@ -158,30 +160,33 @@
 /*                    Geomagnetic Calibration Configuration                   */
 /*----------------------------------------------------------------------------*/
 
-#define YAS_DEFAULT_MAGCALIB_THRESHOLD      (1)
-#define YAS_DEFAULT_MAGCALIB_DISTORTION     (15)
-#define YAS_DEFAULT_MAGCALIB_SHAPE          (0)
-#define YAS_MAGCALIB_SHAPE_NUM              (2)
+#undef YAS_MAGCALIB_INSTANTIATE
+#define YAS_DEFAULT_MAGCALIB_THRESHOLD		(1)
+#define YAS_DEFAULT_MAGCALIB_DISTORTION		(15)
+#define YAS_DEFAULT_MAGCALIB_SHAPE		(0)
+#define YAS_MAGCALIB_SHAPE_NUM			(2)
+#undef YAS_MAG_MANUAL_OFFSET
 
 /*----------------------------------------------------------------------------*/
 /*                      Geomagnetic Filter Configuration                      */
 /*----------------------------------------------------------------------------*/
 
-#define YAS_MAG_MAX_FILTER_LEN              (30)
 #define YAS_MAG_I2C_SLAVEADDR               (0x2e)
 
+#define YAS_MAG_MAX_FILTER_LEN			(30)
+#define YAS_MAG_DEFAULT_FILTER_NOISE_X		(144) /* sd: 1200 nT */
+#define YAS_MAG_DEFAULT_FILTER_NOISE_Y		(144) /* sd: 1200 nT */
+#define YAS_MAG_DEFAULT_FILTER_NOISE_Z		(144) /* sd: 1200 nT */
+#define YAS_MAG_DEFAULT_FILTER_LEN		(20)
+
 #if YAS_MAG_DRIVER == YAS_MAG_DRIVER_YAS529
-#define YAS_MAG_DEFAULT_FILTER_NOISE_X      (400) /* sd: 1000 nT */
-#define YAS_MAG_DEFAULT_FILTER_NOISE_Y      (400) /* sd: 1000 nT */
-#define YAS_MAG_DEFAULT_FILTER_NOISE_Z      (500) /* sd: 1000 nT */
-#define YAS_MAG_DEFAULT_FILTER_LEN          (20)
-#define YAS_MAG_DEFAULT_FILTER_THRESH       (300)
+#define YAS_MAG_DEFAULT_FILTER_THRESH		(300)
 #elif YAS_MAG_DRIVER == YAS_MAG_DRIVER_YAS530
-#define YAS_MAG_DEFAULT_FILTER_NOISE_X      (16) /* sd: 400 nT */
-#define YAS_MAG_DEFAULT_FILTER_NOISE_Y      (16) /* sd: 400 nT */
-#define YAS_MAG_DEFAULT_FILTER_NOISE_Z      (16) /* sd: 400 nT */
-#define YAS_MAG_DEFAULT_FILTER_LEN          (10)
-#define YAS_MAG_DEFAULT_FILTER_THRESH       (100)
+#define YAS_MAG_DEFAULT_FILTER_THRESH		(100)
+#elif YAS_MAG_DRIVER == YAS_MAG_DRIVER_YAS532
+#define YAS_MAG_DEFAULT_FILTER_THRESH		(300)
+#else
+#define YAS_MAG_DEFAULT_FILTER_THRESH		(0)
 #endif
 
 #endif

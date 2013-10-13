@@ -48,11 +48,8 @@
 /*******************************************************************************/
 
 
-#ifdef CONFIG_MACH_ARIESVE
-#define SENSOR_NAME "light"
-#else
-#define SENSOR_NAME "light_sensor"
-#endif
+#define LIGHT_DEVICE_NAME             "light_sensor"
+#define LIGHT_INPUT_NAME              "light_sensor"
 
 #define SENSOR_DEFAULT_DELAY            (200)   /* 200 ms */
 #define SENSOR_MAX_DELAY                (2000)  /* 2000 ms */
@@ -63,17 +60,20 @@
 #define REALMODE_BUFFER		/* use realmode buffer */
 
 #ifdef REALMODE_BUFFER
-#define LIGHT_BUFFER_NUM	5
+#define LIGHT_BUFFER_NUM	14
 #else
 #define LIGHT_BUFFER_UP	5
 #define LIGHT_BUFFER_DOWN	5
 #endif
+
+#define LIGHT_ADC_FUZZ 1
 
 #if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_GODART) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
 #define MSM_LIGHTSENSOR_ADC_READ
 #endif
 
 #define SENSOR_ZEROVALUE_FIX	/* probably for some interference with light of display, the value of the sensor does not come to zero, in case of total darkness */
+//#define SENSOR_ENABLE_TESTMODE_ABS_Y
 
 struct sensor_data {
 	struct mutex mutex;
@@ -88,7 +88,9 @@ struct sensor_data {
 #if DEBUG
 	int suspend;
 #endif
+#ifdef SENSOR_ENABLE_TESTMODE_ABS_Y
 	int testmode;
+#endif
 	int light_buffer;
 	int light_count;
 #ifndef REALMODE_BUFFER
@@ -434,6 +436,7 @@ static ssize_t light_autobrightness_store(struct device *dev,
 	return size;
 }
 
+#ifdef SENSOR_ENABLE_TESTMODE_ABS_Y
 static ssize_t light_testmode_store(struct device *dev,
         struct device_attribute *attr, const char *buf, size_t size)
 {
@@ -467,24 +470,29 @@ static ssize_t light_testmode_show(struct device *dev, struct device_attribute *
 
 	return sprintf(buf, "%d\n", testmode);
 }
+#endif
 
-static DEVICE_ATTR(poll_delay, S_IRUGO|S_IWUSR|S_IWGRP, light_delay_show, light_delay_store);
+static DEVICE_ATTR(delay, S_IRUGO|S_IWUSR|S_IWGRP, light_delay_show, light_delay_store);
 static DEVICE_ATTR(enable, S_IRUGO|S_IWUSR|S_IWGRP, light_enable_show, light_enable_store);
 static DEVICE_ATTR(wake, S_IWUSR|S_IWGRP, NULL, light_wake_store);
 static DEVICE_ATTR(raw_data, S_IRUGO, lightsensor_raw_data_show, NULL);
 static DEVICE_ATTR(status, S_IRUGO, light_status_show, NULL);
 static DEVICE_ATTR(autobrightness, S_IRUGO|S_IWUSR|S_IWGRP, light_autobrightness_show, light_autobrightness_store);
+#ifdef SENSOR_ENABLE_TESTMODE_ABS_Y
 static DEVICE_ATTR(testmode, S_IRUGO|S_IWUSR|S_IWGRP, light_testmode_show, light_testmode_store);
+#endif
 static DEVICE_ATTR(lightsensor_file_state, 0644, lightsensor_file_state_show, NULL);
 
 static struct attribute *lightsensor_attributes[] = {
-	&dev_attr_poll_delay.attr,
+	&dev_attr_delay.attr,
 	&dev_attr_enable.attr,
 	&dev_attr_wake.attr,
 	&dev_attr_raw_data.attr,
 	&dev_attr_status.attr,
 	&dev_attr_autobrightness.attr,
+#ifdef SENSOR_ENABLE_TESTMODE_ABS_Y
 	&dev_attr_testmode.attr,
+#endif
 	&dev_attr_lightsensor_file_state.attr,
 	NULL
 };
@@ -626,18 +634,22 @@ static void gp2a_work_func_light(struct work_struct *work)
 
 #ifdef REALMODE_BUFFER
 		if (data->light_count++ == LIGHT_BUFFER_NUM) {
-			
+
+#ifdef SENSOR_ENABLE_TESTMODE_ABS_Y
 			if(data->testmode == 1) {
 				input_report_abs(this_data, ABS_Y, adc);
 				input_sync(this_data);
 				data->light_count = 0;
 				gprintk("[LIGHT SENSOR] testmode : adc(%d), cur_state(%d)\n", adc, data->light_data);
 			} else {
-				input_report_abs(this_data, ABS_X, adc);
+#endif
+				input_report_abs(this_data, ABS_MISC, adc);
 				input_sync(this_data);
 				data->light_count = 0;
 				//gprintk("[LIGHT SENSOR] realmode : adc(%d)\n", adc);
+#ifdef SENSOR_ENABLE_TESTMODE_ABS_Y
 			}
+#endif
 		}
 #else
 		if(data->light_level_state <= i || data->light_first_level == true){
@@ -648,7 +660,7 @@ static void gp2a_work_func_light(struct work_struct *work)
                 }
 
                 LightSensor_Log_Cnt = LightSensor_Log_Cnt + 1;       
-				input_report_abs(this_data,	ABS_X, adc);
+				input_report_abs(this_data,	ABS_MISC, adc);
 				input_sync(this_data);
 				data->light_count = 0;
 				data->light_first_level = false;
@@ -662,7 +674,7 @@ static void gp2a_work_func_light(struct work_struct *work)
 				}
 
                 LightSensor_Log_Cnt = LightSensor_Log_Cnt + 1;         
-				input_report_abs(this_data,	ABS_X, adc);
+				input_report_abs(this_data,	ABS_MISC, adc);
 				input_sync(this_data);
 				data->light_count = 0;
 				data->light_level_state = data->light_buffer;
@@ -674,8 +686,10 @@ static void gp2a_work_func_light(struct work_struct *work)
 		data->light_count = 0;
 	}
 
+#ifdef SENSOR_ENABLE_TESTMODE_ABS_Y
 	if(data->testmode == 1)
 		data->light_data = adc;
+#endif
 
 	if(data->enabled)
 		queue_delayed_work(light_workqueue,&data->work, msecs_to_jiffies(data->delay));
@@ -713,7 +727,9 @@ lightsensor_probe(struct platform_device *pdev)
 	}
 	data->enabled = 0;
 	data->delay = SENSOR_DEFAULT_DELAY;
-	data->testmode = 0;
+#ifdef SENSOR_ENABLE_TESTMODE_ABS_Y
+	data->testmode = 1;
+#endif
 #ifndef REALMODE_BUFFER
 	data->light_level_state = 0;
 #endif
@@ -736,15 +752,19 @@ lightsensor_probe(struct platform_device *pdev)
 	}
 
 	set_bit(EV_ABS, input_data->evbit);
-    input_set_capability(input_data, EV_ABS, ABS_X);
-    input_set_capability(input_data, EV_ABS, ABS_Y); 
+    input_set_capability(input_data, EV_ABS, ABS_MISC);
+#ifdef SENSOR_ENABLE_TESTMODE_ABS_Y
+    input_set_capability(input_data, EV_ABS, ABS_Y);
+#endif
 	input_set_capability(input_data, EV_ABS, ABS_WAKE); /* wake */
 	input_set_capability(input_data, EV_ABS, ABS_CONTROL_REPORT); /* enabled/delay */
-	input_set_abs_params(input_data, ABS_X, 0, 1, 0, 0);
+	input_set_abs_params(input_data, ABS_MISC, 0, 1, LIGHT_ADC_FUZZ, 0);
+#ifdef SENSOR_ENABLE_TESTMODE_ABS_Y
 	input_set_abs_params(input_data, ABS_Y, 0, 1, 0, 0);
+#endif
 	input_set_abs_params(input_data, ABS_WAKE, 0, (1<<31), 0, 0);
 	input_set_abs_params(input_data, ABS_CONTROL_REPORT, 0, 1<<16, 0, 0);
-	input_data->name = SENSOR_NAME;
+	input_data->name = LIGHT_INPUT_NAME;
 
 	rt = input_register_device(input_data);
 	if (rt) {
@@ -772,7 +792,7 @@ lightsensor_probe(struct platform_device *pdev)
 	lightsensor_rpc_init();
 #endif
 
-	data->lightsensor_class = class_create(THIS_MODULE, "lightsensor");
+	data->lightsensor_class = class_create(THIS_MODULE, LIGHT_DEVICE_NAME);
 	if (IS_ERR(data->lightsensor_class)) {
 		pr_err("%s: could not create lightsensor_class\n", __func__);
 		goto err;
@@ -878,7 +898,7 @@ static struct platform_driver lightsensor_driver = {
 	.resume     = lightsensor_resume,
 	.shutdown   = lightsensor_shutdown,
 	.driver = {
-		.name   = SENSOR_NAME,
+		.name   = LIGHT_DEVICE_NAME,
 		.owner  = THIS_MODULE,
 	},
 };
@@ -886,7 +906,7 @@ static struct platform_driver lightsensor_driver = {
 
 static int __init lightsensor_init(void)
 {
-	sensor_pdev = platform_device_register_simple(SENSOR_NAME, 0, NULL, 0);
+	sensor_pdev = platform_device_register_simple(LIGHT_DEVICE_NAME, 0, NULL, 0);
 	if (IS_ERR(sensor_pdev)) {
 		return -1;
 	}

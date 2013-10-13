@@ -1,12 +1,12 @@
 menu "Samsung Galaxy S Plus sensor drivers"
 
-config SENSORS_BMA023_ACCEL
-	tristate "Bosch BMA023 Acceleration Sensor"
+config SENSORS_BMA222_ACCEL
+	tristate "Bosch BMA222 Acceleration Sensor"
 	depends on I2C
 
-config INPUT_BMA023_POSITION
-	int "BMA023 Mounting Position on Board"
-	depends on SENSORS_BMA023_ACCEL
+config INPUT_BMA222_POSITION
+	int "BMA222 Mounting Position on Board"
+	depends on SENSORS_BMA222_ACCEL
 	default "0"
 	help
 	  Chip mounting position (pin 1).
@@ -37,7 +37,7 @@ config INPUT_YAS529_POSITION
 	    5: bottom, upper-right
 	    6: bottom, lower-right
 	    7: bottom, lower-left
-	    
+
 config SENSORS_ORIENTATION
 	tristate "Yamaha Orientation Sensor"
 	depends on I2C
@@ -50,4 +50,3 @@ config OPTICAL_GP2A
 	  This option enables proximity & light sensors using gp2a driver.
 
 endmenu
-
