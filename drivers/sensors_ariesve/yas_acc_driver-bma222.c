@@ -447,7 +447,7 @@ static int yas_bma222_i2c_open(void)
     if (acc_data.i2c_open == 0) {
         err = cbk->i2c_open();
         if (err != YAS_NO_ERROR) {
-            return YAS_ERROR_I2C;
+            return YAS_ERROR_DEVICE_COMMUNICATION;
         }
         acc_data.i2c_open = 1;
     }
@@ -463,7 +463,7 @@ static int yas_bma222_i2c_close(void)
     if (acc_data.i2c_open != 0) {
         err = cbk->i2c_close();
         if (err != YAS_NO_ERROR) {
-            return YAS_ERROR_I2C;
+            return YAS_ERROR_DEVICE_COMMUNICATION;
         }
         acc_data.i2c_open = 0;
     }

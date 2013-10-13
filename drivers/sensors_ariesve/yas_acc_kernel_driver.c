@@ -27,15 +27,14 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
-#include <linux/miscdevice.h>
-#include <linux/uaccess.h>
 
 #define __LINUX_KERNEL_DRIVER__
 #include "yas.h"
-#include "yas_acc_driver.c"
+#include "yas_acc_driver-bma222.c"
 
 #define YAS_ACC_KERNEL_VERSION                                                        "3.0.401"
 #define YAS_ACC_KERNEL_NAME                                                   "accelerometer"
+#define YAS_ACC_INPUT_NAME                                                    "accelerometer"
 /* [HSS] Additional Define */
 #define ACC_BMA150_I2C_SLAVE_ADDRESS                                          0x38
 #define ACC_BMA222_I2C_SLAVE_ADDRESS                                          0x08
@@ -78,7 +77,6 @@ static int yas_acc_get_filter_enable(struct yas_acc_driver *);
 static int yas_acc_set_filter_enable(struct yas_acc_driver *, int);
 static int yas_acc_measure(struct yas_acc_driver *, struct yas_acc_data *);
 static int yas_acc_input_init(struct yas_acc_private_data *);
-static int yas_acc_misc_init(struct yas_acc_private_data *);
 static void yas_acc_input_fini(struct yas_acc_private_data *);
 static int yas_acc_fast_calibration(struct yas_acc_driver *, unsigned char*);
 
@@ -108,16 +106,12 @@ static int yas_acc_remove(struct i2c_client *);
 static int yas_acc_suspend(struct i2c_client *, pm_message_t);
 static int yas_acc_resume(struct i2c_client *);
 
-
-
-
 /* ---------------------------------------------------------------------------------------- *
    Driver private data
  * ---------------------------------------------------------------------------------------- */
 struct yas_acc_private_data {
     struct mutex driver_mutex;
     struct mutex data_mutex;
-    struct miscdevice yas_acc_device;
     struct i2c_client *client;
     struct input_dev *input;
     struct yas_acc_driver *driver;
@@ -125,116 +119,6 @@ struct yas_acc_private_data {
     struct yas_acc_data last;
     int suspend;
     int suspend_enable;
-};
-
-struct yas_acc{
-	s32 x;
-	s32 y;
-	s32 z;
-};
-/* -------------------------------------------------------------------------- */
-/*  YAS IOCTL comand label                                                     */
-/* -------------------------------------------------------------------------- */
-
-#define YAS_IOCTL_BASE 'a'
-#define YAS_IOCTL_SET_DELAY			_IOW(YAS_IOCTL_BASE, 0 , int64_t)
-#define YAS_IOCTL_GET_DELAY			_IOR(YAS_IOCTL_BASE, 1 , int64_t)
-#define YAS_IOCTL_READ_ACCEL_XYZ			_IOR(YAS_IOCTL_BASE, 8 ,struct yas_acc)
-#define YAS_IOCTL_CALIBRATION				_IOR(YAS_IOCTL_BASE,9,struct yas_acc)
-
-struct yas_acc_private_data *gyas_acc;
-
-static int yas_acc_open(struct inode *inode, struct file *file)
-{
-	int err= 0 ;
-	//struct yas_acc_private_data* data = container_of(file -> private_data,
-	//											struct yas_acc_private_data,
-	//											yas_acc_device);
-	printk("yac_acc_open\n");
-	struct yas_acc_private_data* data = gyas_acc;
-	err = yas_acc_set_enable(data->driver, 1);
-	file -> private_data = data;
-	return err;
-}
-static int yas_acc_close(struct inode *inode, struct file *file)
-{
-	int err= 0 ;
-	printk("yac_acc_close\n");
-	struct yas_acc_private_data* data = gyas_acc;
-	err = yas_acc_set_enable(data->driver, 0);
-	
-	return err;
-}
-
-static long yas_acc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	int err= 0 ;
-	struct yas_acc_private_data* data = gyas_acc;
-	unsigned long delay_ns;
-     unsigned char data_cal[3];
-	struct yas_acc_data accel;
-	struct yas_acc accel_data;	
-	switch(cmd)	{
-	case YAS_IOCTL_SET_DELAY:
-	//	printk("[diony] YAS_IOCTL_SET_DELAY.\n");
-		if (copy_from_user(&delay_ns, (void __user *)arg,
-								sizeof(delay_ns)))
-				return -EFAULT;
-		err = yas_acc_set_delay(data->driver, (int)delay_ns);
-		break;
-	case YAS_IOCTL_GET_DELAY:
-	//	printk("[diony] YAS_IOCTL_GET_DELAY.\n");
-		delay_ns = (unsigned long)yas_acc_get_delay(data->driver);
-		if (put_user(&delay_ns, (s64 __user *) arg))
-				return -EFAULT;
-		break;		
-	case YAS_IOCTL_READ_ACCEL_XYZ:
-		mutex_lock(&data->data_mutex);
-		yas_acc_measure(data->driver, &accel);
-		accel_data.x = accel.raw.v[0]; 
-		accel_data.y = accel.raw.v[1];
-		accel_data.z = accel.raw.v[2]; 
-		mutex_unlock(&data->data_mutex);
-		
-		if (copy_to_user((void __user*)arg, &accel_data,
-								sizeof(accel_data)))
-				return -EFAULT;
-		break;	      
-	case YAS_IOCTL_CALIBRATION:
-		data_cal[0] = data_cal[1] = 0;
-		data_cal[2] = 1;
-		mutex_lock(&data->data_mutex);
-		yas_acc_measure(data->driver, &accel);
-		printk("BMA222_CALIBRATION data(%10d %10d %10d) raw(%5d %5d %5d)\n",
-			accel.xyz.v[0], accel.xyz.v[1], accel.xyz.v[2], accel.raw.v[0], accel.raw.v[1], accel.raw.v[2]);
-		err = yas_acc_fast_calibration(data->driver, data_cal);      // calibration start
-		yas_acc_measure(data->driver, &accel);
-		printk("BMA222_CALIBRATION data(%10d %10d %10d) raw(%5d %5d %5d)\n",
-			accel.xyz.v[0], accel.xyz.v[1], accel.xyz.v[2], accel.raw.v[0], accel.raw.v[1], accel.raw.v[2]);
-		accel_data.x = accel.raw.v[0]; 
-		accel_data.y = accel.raw.v[1];
-		accel_data.z = accel.raw.v[2]; 
-		mutex_unlock(&data->data_mutex);
-
-		if (copy_to_user((void __user*)arg, &accel_data,
-					sizeof(accel_data)))
-			return -EFAULT;
-		break;	      
-      
-	default :
-		printk("[YAS] IOCTL Error !. %d \n", cmd);
-		err = -EINVAL;
-		break;
-		}
-	return err;
-}
-
-
-static const struct file_operations yas_fops = {
-	.owner = THIS_MODULE,
-	.open = yas_acc_open,
-	.release = yas_acc_close,
-	.unlocked_ioctl = yas_acc_ioctl,
 };
 
 static struct yas_acc_private_data *yas_acc_private_data = NULL;
@@ -385,14 +269,7 @@ static int yas_acc_core_driver_init(struct yas_acc_private_data *data)
         return err;
     }
 
-   
-   #if YAS_ACC_DRIVER == YAS_ACC_DRIVER_BMA222
-   err = driver->set_position(YAS_BMA222_DEFAULT_POSITION);    // hm83.cho Acc sensor install direction
-   #elif YAS_ACC_DRIVER == YAS_ACC_DRIVER_BMA250
-   err = driver->set_position(YAS_BMA250_DEFAULT_POSITION);
-   #else
-   YAS_ACC_DRIVER DEFINE ERROR
-   #endif
+   err = driver->set_position(CONFIG_INPUT_BMA222_POSITION);    // hm83.cho Acc sensor install direction
 
     if (err != YAS_NO_ERROR) {
         kfree(driver);
@@ -423,9 +300,9 @@ static int yas_acc_set_enable(struct yas_acc_driver *driver, int enable)
     if (yas_acc_ischg_enable(driver, enable)) {
         if (enable) {
             driver->set_enable(enable);
-           // schedule_delayed_work(&data->work, delay_to_jiffies(delay) + 1);
+            schedule_delayed_work(&data->work, delay_to_jiffies(delay) + 1);
         } else {
-          //  cancel_delayed_work_sync(&data->work);
+            cancel_delayed_work_sync(&data->work);
             driver->set_enable(enable);
         }
     }
@@ -443,9 +320,9 @@ static int yas_acc_set_delay(struct yas_acc_driver *driver, int delay)
     struct yas_acc_private_data *data = yas_acc_get_data();
 
     if (driver->get_enable()) {
-      //  cancel_delayed_work_sync(&data->work);
+        cancel_delayed_work_sync(&data->work);
         driver->set_delay(actual_delay(delay));
-       // schedule_delayed_work(&data->work, delay_to_jiffies(delay) + 1);
+        schedule_delayed_work(&data->work, delay_to_jiffies(delay) + 1);
     } else {
         driver->set_delay(actual_delay(delay));
     }
@@ -541,7 +418,7 @@ static int yas_acc_input_init(struct yas_acc_private_data *data)
     if (!dev) {
         return -ENOMEM;
     }
-    dev->name = "accelerometer";
+    dev->name = YAS_ACC_INPUT_NAME;
     dev->id.bustype = BUS_I2C;
 
     input_set_capability(dev, EV_ABS, ABS_MISC);
@@ -559,22 +436,6 @@ static int yas_acc_input_init(struct yas_acc_private_data *data)
     data->input = dev;
 
     return 0;
-}
-static int yas_acc_misc_init(struct yas_acc_private_data *data)
-{
-	struct miscdevice *dev= &(data->yas_acc_device);
-	int err;
-	
-	dev->minor = MISC_DYNAMIC_MINOR;
-	dev->name = "accelerometer";
-	dev->fops = &yas_fops;
-	err = misc_register(dev);
-	if(err<0){
-		return err;
-	}
-	//data -> yas_acc_device = dev;
-
-	return 0;
 }
 
 static void yas_acc_input_fini(struct yas_acc_private_data *data)
@@ -754,9 +615,9 @@ static ssize_t yas_acc_private_data_show(struct device *dev,
     struct input_dev *input = to_input_dev(dev);
     struct yas_acc_private_data *data = input_get_drvdata(input);
     struct yas_acc_data accel;
-	
+
     mutex_lock(&data->data_mutex);
-    yas_acc_measure(data->driver, &accel);
+    accel = data->last;
     mutex_unlock(&data->data_mutex);
 
     return sprintf(buf, "%d %d %d\n", accel.raw.v[0], accel.raw.v[1], accel.raw.v[2]);
@@ -953,7 +814,7 @@ static void yas_acc_work_func(struct work_struct *work)
                                               struct yas_acc_private_data, work);
     struct yas_acc_data accel;
     unsigned long delay = delay_to_jiffies(yas_acc_get_delay(data->driver));
-	printk("[diony] yas_acc_work_func.\n");
+
     accel.xyz.v[0] = accel.xyz.v[1] = accel.xyz.v[2] = 0;
     yas_acc_measure(data->driver, &accel);
 
@@ -966,7 +827,7 @@ static void yas_acc_work_func(struct work_struct *work)
     data->last = accel;
     mutex_unlock(&data->data_mutex);
 
-   // schedule_delayed_work(&data->work, delay);
+    schedule_delayed_work(&data->work, delay);
 }
 
 static int yas_acc_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -1000,12 +861,9 @@ static int yas_acc_probe(struct i2c_client *client, const struct i2c_device_id *
     }
 
     /* Setup driver interface */
-    //INIT_DELAYED_WORK(&data->work, yas_acc_work_func);
+    INIT_DELAYED_WORK(&data->work, yas_acc_work_func);
 
-
-	
-
-	/* Setup input device interface */
+    /* Setup input device interface */
     err = yas_acc_input_init(data);
     if (err < 0) {
         goto ERR3;
@@ -1016,16 +874,9 @@ static int yas_acc_probe(struct i2c_client *client, const struct i2c_device_id *
     if (err < 0) {
         goto ERR4;
     }
-   /* Sensor HAL expects to find /dev/accelerometer */
-   err = yas_acc_misc_init(data);
-    if (err < 0) {
-        goto ERR5;
-    }	
-	gyas_acc = data;
+
     return 0;
 
- ERR5:
-    misc_deregister(&data->yas_acc_device);
  ERR4:
     yas_acc_input_fini(data);
  ERR3:
@@ -1060,7 +911,7 @@ static int yas_acc_suspend(struct i2c_client *client, pm_message_t mesg)
     if (data->suspend == 0) {
         data->suspend_enable = yas_acc_get_enable(driver);
         if (data->suspend_enable) {
-         //   cancel_delayed_work_sync(&data->work);
+            cancel_delayed_work_sync(&data->work);
             yas_acc_set_enable(driver, 0);
         }
     }
@@ -1082,7 +933,7 @@ static int yas_acc_resume(struct i2c_client *client)
     if (data->suspend == 1) {
         if (data->suspend_enable) {
             delay = yas_acc_get_delay(driver);
-           // schedule_delayed_work(&data->work, delay_to_jiffies(delay) + 1);
+            schedule_delayed_work(&data->work, delay_to_jiffies(delay) + 1);
             yas_acc_set_enable(driver, 1);
         }
     }
@@ -1102,7 +953,7 @@ MODULE_DEVICE_TABLE(i2c, yas_acc_id);
 
 struct i2c_driver yas_acc_driver = {
     .driver = {
-        .name = "accelerometer",
+        .name = YAS_ACC_KERNEL_NAME,
         .owner = THIS_MODULE,
     },
     .probe = yas_acc_probe,
