@@ -1819,8 +1819,10 @@ static long vid_enc_ioctl(struct file *file,
 	{
 		struct vcd_property_hdr vcd_property_hdr;
 		struct vcd_property_bitstream_restrict_enable vcd_property_val;
-		u32 vcd_status = VCD_ERR_FAIL;
 
+		u32 vcd_status = VCD_ERR_FAIL;
+		memset((void *)&vcd_property_val, 0,
+			sizeof(struct vcd_property_bitstream_restrict_enable));
 		vcd_property_hdr.prop_id =
 			VCD_I_ENABLE_VUI_BITSTREAM_RESTRICT_FLAG;
 		vcd_property_hdr.sz = sizeof(struct
@@ -1838,7 +1840,7 @@ static long vid_enc_ioctl(struct file *file,
 	}
 	case VEN_IOCTL_GET_PERF_LEVEL:
 	{
-		u32 curr_perf_level;
+		u32 curr_perf_level = 0;
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 		result = vid_enc_get_curr_perf_level(client_ctx,
@@ -1858,6 +1860,8 @@ static long vid_enc_ioctl(struct file *file,
 	case VEN_IOCTL_GET_LTRMODE:
 	{
 		struct venc_ltrmode encoder_ltrmode;
+		memset((void *)&encoder_ltrmode, 0,
+			sizeof(struct venc_ltrmode));
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 		if (cmd == VEN_IOCTL_SET_LTRMODE) {
@@ -1887,6 +1891,8 @@ static long vid_enc_ioctl(struct file *file,
 	case VEN_IOCTL_GET_LTRCOUNT:
 	{
 		struct venc_ltrcount encoder_ltrcount;
+		memset((void *)&encoder_ltrcount, 0,
+			sizeof(struct venc_ltrcount));
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 		if (cmd == VEN_IOCTL_SET_LTRCOUNT) {
@@ -1917,6 +1923,8 @@ static long vid_enc_ioctl(struct file *file,
 	case VEN_IOCTL_GET_LTRPERIOD:
 	{
 		struct venc_ltrperiod encoder_ltrperiod;
+		memset((void *)&encoder_ltrperiod, 0,
+			sizeof(struct venc_ltrperiod));
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 		if (cmd == VEN_IOCTL_SET_LTRPERIOD) {
@@ -1946,6 +1954,8 @@ static long vid_enc_ioctl(struct file *file,
 	case VEN_IOCTL_GET_CAPABILITY_LTRCOUNT:
 	{
 		struct venc_range venc_capltrcount;
+		memset((void *)&venc_capltrcount, 0,
+			sizeof(struct venc_range));
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 			DBG("VEN_IOCTL_GET_CAPABILITY_LTRCOUNT\n");
@@ -1965,6 +1975,8 @@ static long vid_enc_ioctl(struct file *file,
 	case VEN_IOCTL_GET_LTRUSE:
 	{
 		struct venc_ltruse encoder_ltruse;
+		memset((void *)&encoder_ltruse, 0,
+			sizeof(struct venc_ltruse));
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 		if (cmd == VEN_IOCTL_SET_LTRUSE) {

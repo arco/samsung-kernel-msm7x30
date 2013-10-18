@@ -2181,7 +2181,7 @@ static long vid_dec_ioctl(struct file *file,
 	}
 	case VDEC_IOCTL_GET_PERF_LEVEL:
 	{
-		u32 curr_perf_level;
+		u32 curr_perf_level = 0;
 		if (copy_from_user(&vdec_msg, arg, sizeof(vdec_msg)))
 			return -EFAULT;
 		result = vid_dec_get_curr_perf_level(client_ctx,
