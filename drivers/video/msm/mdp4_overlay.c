@@ -44,8 +44,6 @@
 
 #define VERSION_KEY_MASK	0xFFFFFF00
 
-#define MDP_IOMMU_OVERMAP_SIZE 640 * 1024 * 4 * 2
-
 #if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
 extern unsigned int board_lcd_hw_revision;
 #endif
@@ -327,6 +325,8 @@ int mdp4_overlay_iommu_map_buf(int mem_id,
 	struct ion_handle **srcp_ihdl)
 {
 	struct mdp4_iommu_pipe_info *iom;
+	unsigned long size = 0, map_size = 0;
+	int ret;
 
 	if (!display_iclient)
 		return -EINVAL;
@@ -341,8 +341,15 @@ int mdp4_overlay_iommu_map_buf(int mem_id,
 		pipe->pipe_ndx, plane);
 
 	if(mdp4_overlay_format2type(pipe->src_format) == OVERLAY_TYPE_RGB) {
+		ret = ion_handle_get_size(display_iclient, *srcp_ihdl, &size);
+		if (ret)
+			pr_err("ion_handle_get_size failed with ret %d\n", ret);
+		map_size = mdp_iommu_max_map_size;
+		if(map_size < size)
+			map_size = size;
+
 		if (ion_map_iommu(display_iclient, *srcp_ihdl,
-				DISPLAY_READ_DOMAIN, GEN_POOL, SZ_4K, MDP_IOMMU_OVERMAP_SIZE, start,
+				DISPLAY_READ_DOMAIN, GEN_POOL, SZ_4K, map_size, start,
 				len, 0, 0)) {
 			ion_free(display_iclient, *srcp_ihdl);
 			pr_err("%s(): ion_map_iommu() failed\n",
