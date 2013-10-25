@@ -67,7 +67,7 @@ static struct i2c_client *opt_i2c_client;
 struct gp2a_data {
 	struct input_dev *input_dev;
 	struct work_struct work;  /* for proximity sensor */
-	struct mutex enable_mutex;
+	struct wake_lock prx_wake_lock;
 	struct mutex data_mutex;
 	struct class *proximity_class;
 	struct device *proximity_dev;
@@ -80,7 +80,6 @@ struct gp2a_data {
 	int   irq;
 
 	spinlock_t prox_lock;
-	struct kobject *uevent_kobj;
 
     int gp2a_irq;
     int gp2a_gpio;
@@ -204,10 +203,11 @@ proximity_enable_store(struct device *dev,
 		msleep(50);
 		enable_irq_wake(data->gp2a_irq);
 		input = gpio_get_value_cansleep(data->gp2a_gpio);
-		input_report_abs(data->input_dev, ABS_DISTANCE,  input);
 
+		input_report_abs(data->input_dev, ABS_DISTANCE,  input);
 		input_sync(data->input_dev);
 		gprintk("[PROX] Start proximity = %d\n", input);
+
 		spin_lock_irqsave(&data->prox_lock, flags);
 		input = 0x03;
 		opt_i2c_write((u8)(REGS_OPMOD), &input);
@@ -256,7 +256,6 @@ static ssize_t proximity_state_show(struct device *dev,
 {
 	u8 proximity_value = 0;
 
-	pr_err("[PROX] %s(%d)\n", __func__, __LINE__);
 	proximity_data_show(dev, attr, buf);
 
 	if (*buf == '1')
@@ -264,7 +263,6 @@ static ssize_t proximity_state_show(struct device *dev,
 	else
 		proximity_value = snprintf(buf, PAGE_SIZE, "0.0\n");
 
-	pr_err("[PROX] result=%s\n", buf);
 	return proximity_value;
 }
 
@@ -319,39 +317,58 @@ static char get_ps_vout_value(int gp2a_gpio)
   return value;
 }
 
-irqreturn_t gp2a_irq_handler(int irq, void *ptr)
+/***************************************************
+ *
+ *  function    : gp2a_work_func_prox
+ *  description : This function is for proximity sensor work function.
+ *         when INT signal is occured , it gets value the interrupt pin.
+ */
+static void gp2a_work_func_prox(struct work_struct *work)
 {
-	struct gp2a_data *gp2a = ptr;
-	char value;
+	struct gp2a_data *gp2a = container_of((struct work_struct *)work,
+					      struct gp2a_data, work);
+
 #ifdef PROX_MODE_B
-	u8 reg = 0;
+	unsigned char value;
 #endif
+	char result;
 
-	value = get_ps_vout_value(gp2a->gp2a_gpio);
+	/* 0 : proximity, 1 : away */
+	result = get_ps_vout_value(gp2a->gp2a_gpio);
 
-	input_report_abs(gp2a->input_dev, ABS_DISTANCE,  value);
+	input_report_abs(gp2a->input_dev, ABS_DISTANCE, result);
 	input_sync(gp2a->input_dev);
-
-	gp2a->prox_data = value;
+	gprintk("Proximity value = %d\n", result);
 
 #ifdef PROX_MODE_B
-	if (value == 1)
-		reg = 0x40;
+	if (result == 1)
+		value = 0x40;
 	else
-		reg = 0x20;
+		value = 0x20;
 
-	opt_i2c_write(NOT_INT_CLR(REGS_HYS), &reg);
+	opt_i2c_write(NOT_INT_CLR(REGS_HYS), &value);
 
-	reg = 0x18;
-	opt_i2c_write(NOT_INT_CLR(REGS_CON), &reg);
+	value = 0x18;
+	opt_i2c_write(NOT_INT_CLR(REGS_CON), &value);
 #endif
 
 #ifdef PROX_MODE_B
-	reg = 0x00;
-	opt_i2c_write(INT_CLR(REGS_CON), &reg);
+	value = 0x00;
+	opt_i2c_write(INT_CLR(REGS_CON), &value);
 #endif
 
+	gp2a->prox_data = result;
+}
 
+irqreturn_t gp2a_irq_handler(int irq, void *gp2a_data_p)
+{
+	struct gp2a_data *data = gp2a_data_p;
+
+	wake_lock_timeout(&data->prx_wake_lock, 3 * HZ);
+
+	schedule_work(&data->work);
+
+	gprintk("[PROXIMITY] IRQ_HANDLED.\n");
 	return IRQ_HANDLED;
 }
 
@@ -373,7 +390,10 @@ int opt_i2c_read(u8 reg, u8 *val, unsigned int len )
 
 	*val = buf[1];
 
+#ifdef DEBUG
 	gprintk(": 0x%x, 0x%x\n", reg, *val);
+#endif
+
 	if (err >= 0)
 		return 0;
 
@@ -401,7 +421,10 @@ int opt_i2c_write( u8 reg, u8 *val )
 		msg->buf = data;
 
 		err = i2c_transfer(opt_i2c_client->adapter, msg, 1);
+
+#ifdef DEBUG
 		gprintk(": 0x%x, 0x%x\n", reg, *val);
+#endif
 
 		if (err >= 0)
 			return 0;
@@ -455,7 +478,11 @@ static int gp2a_opt_probe(struct platform_device *pdev)
 	struct opt_gp2a_platform_data *pdata = pdev->dev.platform_data;
 	u8 value;
 	int err = 0;
-	int wakeup = 0;
+
+	if (!pdata) {
+		pr_err("%s: missing pdata!\n", __func__);
+		return err;
+	}
 
 	/* allocate driver_data */
 	gp2a = (struct gp2a_data*) kzalloc(sizeof(struct gp2a_data), GFP_KERNEL);
@@ -466,19 +493,10 @@ static int gp2a_opt_probe(struct platform_device *pdev)
 
 	gp2a->enabled = 0;
 	gp2a->delay = SENSOR_DEFAULT_DELAY;
+	gp2a->gp2a_irq = pdata->gp2a_irq;
+	gp2a->gp2a_gpio = pdata->gp2a_gpio;
 
-
-	if (pdata) {
-		if (pdata->gp2a_irq)
-			gp2a->gp2a_irq = pdata->gp2a_irq;
-		if (pdata->gp2a_gpio)
-			gp2a->gp2a_gpio = pdata->gp2a_gpio;
-	}
-
-	mutex_init(&gp2a->enable_mutex);
-	mutex_init(&gp2a->data_mutex);
-
-	wakeup = 1;
+	INIT_WORK(&gp2a->work, gp2a_work_func_prox);
 
 	err = proximity_input_init(gp2a);
 	if (err < 0)
@@ -489,22 +507,27 @@ static int gp2a_opt_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto err_sysfs_create_group_proximity;
 
+	spin_lock_init(&gp2a->prox_lock);
 
 	/* set platdata */
 	platform_set_drvdata(pdev, gp2a);
 
-	gp2a->uevent_kobj = &pdev->dev.kobj;
+	mutex_init(&gp2a->data_mutex);
 
-	spin_lock_init(&gp2a->prox_lock);
+	/* wake lock init */
+	wake_lock_init(&gp2a->prx_wake_lock, WAKE_LOCK_SUSPEND,
+		       "prx_wake_lock");
+
 	/* init i2c */
 	opt_i2c_init();
 
 	if (opt_i2c_client == NULL) {
 		pr_err("opt_probe failed : i2c_client is NULL\n");
 		err = -ENODEV;
-		goto err_i2c_add;
+		goto err_no_device;
 	} else
-		printk(KERN_ERR "opt_i2c_client : (0x%p)\n", opt_i2c_client);
+		pr_info("opt_i2c_client : (0x%p), address = %x\n",
+		       opt_i2c_client, opt_i2c_client->addr);
 
 
 	/* GP2A Regs INIT SETTINGS */
@@ -513,9 +536,13 @@ static int gp2a_opt_probe(struct platform_device *pdev)
 #else
 	value = 0x02;
 #endif
-	opt_i2c_write((u8)(REGS_OPMOD), &value);
+	err = opt_i2c_write((u8)(REGS_OPMOD), &value);
+	if (err < 0) {
+		pr_err("%s failed : threre is no such device.\n", __func__);
+		goto err_no_device;
+	}
 
-	/* INT Settings */
+	/* Setup irq */
 	err = request_threaded_irq(gp2a->gp2a_irq,
 		NULL, gp2a_irq_handler,
 		IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
@@ -523,9 +550,10 @@ static int gp2a_opt_probe(struct platform_device *pdev)
 
 	if (err < 0) {
 		printk(KERN_ERR "failed to request proximity_irq\n");
-		goto err_request_irq;
+		goto err_setup_irq;
 	}
 
+	/* start with interrupts disabled */
 	disable_irq(gp2a->gp2a_irq);
 
 	/* set sysfs for proximity sensor */
@@ -544,22 +572,22 @@ static int gp2a_opt_probe(struct platform_device *pdev)
 		goto err_proximity_device_create;
 	}
 
-	if ((err = device_create_file(gp2a->proximity_dev,
-		&dev_attr_state)) < 0) {
-		pr_err("%s: could not create device file(%s)!\n",__func__,
-			dev_attr_state.attr.name);
+	if (device_create_file(gp2a->proximity_dev, &dev_attr_state) < 0) {
+		pr_err("%s: could not create device file(%s)!\n", __func__,
+		       dev_attr_state.attr.name);
 		goto err_proximity_device_create_file1;
 	}
 
-	if ((err = device_create_file(gp2a->proximity_dev,
-		&dev_attr_avg)) < 0) {
+	if (device_create_file(gp2a->proximity_dev, &dev_attr_avg) < 0) {
 		pr_err("%s: could not create device file(%s)!\n", __func__,
-			dev_attr_avg.attr.name);
+		       dev_attr_avg.attr.name);
 		goto err_proximity_device_create_file2;
 	}
+
 	dev_set_drvdata(gp2a->proximity_dev, gp2a);
 
-	device_init_wakeup(&pdev->dev, wakeup);
+	device_init_wakeup(&pdev->dev, 1);
+
 	return 0;
 
 err_proximity_device_create_file2:
@@ -570,18 +598,17 @@ err_proximity_device_create:
 	class_destroy(gp2a->proximity_class);
 err_proximity_class_create:
 	free_irq(gp2a->gp2a_irq, gp2a);
-err_request_irq:
-	i2c_del_driver(&opt_i2c_driver);
-err_i2c_add:
+err_setup_irq:
+err_no_device:
 	sysfs_remove_group(&gp2a->input_dev->dev.kobj,
 			   &proximity_attribute_group);
+	wake_lock_destroy(&gp2a->prx_wake_lock);
+	mutex_destroy(&gp2a->data_mutex);
 err_sysfs_create_group_proximity:
 	input_unregister_device(gp2a->input_dev);
 	input_free_device(gp2a->input_dev);
 error_setup_reg:
 	destroy_work_on_stack(&gp2a->work);
-	mutex_destroy(&gp2a->enable_mutex);
-	mutex_destroy(&gp2a->data_mutex);
 
 	kfree(gp2a);
 	return err;
@@ -591,15 +618,19 @@ static int gp2a_opt_remove(struct platform_device *pdev)
 {
 	struct gp2a_data *gp2a = platform_get_drvdata(pdev);
 
+	if (gp2a->enabled) {
+		disable_irq(gp2a->irq);
+		proximity_onoff(0);
+		disable_irq_wake(gp2a->irq);
+		gp2a->enabled = 0;
+	}
+
 	if (gp2a->proximity_class != NULL) {
 		device_remove_file(gp2a->proximity_dev, &dev_attr_avg);
 		device_remove_file(gp2a->proximity_dev, &dev_attr_state);
 		device_destroy(gp2a->proximity_class, 0);
 		class_destroy(gp2a->proximity_class);
 	}
-
-	disable_irq(gp2a->gp2a_irq);
-	free_irq(gp2a->gp2a_irq, gp2a);
 
 	if (gp2a->input_dev != NULL) {
 		sysfs_remove_group(&gp2a->input_dev->dev.kobj,
@@ -609,11 +640,10 @@ static int gp2a_opt_remove(struct platform_device *pdev)
 			kfree(gp2a->input_dev);
 	}
 
-	mutex_destroy(&gp2a->enable_mutex);
-	mutex_destroy(&gp2a->data_mutex);
-
+	wake_lock_destroy(&gp2a->prx_wake_lock);
 	device_init_wakeup(&pdev->dev, 0);
-
+	free_irq(gp2a->gp2a_irq, gp2a);
+	mutex_destroy(&gp2a->data_mutex);
 	kfree(gp2a);
 
 	return 0;
@@ -650,6 +680,10 @@ static int proximity_onoff(u8 onoff)
 	u8 value;
 	int i;
 
+#ifdef DEBUG
+	gprintk("proximity turn on/off = %d\n", onoff);
+#endif
+
 	if (onoff) {
 		for (i = 1 ; i < 5 ; i++)
 			opt_i2c_write((u8)(i), &gp2a_original_image[i]);
@@ -679,8 +713,7 @@ static int opt_i2c_probe(struct i2c_client *client,
 {
 	struct opt_state *opt;
 
-	gprintk("\n");
-	pr_err("%s, %d : start!!!\n", __func__, __LINE__);
+	pr_info("%s, %d : start!!!\n", __func__, __LINE__);
 
 	opt = kzalloc(sizeof(struct opt_state), GFP_KERNEL);
 	if (opt == NULL) {
@@ -694,10 +727,10 @@ static int opt_i2c_probe(struct i2c_client *client,
 
 	/* rest of the initialisation goes here. */
 
-	pr_err("GP2A opt i2c attach success!!!\n");
+	pr_info("GP2A opt i2c attach success!!!\n");
 
 	opt_i2c_client = client;
-	pr_err("%s, %d : end!!!\n", __func__, __LINE__);
+	pr_info("%s, %d : end!!!\n", __func__, __LINE__);
 
 	return 0;
 }
