@@ -472,6 +472,9 @@ static int gpio_pkf_key_scan(struct pmic8xxx_kp *kp)
 {
 	int state;
 
+	/* Lock the mutex */
+	mutex_lock(&pkf_home_mutex);
+
 	/* If the last key presses have been reported, then start to collect
 	 * the next key presses */
 	if (time_after(jiffies, homekey_report_time)) {
@@ -511,6 +514,9 @@ static int gpio_pkf_key_scan(struct pmic8xxx_kp *kp)
 					"(irqs_count = %u)\n", pkf_home_inc_kp->irqs_count);
 	}
 
+	/* Unlock the mutex */
+	mutex_unlock(&pkf_home_mutex);
+
 	return 0;
 }
 
@@ -522,6 +528,9 @@ static void gpio_pkf_key_report(unsigned long data)
 	struct pmic8xxx_kp *kp = (struct pmic8xxx_kp *)data;
 	int i;
 
+	/* Lock the mutex */
+	mutex_lock(&pkf_home_mutex);
+
 	/* Report the collected key presses only if may considered valid */
 	if (pkf_home_inc_kp->irqs_count <= pkf_home->allowed_irqs) {
 		for (i = 0; i < pkf_home_inc_kp->states_count; i++)
@@ -531,6 +540,9 @@ static void gpio_pkf_key_report(unsigned long data)
 		dev_dbg(kp->dev, "Aborting the report of possible phantom HOME key presses "
 					"(irqs_count = %u)\n", pkf_home_inc_kp->irqs_count);
 	}
+
+	/* Unlock the mutex */
+	mutex_unlock(&pkf_home_mutex);
 }
 #endif
 
