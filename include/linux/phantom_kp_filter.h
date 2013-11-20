@@ -17,11 +17,13 @@
 #ifndef _LINUX_PHANTOM_KEYPRESS_FILTER_H
 #define _LINUX_PHANTOM_KEYPRESS_FILTER_H
 
+#include <linux/bitops.h>
 #include <linux/kernel.h>
+#include <linux/mutex.h>
 #include <linux/types.h>
 
 /* Module version */
-#define PKF_VERSION							1
+#define PKF_VERSION							2
 
 /* Default filtering parameter values for MENU and BACK keys */
 #define DEFAULT_MENUBACK_ENABLED			true
@@ -70,6 +72,9 @@ struct pkf_home_incoming_kp {
 	u32 irqs_count;		/* Number of incoming irqs */
 };
 
+/* Mutex lock for HOME key filtering */
+static DEFINE_MUTEX(pkf_home_mutex);
+
 /* Structs inizialized inside the module body */
 extern struct pkf_menuback_data *pkf_menuback;
 extern struct pkf_home_data *pkf_home;
@@ -113,10 +118,10 @@ static inline void collect_homekey_status(int status)
 {
 	/* If status != 0, set the bit to 1 at last position */
 	if (status)
-		pkf_home_inc_kp->states |= (1 << pkf_home_inc_kp->states_count);
+		__set_bit(pkf_home_inc_kp->states_count, (unsigned long *)&pkf_home_inc_kp->states);
 	/* Else, set the bit to 0 at last position */
 	else
-		pkf_home_inc_kp->states &= ~(1 << pkf_home_inc_kp->states_count);
+		__clear_bit(pkf_home_inc_kp->states_count, (unsigned long *)&pkf_home_inc_kp->states);
 
 	/* Increment the number of collected status */
 	pkf_home_inc_kp->states_count++;
@@ -127,6 +132,6 @@ static inline void collect_homekey_status(int status)
  */
 static inline int get_homekey_status(int pos)
 {
-	return 1 & (pkf_home_inc_kp->states >> pos);
+	return test_bit(pos, (unsigned long *)&pkf_home_inc_kp->states);
 }
 #endif
