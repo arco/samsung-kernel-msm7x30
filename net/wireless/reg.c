@@ -1351,8 +1351,11 @@ static int ignore_request(struct wiphy *wiphy,
 		return 0;
 	case NL80211_REGDOM_SET_BY_DRIVER:
 		if (last_request->initiator == NL80211_REGDOM_SET_BY_CORE) {
-			if (regdom_changes(pending_request->alpha2))
-				return 0;
+			if (regdom_changes(pending_request->alpha2)) {
+				if (!wiphy->regd)
+					return 0;
+				return REG_INTERSECT;
+			}
 			return -EALREADY;
 		}
 
