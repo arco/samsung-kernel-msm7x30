@@ -310,9 +310,6 @@ void mdp4_lcdc_wait4vsync(int cndx, long long *vtime)
 		return;
 	}
 
-	/* start timing generator & mmu if they are not started yet */
-	mdp4_overlay_lcdc_start();
-
 	spin_lock_irqsave(&vctrl->spin_lock, flags);
 
 	if (vctrl->wait_vsync_cnt == 0)
@@ -667,6 +664,12 @@ int mdp4_lcdc_on(struct platform_device *pdev)
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 
 	mdp_histogram_ctrl_all(TRUE);
+
+	/*
+	 * LCDC Block must be enabled before the time of turn on lcd
+	 * because of the signal timing.
+	 */
+	mdp4_overlay_lcdc_start();
 
 	if (!vctrl->sysfs_created) {
 		ret = sysfs_create_group(&vctrl->dev->kobj,
