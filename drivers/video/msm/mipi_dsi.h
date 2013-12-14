@@ -361,6 +361,14 @@ void mipi_dsi_unprepare_clocks(void)
 {
 	/* empty */
 }
+void mipi_dsi_prepare_ahb_clocks(void)
+{
+	/* empty */
+}
+void mipi_dsi_unprepare_ahb_clocks(void)
+{
+	/* empty */
+}
 void mipi_dsi_ahb_ctrl(u32 enable)
 {
 	/* empty */

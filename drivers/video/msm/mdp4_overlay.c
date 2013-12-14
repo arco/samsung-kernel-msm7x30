@@ -130,6 +130,7 @@ struct mdp4_overlay_perf perf_current;
 
 void  mdp4_overlay_free_base_pipe(struct msm_fb_data_type *mfd)
 {
+#ifdef CONFIG_FB_MSM_MIPI_DSI
 	if (!hdmi_prim_display && mfd->index == 0) {
 		if (ctrl->panel_mode & MDP4_PANEL_DSI_VIDEO)
 			mdp4_dsi_video_free_base_pipe(mfd);
@@ -140,6 +141,7 @@ void  mdp4_overlay_free_base_pipe(struct msm_fb_data_type *mfd)
 	} else if (hdmi_prim_display || mfd->index == 1) {
 		mdp4_dtv_free_base_pipe(mfd);
 	}
+#endif
 }
 
 static struct ion_client *display_iclient;
