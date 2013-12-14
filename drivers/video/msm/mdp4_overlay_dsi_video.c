@@ -476,6 +476,7 @@ void mdp4_dsi_vsync_init(int cndx)
 	init_waitqueue_head(&vctrl->wait_queue);
 }
 
+#ifdef CONFIG_FB_MSM_MIPI_DSI
 void mdp4_dsi_video_free_base_pipe(struct msm_fb_data_type *mfd)
 {
 	struct vsycn_ctrl *vctrl;
@@ -496,6 +497,7 @@ void mdp4_dsi_video_free_base_pipe(struct msm_fb_data_type *mfd)
 	mdp4_overlay_pipe_free(pipe, 1);
 	vctrl->base_pipe = NULL;
 }
+#endif
 
 void mdp4_dsi_video_base_swap(int cndx, struct mdp4_overlay_pipe *pipe)
 {
