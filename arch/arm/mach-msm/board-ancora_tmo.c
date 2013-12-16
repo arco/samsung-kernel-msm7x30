@@ -7434,7 +7434,6 @@ static struct ion_co_heap_pdata co_ion_pdata = {
  * Don't swap the order unless you know what you are doing!
  */
 struct ion_platform_heap msm7x30_heaps[] = {
-	.heaps = {
 		{
 			.id	= ION_SYSTEM_HEAP_ID,
 			.type	= ION_HEAP_TYPE_SYSTEM,
