@@ -775,7 +775,9 @@ int mmc_stop_bkops(struct mmc_card *card)
 	 * suspend.
 	 */
 	if (mmc_card_doing_bkops(card)
+#ifdef CONFIG_PM_RUNTIME
 	    && (card->host->parent->power.runtime_status == RPM_SUSPENDING)
+#endif
 	    && mmc_card_is_prog_state(card)) {
 		err = -EBUSY;
 		goto out;

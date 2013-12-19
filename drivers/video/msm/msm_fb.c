@@ -1830,7 +1830,8 @@ static int msm_fb_open(struct fb_info *info, int user)
 
 static void msm_fb_free_base_pipe(struct msm_fb_data_type *mfd)
 {
-	return 	mdp4_overlay_free_base_pipe(mfd);
+//	return 	mdp4_overlay_free_base_pipe(mfd);
+	return 0;
 }
 
 static int msm_fb_release(struct fb_info *info, int user)

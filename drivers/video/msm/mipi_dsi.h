@@ -353,6 +353,14 @@ void mipi_dsi_clk_disable(void)
 {
 	/* empty */
 }
+void mipi_dsi_prepare_ahb_clocks(void)
+{
+        /* empty */
+}
+void mipi_dsi_unprepare_ahb_clocks(void)
+{
+        /* empty */
+}
 void mipi_dsi_prepare_clocks(void)
 {
 	/* empty */

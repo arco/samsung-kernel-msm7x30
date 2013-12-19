@@ -128,6 +128,7 @@ struct mdp4_overlay_perf {
 struct mdp4_overlay_perf perf_request;
 struct mdp4_overlay_perf perf_current;
 
+#ifdef CONFIG_FB_MSM_MIPI_DSI
 void  mdp4_overlay_free_base_pipe(struct msm_fb_data_type *mfd)
 {
 	if (!hdmi_prim_display && mfd->index == 0) {
@@ -141,6 +142,7 @@ void  mdp4_overlay_free_base_pipe(struct msm_fb_data_type *mfd)
 		mdp4_dtv_free_base_pipe(mfd);
 	}
 }
+#endif
 
 static struct ion_client *display_iclient;
 
