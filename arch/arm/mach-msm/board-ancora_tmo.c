@@ -4694,6 +4694,11 @@ static struct msm_panel_common_pdata mdp_pdata = {
 	.gpio = 30,
 	.mdp_max_clk = 192000000,
 	.mdp_rev = MDP_REV_40,
+#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
+        .mem_hid = BIT(ION_CP_MM_HEAP_ID),
+#else
+        .mem_hid = MEMTYPE_EBI0,
+#endif
 };
 
 static struct msm_gpio lcd_panel_on_gpios[] = {
