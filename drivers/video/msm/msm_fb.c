@@ -975,8 +975,10 @@ void msm_fb_set_backlight(struct msm_fb_data_type *mfd, __u32 bkl_lvl)
 
 	unset_bl_level = bkl_lvl;
 
+#if !defined(CONFIG_MACH_ANCORA) || (CONFIG_MACH_ANCORA_TMO)
 	if (!mfd->panel_power_on || !bl_updated)
 		return;
+#endif
 
 	pdata = (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
 
