@@ -21,6 +21,10 @@
 #include <linux/usb/hcd.h>
 #include "usb.h"
 
+#ifdef CONFIG_USB_EHCI_MSM_72K
+#include <mach/msm72k_otg.h>
+#endif
+
 static inline const char *plural(int n)
 {
 	return (n == 1 ? "" : "s");
@@ -97,7 +101,12 @@ int usb_choose_configuration(struct usb_device *udev)
 		 */
 
 		/* Rule out configs that draw too much bus current */
+#ifdef CONFIG_USB_MSM_OTG_72K_ALLOW_BUS_OVERDRAW
+		if (!otg_is_attached() &&
+		    c->desc.bMaxPower * 2 > udev->bus_mA) {
+#else
 		if (c->desc.bMaxPower * 2 > udev->bus_mA) {
+#endif
 			insufficient_power++;
 			continue;
 		}
