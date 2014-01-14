@@ -60,7 +60,6 @@ extern int android_usb_get_current_mode(void);
 extern void android_usb_switch(int mode);
 #ifdef CONFIG_USB_EHCI_MSM_72K
 #include <mach/msm72k_otg.h>
-extern void otg_set_mode(int host);
 #endif
 
 #include <linux/pm.h>
@@ -892,18 +891,16 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 				 if(fsa9480_pdata->charger_cb)
 				      fsa9480_pdata->charger_cb(curr_ta_status);
 #endif
-				break;                
+				break;
 			case CRA_USB_OTG:
-				DEBUG_FSA9480("USB_OTG \n"); 
 #ifdef CONFIG_USB_EHCI_MSM_72K
-				if(attach & ATTACH){
-	                otg_set_mode(1);    	                
-				}
-				else if(attach & DETACH){
-	                otg_set_mode(0);    
-                }
+				DEBUG_FSA9480("USB_OTG \n");
+				if (attach & ATTACH)
+					otg_set_mode(true);
+				else if (attach & DETACH)
+					otg_set_mode(false);
 #endif
-				break;                	
+				break;
 			default:
 				break;
 		}

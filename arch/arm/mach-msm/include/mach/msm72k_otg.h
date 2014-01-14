@@ -169,4 +169,6 @@ static inline int can_phy_power_collapse(struct msm_otg *dev)
 	return dev->pdata->phy_can_powercollapse;
 }
 
+void otg_set_mode(bool attached);
+bool otg_is_attached(void);
 #endif
