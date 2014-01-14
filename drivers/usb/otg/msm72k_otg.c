@@ -46,6 +46,7 @@ static void msm_otg_set_id_state(int id)
 #endif
 
 struct msm_otg *the_msm_otg;
+bool otg_attached = false;
 
 static int is_host(void)
 {
@@ -2456,28 +2457,36 @@ static int otg_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-void otg_set_mode(int host)
+void otg_set_mode(bool attached)
 {
 	struct msm_otg *dev = the_msm_otg;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->lock, flags);
-	if (host) {
+
+	otg_attached = attached;
+
+	if (attached) {
 		clear_bit(B_SESS_VLD, &dev->inputs);
 		clear_bit(ID, &dev->inputs);
 		set_bit(A_BUS_REQ, &dev->inputs);
-        set_bit(ID_A, &dev->inputs);
-    }
-    else {
+		set_bit(ID_A, &dev->inputs);
+	} else {
 		clear_bit(B_SESS_VLD, &dev->inputs);
-        clear_bit(ID_A, &dev->inputs);
+		clear_bit(ID_A, &dev->inputs);
 		set_bit(ID, &dev->inputs);
-    }
+	}
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	wake_lock(&dev->wlock);
 	queue_work(dev->wq, &dev->sm_work);
 }
+EXPORT_SYMBOL_GPL(otg_set_mode);
+
+bool otg_is_attached(void) {
+	return otg_attached;
+}
+EXPORT_SYMBOL_GPL(otg_is_attached);
 
 static ssize_t otg_mode_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
