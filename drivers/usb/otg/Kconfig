@@ -75,7 +75,7 @@ config TWL4030_USB
 	  in host mode, low speed.
 
 config USB_MSM_OTG_72K
-	bool "OTG support for Legcay Qualcomm on-chip USB controller"
+	bool "OTG support for Legacy Qualcomm on-chip USB controller"
 	depends on ARCH_MSM
 	select USB_OTG_UTILS
 	default USB_MSM_72K
@@ -85,6 +85,13 @@ config USB_MSM_OTG_72K
 	  workarounds required after resetting the hardware. This driver is
 	  required for even peripheral only or host only mode configuration.
 	  Supports SRP and HNP when both gadget and Host are selected.
+
+config USB_MSM_OTG_72K_ALLOW_BUS_OVERDRAW
+	bool "Allow USB bus overdraw for OTG"
+	depends on USB_MSM_OTG_72K
+	help
+	  Enable this to allow USB bus overdraw when using peripherals
+	  attached via OTG on Legacy Qualcomm on-chip USB controller.
 
 config MSM_OTG_ENABLE_A_WAIT_BCON_TIMEOUT
 	bool "Enable A-device timeout for B-device connection"
