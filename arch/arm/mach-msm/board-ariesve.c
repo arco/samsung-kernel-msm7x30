@@ -167,7 +167,7 @@ static struct platform_device ion_dev;
 #define MSM_ION_AUDIO_SIZE	MSM_PMEM_AUDIO_SIZE
 #define MSM_ION_SF_SIZE		MSM_PMEM_SF_SIZE
 #ifdef CONFIG_MSM_ADSP_USE_PMEM
-#define MSM_ION_VIDC_SIZE	0x1900000
+#define MSM_ION_VIDC_SIZE	0x1B00000
 #endif
 #define MSM_ION_HEAP_NUM	4
 #endif
