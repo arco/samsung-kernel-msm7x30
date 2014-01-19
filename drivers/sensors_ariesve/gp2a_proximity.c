@@ -125,7 +125,6 @@ static inline u8 NOT_INT_CLR(u8 reg)
 
 static int proximity_onoff(u8 onoff);
 
-
 /* Proximity Sysfs interface */
 static ssize_t
 proximity_delay_show(struct device *dev,
@@ -173,6 +172,19 @@ proximity_enable_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", data->enabled);
 }
 
+/*
+ * Enable proximity irq if not enabled yet
+ */
+static void
+proximity_enable_irq(unsigned int gp2a_irq)
+{
+	struct irq_desc *gp2a_irq_desc;
+
+	gp2a_irq_desc = irq_to_desc(gp2a_irq);
+	if (gp2a_irq_desc && gp2a_irq_desc->depth > 0)
+		enable_irq(gp2a_irq);
+}
+
 static ssize_t
 proximity_enable_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
@@ -212,7 +224,7 @@ proximity_enable_store(struct device *dev,
 		input = 0x03;
 		opt_i2c_write((u8)(REGS_OPMOD), &input);
 
-		enable_irq(data->gp2a_irq);
+		proximity_enable_irq(data->gp2a_irq);
 
 		spin_unlock_irqrestore(&data->prox_lock, flags);
 	}
