@@ -477,7 +477,7 @@ static void cypress_touchkey_early_resume(struct early_suspend *h)
 	backlight_set_timeout();
 
 #ifdef CONFIG_GENERIC_BLN
-	/* release the possible pending wakelock for bln */
+	/* Release the possible pending wakelock for bln */
 	bln_wakelock_release();
 #endif
 }
@@ -554,9 +554,6 @@ static void cypress_touchkey_enable_led_notification(void)
 {
 	/* is_powering_on signals whether touchkey lights are used for touchmode */
 	if (devdata_global->is_powering_on) {
-		/* acquire wakelock for bln */
-		bln_wakelock_acquire();
-
 		/*
 		 * power on the touchkey controller
 		 * This is actually not needed, but it is intentionally
@@ -576,9 +573,6 @@ static void cypress_touchkey_disable_led_notification(void)
 	/* if touchkeys lights are not used for touchmode */
 	if (devdata_global->is_powering_on) {
 		disable_touchkey_backlights();
-
-		/* we were using a wakelock, unlock it */
-		bln_wakelock_release();
 	}
 }
 
@@ -1018,8 +1012,6 @@ err_null_keycodes:
 static int __devexit i2c_touchkey_remove(struct i2c_client *client)
 {
 	struct cypress_touchkey_devdata *devdata = i2c_get_clientdata(client);
-
-	bln_wakelock_destroy();
 
 	/* Deregister the touchkeys backlight device */
 	misc_deregister(&backlight_device);
