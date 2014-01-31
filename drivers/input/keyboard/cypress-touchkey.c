@@ -573,6 +573,10 @@ static void cypress_touchkey_disable_led_notification(void)
 	/* if touchkeys lights are not used for touchmode */
 	if (devdata_global->is_powering_on) {
 		disable_touchkey_backlights();
+
+		/* turn off the touch keys if the notification is completed */
+		if (!bln_is_ongoing())
+			devdata_global->pdata->touchkey_onoff(TOUCHKEY_OFF);
 	}
 }
 
