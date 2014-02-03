@@ -922,13 +922,14 @@ static struct bfq_entity *bfq_lookup_next_entity(struct bfq_sched_data *sd,
 {
 	struct bfq_service_tree *st = sd->service_tree;
 	struct bfq_entity *entity;
-	int i=0;
+	int i = 0;
 
 	BUG_ON(sd->active_entity != NULL);
 
 	if (bfqd != NULL &&
 	    jiffies - bfqd->bfq_class_idle_last_service > BFQ_CL_IDLE_TIMEOUT) {
-		entity = __bfq_lookup_next_entity(st + BFQ_IOPRIO_CLASSES - 1, true);
+		entity = __bfq_lookup_next_entity(st + BFQ_IOPRIO_CLASSES - 1,
+						  true);
 		if (entity != NULL) {
 			i = BFQ_IOPRIO_CLASSES - 1;
 			bfqd->bfq_class_idle_last_service = jiffies;
@@ -960,7 +961,7 @@ static struct bfq_queue *bfq_get_next_queue(struct bfq_data *bfqd)
 	struct bfq_sched_data *sd;
 	struct bfq_queue *bfqq;
 
-	BUG_ON(bfqd->active_queue != NULL);
+	BUG_ON(bfqd->in_service_queue != NULL);
 
 	if (bfqd->busy_queues == 0)
 		return NULL;
@@ -978,14 +979,14 @@ static struct bfq_queue *bfq_get_next_queue(struct bfq_data *bfqd)
 	return bfqq;
 }
 
-static void __bfq_bfqd_reset_active(struct bfq_data *bfqd)
+static void __bfq_bfqd_reset_in_service(struct bfq_data *bfqd)
 {
-	if (bfqd->active_bic != NULL) {
-		put_io_context(bfqd->active_bic->icq.ioc);
-		bfqd->active_bic = NULL;
+	if (bfqd->in_service_bic != NULL) {
+		put_io_context(bfqd->in_service_bic->icq.ioc);
+		bfqd->in_service_bic = NULL;
 	}
 
-	bfqd->active_queue = NULL;
+	bfqd->in_service_queue = NULL;
 	del_timer(&bfqd->idle_slice_timer);
 }
 
@@ -994,8 +995,8 @@ static void bfq_deactivate_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 {
 	struct bfq_entity *entity = &bfqq->entity;
 
-	if (bfqq == bfqd->active_queue)
-		__bfq_bfqd_reset_active(bfqd);
+	if (bfqq == bfqd->in_service_queue)
+		__bfq_bfqd_reset_in_service(bfqd);
 
 	bfq_deactivate_entity(entity, requeue);
 }
@@ -1023,6 +1024,8 @@ static void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 
 	BUG_ON(bfqd->busy_queues == 0);
 	bfqd->busy_queues--;
+	if (bfqq->raising_coeff > 1)
+		bfqd->raised_busy_queues--;
 
 	bfq_deactivate_bfqq(bfqd, bfqq, requeue);
 }
@@ -1033,7 +1036,7 @@ static void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 static void bfq_add_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 {
 	BUG_ON(bfq_bfqq_busy(bfqq));
-	BUG_ON(bfqq == bfqd->active_queue);
+	BUG_ON(bfqq == bfqd->in_service_queue);
 
 	bfq_log_bfqq(bfqd, bfqq, "add to busy");
 
@@ -1041,4 +1044,6 @@ static void bfq_add_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 
 	bfq_mark_bfqq_busy(bfqq);
 	bfqd->busy_queues++;
+	if (bfqq->raising_coeff > 1)
+		bfqd->raised_busy_queues++;
 }
