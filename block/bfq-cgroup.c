@@ -267,7 +267,8 @@ static void bfq_bfqq_move(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	resume = !RB_EMPTY_ROOT(&bfqq->sort_list);
 
 	BUG_ON(resume && !entity->on_st);
-	BUG_ON(busy && !resume && entity->on_st && bfqq != bfqd->active_queue);
+	BUG_ON(busy && !resume && entity->on_st &&
+	       bfqq != bfqd->in_service_queue);
 
 	if (busy) {
 		BUG_ON(atomic_read(&bfqq->ref) < 2);
@@ -290,7 +291,7 @@ static void bfq_bfqq_move(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	if (busy && resume)
 		bfq_activate_bfqq(bfqd, bfqq);
 
-	if (bfqd->active_queue == NULL && !bfqd->rq_in_driver)
+	if (bfqd->in_service_queue == NULL && !bfqd->rq_in_driver)
 		bfq_schedule_dispatch(bfqd);
 }
 
@@ -355,7 +356,8 @@ static void bfq_bic_change_cgroup(struct bfq_io_cq *bic,
 	struct bfq_data *bfqd;
 	unsigned long uninitialized_var(flags);
 
-	bfqd = bfq_get_bfqd_locked(&(bic->icq.q->elevator->elevator_data), &flags);
+	bfqd = bfq_get_bfqd_locked(&(bic->icq.q->elevator->elevator_data),
+				   &flags);
 	if (bfqd != NULL) {
 		__bfq_bic_change_cgroup(bfqd, bic, cgroup);
 		bfq_put_bfqd_unlock(bfqd, &flags);
@@ -444,7 +446,7 @@ static inline void bfq_reparent_active_entities(struct bfq_data *bfqd,
 	if (!RB_EMPTY_ROOT(&st->active))
 		entity = bfq_entity_of(rb_first(active));
 
-	for (; entity != NULL ; entity = bfq_entity_of(rb_first(active)))
+	for (; entity != NULL; entity = bfq_entity_of(rb_first(active)))
 		bfq_reparent_leaf_entity(bfqd, entity);
 
 	if (bfqg->sched_data.active_entity != NULL)
@@ -537,6 +539,7 @@ static void bfq_end_raising_async(struct bfq_data *bfqd)
 
 	hlist_for_each_entry_safe(bfqg, pos, n, &bfqd->group_list, bfqd_node)
 		bfq_end_raising_async_queues(bfqd, bfqg);
+	bfq_end_raising_async_queues(bfqd, bfqd->root_group);
 }
 
 /**
@@ -552,7 +555,7 @@ static void bfq_disconnect_groups(struct bfq_data *bfqd)
 	struct hlist_node *pos, *n;
 	struct bfq_group *bfqg;
 
-	bfq_log(bfqd, "disconnect_groups beginning") ;
+	bfq_log(bfqd, "disconnect_groups beginning");
 	hlist_for_each_entry_safe(bfqg, pos, n, &bfqd->group_list, bfqd_node) {
 		hlist_del(&bfqg->bfqd_node);
 
@@ -568,7 +571,7 @@ static void bfq_disconnect_groups(struct bfq_data *bfqd)
 		rcu_assign_pointer(bfqg->bfqd, NULL);
 
 		bfq_log(bfqd, "disconnect_groups: put async for group %p",
-			bfqg) ;
+			bfqg);
 		bfq_put_async_queues(bfqd, bfqg);
 	}
 }
@@ -597,7 +600,7 @@ static struct bfq_group *bfq_alloc_root_group(struct bfq_data *bfqd, int node)
 	struct bfqio_cgroup *bgrp;
 	int i;
 
-	bfqg = kmalloc_node(sizeof(*bfqg), GFP_KERNEL | __GFP_ZERO, node);
+	bfqg = kzalloc_node(sizeof(*bfqg), GFP_KERNEL, node);
 	if (bfqg == NULL)
 		return NULL;
 
@@ -707,7 +710,8 @@ static int bfqio_populate(struct cgroup_subsys *subsys, struct cgroup *cgroup)
 				ARRAY_SIZE(bfqio_files));
 }
 
-static struct cgroup_subsys_state *bfqio_create(struct cgroup *cgroup)
+static struct cgroup_subsys_state *bfqio_create(struct cgroup_subsys *subsys,
+						struct cgroup *cgroup)
 {
 	struct bfqio_cgroup *bgrp;
 
@@ -734,7 +738,8 @@ static struct cgroup_subsys_state *bfqio_create(struct cgroup *cgroup)
  * behavior is that a group containing a task that forked using CLONE_IO
  * will not be destroyed until the tasks sharing the ioc die.
  */
-static int bfqio_can_attach(struct cgroup *cgroup, struct cgroup_taskset *tset)
+static int bfqio_can_attach(struct cgroup_subsys *subsys, struct cgroup *cgroup,
+			    struct cgroup_taskset *tset)
 {
 	struct task_struct *task;
 	struct io_context *ioc;
@@ -760,7 +765,8 @@ static int bfqio_can_attach(struct cgroup *cgroup, struct cgroup_taskset *tset)
 	return ret;
 }
 
-static void bfqio_attach(struct cgroup *cgroup, struct cgroup_taskset *tset)
+static void bfqio_attach(struct cgroup_subsys *subsys, struct cgroup *cgroup,
+			 struct cgroup_taskset *tset)
 {
 	struct task_struct *task;
 	struct io_context *ioc;
@@ -779,8 +785,9 @@ static void bfqio_attach(struct cgroup *cgroup, struct cgroup_taskset *tset)
 			 */
 			rcu_read_lock();
 			hlist_for_each_entry_rcu(icq, n, &ioc->icq_list, ioc_node)
-				if (!strncmp(icq->q->elevator->type->elevator_name,
-					     "bfq", ELV_NAME_MAX))
+				if (!strncmp(
+					icq->q->elevator->type->elevator_name,
+					"bfq", ELV_NAME_MAX))
 					bfq_bic_change_cgroup(icq_to_bic(icq),
 							      cgroup);
 			rcu_read_unlock();
@@ -789,7 +796,7 @@ static void bfqio_attach(struct cgroup *cgroup, struct cgroup_taskset *tset)
 	}
 }
 
-static void bfqio_destroy(struct cgroup *cgroup)
+static void bfqio_destroy(struct cgroup_subsys *subsys, struct cgroup *cgroup)
 {
 	struct bfqio_cgroup *bgrp = cgroup_to_bfqio(cgroup);
 	struct hlist_node *n, *tmp;
