@@ -1,5 +1,5 @@
 /*
- * BFQ-v7 for 3.3.0: data structures and common functions prototypes.
+ * BFQ-v7r1 for 3.4.0: data structures and common functions prototypes.
  *
  * Based on ideas and code from CFQ:
  * Copyright (C) 2003 Jens Axboe <axboe@kernel.dk>
@@ -57,15 +57,15 @@ struct bfq_service_tree {
 
 /**
  * struct bfq_sched_data - multi-class scheduler.
- * @active_entity: entity under service.
- * @next_active: head-of-the-line entity in the scheduler.
+ * @in_service_entity: entity under service.
+ * @next_in_service: head-of-the-line entity in the scheduler.
  * @service_tree: array of service trees, one per ioprio_class.
  *
  * bfq_sched_data is the basic scheduler queue.  It supports three
  * ioprio_classes, and can be used either as a toplevel queue or as
  * an intermediate queue on a hierarchical setup.
- * @next_active points to the active entity of the sched_data service
- * trees that will be scheduled next.
+ * @next_in_service points to the active entity of the sched_data
+ * service trees that will be scheduled next.
  *
  * The supported ioprio_classes are the same as in CFQ, in descending
  * priority order, IOPRIO_CLASS_RT, IOPRIO_CLASS_BE, IOPRIO_CLASS_IDLE.
@@ -75,8 +75,8 @@ struct bfq_service_tree {
  * All the fields are protected by the queue lock of the containing bfqd.
  */
 struct bfq_sched_data {
-	struct bfq_entity *active_entity;
-	struct bfq_entity *next_active;
+	struct bfq_entity *in_service_entity;
+	struct bfq_entity *next_in_service;
 	struct bfq_service_tree service_tree[BFQ_IOPRIO_CLASSES];
 };
 
@@ -240,11 +240,11 @@ struct bfq_queue {
 	struct bfq_io_cq *bic;
 
 	/* weight-raising fields */
-	unsigned int raising_cur_max_time;
+	unsigned long raising_cur_max_time;
 	unsigned long soft_rt_next_start;
-	u64 last_rais_start_finish;
+	unsigned long last_rais_start_finish;
 	unsigned int raising_coeff;
-	u64 last_idle_bklogged;
+	unsigned long last_idle_bklogged;
 	unsigned long service_from_backlogged;
 };
 
