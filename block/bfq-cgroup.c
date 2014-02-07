@@ -449,8 +449,9 @@ static inline void bfq_reparent_active_entities(struct bfq_data *bfqd,
 	for (; entity != NULL; entity = bfq_entity_of(rb_first(active)))
 		bfq_reparent_leaf_entity(bfqd, entity);
 
-	if (bfqg->sched_data.active_entity != NULL)
-		bfq_reparent_leaf_entity(bfqd, bfqg->sched_data.active_entity);
+	if (bfqg->sched_data.in_service_entity != NULL)
+		bfq_reparent_leaf_entity(bfqd,
+			bfqg->sched_data.in_service_entity);
 
 	return;
 }
@@ -507,8 +508,8 @@ static void bfq_destroy_group(struct bfqio_cgroup *bgrp, struct bfq_group *bfqg)
 		BUG_ON(!RB_EMPTY_ROOT(&st->active));
 		BUG_ON(!RB_EMPTY_ROOT(&st->idle));
 	}
-	BUG_ON(bfqg->sched_data.next_active != NULL);
-	BUG_ON(bfqg->sched_data.active_entity != NULL);
+	BUG_ON(bfqg->sched_data.next_in_service != NULL);
+	BUG_ON(bfqg->sched_data.in_service_entity != NULL);
 
 	/*
 	 * We may race with device destruction, take extra care when
@@ -710,8 +711,7 @@ static int bfqio_populate(struct cgroup_subsys *subsys, struct cgroup *cgroup)
 				ARRAY_SIZE(bfqio_files));
 }
 
-static struct cgroup_subsys_state *bfqio_create(struct cgroup_subsys *subsys,
-						struct cgroup *cgroup)
+static struct cgroup_subsys_state *bfqio_create(struct cgroup *cgroup)
 {
 	struct bfqio_cgroup *bgrp;
 
@@ -738,8 +738,7 @@ static struct cgroup_subsys_state *bfqio_create(struct cgroup_subsys *subsys,
  * behavior is that a group containing a task that forked using CLONE_IO
  * will not be destroyed until the tasks sharing the ioc die.
  */
-static int bfqio_can_attach(struct cgroup_subsys *subsys, struct cgroup *cgroup,
-			    struct cgroup_taskset *tset)
+static int bfqio_can_attach(struct cgroup *cgroup, struct cgroup_taskset *tset)
 {
 	struct task_struct *task;
 	struct io_context *ioc;
@@ -765,8 +764,7 @@ static int bfqio_can_attach(struct cgroup_subsys *subsys, struct cgroup *cgroup,
 	return ret;
 }
 
-static void bfqio_attach(struct cgroup_subsys *subsys, struct cgroup *cgroup,
-			 struct cgroup_taskset *tset)
+static void bfqio_attach(struct cgroup *cgroup, struct cgroup_taskset *tset)
 {
 	struct task_struct *task;
 	struct io_context *ioc;
@@ -796,7 +794,7 @@ static void bfqio_attach(struct cgroup_subsys *subsys, struct cgroup *cgroup,
 	}
 }
 
-static void bfqio_destroy(struct cgroup_subsys *subsys, struct cgroup *cgroup)
+static void bfqio_destroy(struct cgroup *cgroup)
 {
 	struct bfqio_cgroup *bgrp = cgroup_to_bfqio(cgroup);
 	struct hlist_node *n, *tmp;
