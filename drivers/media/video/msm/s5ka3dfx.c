@@ -478,6 +478,32 @@ void s5ka3dfx_set_power(int onoff)
     return;
 }
 
+static int s5ka3dfx_set_flip(unsigned int flip_mode)
+{
+    pr_info("[CAMDRV/S5KA3DFX] flip_mode : %d\n", flip_mode);
+
+    switch(flip_mode)
+    {
+        case S5KA3DFX_FLIP_NONE:
+            S5KA3DFX_WRITE_LIST(reg_flip_none_table);
+            break;
+        case S5KA3DFX_FLIP_MIRROR:
+            S5KA3DFX_WRITE_LIST(reg_flip_mirror_table);
+            break;
+        case S5KA3DFX_FLIP_WATER:
+            S5KA3DFX_WRITE_LIST(reg_flip_water_table);
+            break;
+        case S5KA3DFX_FLIP_WATER_MIRROR:
+            S5KA3DFX_WRITE_LIST(reg_flip_water_mirror_table);
+            break;
+        default:
+            pr_err("[CAMDRV/S5KA3DFX] %s: Invalid flip mode (%d)\n", __func__, flip_mode);
+            return -EINVAL;
+    }
+
+    return 0;
+}
+
 void s5ka3dfx_set_prevew(void)
 {
     unsigned short value =0;
@@ -491,6 +517,10 @@ void s5ka3dfx_set_prevew(void)
             S5KA3DFX_WRITE_LIST(s5ka3dfx_init_vt_reg);
         } else {
             S5KA3DFX_WRITE_LIST(s5ka3dfx_init_reg);
+
+#ifdef CONFIG_MACH_ARIESVE
+            s5ka3dfx_set_flip(S5KA3DFX_FLIP_NONE);
+#endif
         }
         msleep(300);
     }
@@ -849,8 +879,12 @@ int s5ka3dfx_sensor_ext_config(void __user *argp)
             break;
         case EXT_CFG_GET_VGACAM_ROTATED:
             cfg_data.value_1 = (int)vgacam_rotated;
-            printk(KERN_ERR "[CAMDRV/S5KA3DFX] EXT_CFG_GET_CAMETA_ROTATED (%d)\n",cfg_data.value_1);
-            break;			
+            printk(KERN_ERR "[CAMDRV/S5KA3DFX] EXT_CFG_GET_CAMERA_ROTATED (%d %d)\n",cfg_data.cmd,cfg_data.value_1);
+
+#ifdef CONFIG_MACH_ARIESVE
+            rc = s5ka3dfx_set_flip(S5KA3DFX_FLIP_NONE);
+#endif
+            break;
         default:
             break;
     }
@@ -1037,4 +1071,3 @@ static int __init s5ka3dfx_init(void)
 module_init(s5ka3dfx_init);
 MODULE_DESCRIPTION("LSI S5KA3DFX VGA camera driver");
 MODULE_LICENSE("GPL v2");
-

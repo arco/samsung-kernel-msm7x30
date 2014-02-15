@@ -81,6 +81,12 @@
 #define S5KA3DFX_DTP_OFF_ACK		2
 #define S5KA3DFX_DTP_ON_ACK		3
 
+/* Flip */
+#define S5KA3DFX_FLIP_NONE			1
+#define S5KA3DFX_FLIP_MIRROR		2
+#define S5KA3DFX_FLIP_WATER			3
+#define S5KA3DFX_FLIP_WATER_MIRROR	4
+
 #define CAMERA_MODE			0
 #define CAMCORDER_MODE		1
 
@@ -6196,4 +6202,3 @@ const unsigned short reg_self_capture_table[] =
 };
 
 #endif /* S5KA3DFX_H */
-
