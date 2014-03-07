@@ -141,14 +141,22 @@ static void disable_led_notification(void)
 	bln_blink_control = OFF;
 	bln_ongoing = false;
 
-	/* If the system is suspended, turn off the lights */
-	if (bln_suspended)
-		bln_disable_backlights();
-
 	/* Delete the timers for blinking and static lights
 	 * Note: del_timer checks if the timer is pending */
 	del_timer(&blink_timer);
 	del_timer(&static_timer);
+
+	/* Cancel pending works */
+	if (work_pending(&static_stop_work))
+		cancel_work_sync(&static_stop_work);
+	if (work_pending(&blink_continue_work))
+		cancel_work_sync(&blink_continue_work);
+	if (work_pending(&blink_stop_work))
+		cancel_work_sync(&blink_stop_work);
+
+	/* If the system is suspended, turn off the lights */
+	if (bln_suspended)
+		bln_disable_backlights();
 
 	/* Release wakelock */
 	bln_wakelock_release();
@@ -713,7 +721,8 @@ void blink_timer_callback(unsigned long data)
 					msecs_to_jiffies(blink_interval));
 	} else {
 		/* Remove pending blinking work */
-		cancel_work_sync(&blink_continue_work);
+		if (work_pending(&blink_continue_work))
+			cancel_work_sync(&blink_continue_work);
 		flush_workqueue(bln_workqueue);
 
 		/* Stop blinking lights */
