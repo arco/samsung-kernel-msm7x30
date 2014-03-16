@@ -156,7 +156,7 @@ cleanup:
 }
 
 /**
- * bfq_group_chain_link - link an allocatd group chain to a cgroup hierarchy.
+ * bfq_group_chain_link - link an allocated group chain to a cgroup hierarchy.
  * @bfqd: the queue descriptor.
  * @cgroup: the leaf cgroup to start from.
  * @leaf: the leaf group (to be associated to @cgroup).
@@ -216,7 +216,7 @@ static void bfq_group_chain_link(struct bfq_data *bfqd, struct cgroup *cgroup,
  * to the root have a group associated to @bfqd.
  *
  * If the allocation fails, return the root group: this breaks guarantees
- * but is a safe fallbak.  If this loss becames a problem it can be
+ * but is a safe fallback.  If this loss becomes a problem it can be
  * mitigated using the equivalent weight (given by the product of the
  * weights of the groups in the path from @group to the root) in the
  * root scheduler.
@@ -483,7 +483,7 @@ static void bfq_destroy_group(struct bfqio_cgroup *bgrp, struct bfq_group *bfqg)
 		/*
 		 * The idle tree may still contain bfq_queues belonging
 		 * to exited task because they never migrated to a different
-		 * cgroup from the one being destroyed now.  Noone else
+		 * cgroup from the one being destroyed now.  No one else
 		 * can access them so it's safe to act without any lock.
 		 */
 		bfq_flush_idle_tree(st);
@@ -527,7 +527,7 @@ static void bfq_destroy_group(struct bfqio_cgroup *bgrp, struct bfq_group *bfqg)
 	/*
 	 * No need to defer the kfree() to the end of the RCU grace
 	 * period: we are called from the destroy() callback of our
-	 * cgroup, so we can be sure that noone is a) still using
+	 * cgroup, so we can be sure that no one is a) still using
 	 * this cgroup or b) doing lookups in it.
 	 */
 	kfree(bfqg);
@@ -544,7 +544,7 @@ static void bfq_end_raising_async(struct bfq_data *bfqd)
 }
 
 /**
- * bfq_disconnect_groups - diconnect @bfqd from all its groups.
+ * bfq_disconnect_groups - disconnect @bfqd from all its groups.
  * @bfqd: the device descriptor being exited.
  *
  * When the device exits we just make sure that no lookup can return
@@ -667,10 +667,25 @@ static int bfqio_cgroup_##__VAR##_write(struct cgroup *cgroup,		\
 		 * Setting the ioprio_changed flag of the entity        \
 		 * to 1 with new_##__VAR == ##__VAR would re-set        \
 		 * the value of the weight to its ioprio mapping.       \
-		 * Set the flag only if necessary.                      \
-		 */                                                     \
+		 * Set the flag only if necessary.			\
+		 */							\
 		if ((unsigned short)val != bfqg->entity.new_##__VAR) {  \
 			bfqg->entity.new_##__VAR = (unsigned short)val; \
+			/*						\
+			 * Make sure that the above new value has been	\
+			 * stored in bfqg->entity.new_##__VAR before	\
+			 * setting the ioprio_changed flag. In fact,	\
+			 * this flag may be read asynchronously (in	\
+			 * critical sections protected by a different	\
+			 * lock than that held here), and finding this	\
+			 * flag set may cause the execution of the code	\
+			 * for updating parameters whose value may	\
+			 * depend also on bfqg->entity.new_##__VAR (in	\
+			 * __bfq_entity_update_weight_prio).		\
+			 * This barrier makes sure that the new value	\
+			 * of bfqg->entity.new_##__VAR is correctly	\
+			 * seen in that code.				\
+			 */						\
 			smp_wmb();                                      \
 			bfqg->entity.ioprio_changed = 1;                \
 		}                                                       \
