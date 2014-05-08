@@ -78,6 +78,7 @@ static inline void bfq_group_init_entity(struct bfqio_cgroup *bgrp,
 	entity->ioprio = entity->new_ioprio;
 	entity->ioprio_class = entity->new_ioprio_class = bgrp->ioprio_class;
 	entity->my_sched_data = &bfqg->sched_data;
+	bfqg->active_entities = 0;
 }
 
 static inline void bfq_group_set_parent(struct bfq_group *bfqg,
@@ -533,14 +534,14 @@ static void bfq_destroy_group(struct bfqio_cgroup *bgrp, struct bfq_group *bfqg)
 	kfree(bfqg);
 }
 
-static void bfq_end_raising_async(struct bfq_data *bfqd)
+static void bfq_end_wr_async(struct bfq_data *bfqd)
 {
 	struct hlist_node *pos, *n;
 	struct bfq_group *bfqg;
 
 	hlist_for_each_entry_safe(bfqg, pos, n, &bfqd->group_list, bfqd_node)
-		bfq_end_raising_async_queues(bfqd, bfqg);
-	bfq_end_raising_async_queues(bfqd, bfqd->root_group);
+		bfq_end_wr_async_queues(bfqd, bfqg);
+	bfq_end_wr_async_queues(bfqd, bfqd->root_group);
 }
 
 /**
@@ -864,9 +865,9 @@ static inline void bfq_bfqq_move(struct bfq_data *bfqd,
 {
 }
 
-static void bfq_end_raising_async(struct bfq_data *bfqd)
+static void bfq_end_wr_async(struct bfq_data *bfqd)
 {
-	bfq_end_raising_async_queues(bfqd, bfqd->root_group);
+	bfq_end_wr_async_queues(bfqd, bfqd->root_group);
 }
 
 static inline void bfq_disconnect_groups(struct bfq_data *bfqd)
