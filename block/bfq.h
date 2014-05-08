@@ -1,5 +1,5 @@
 /*
- * BFQ-v7r2 for 3.4.0: data structures and common functions prototypes.
+ * BFQ-v7r3 for 3.4.0: data structures and common functions prototypes.
  *
  * Based on ideas and code from CFQ:
  * Copyright (C) 2003 Jens Axboe <axboe@kernel.dk>
@@ -81,8 +81,23 @@ struct bfq_sched_data {
 };
 
 /**
+ * struct bfq_weight_counter - counter of the number of all active entities
+ *                             with a given weight.
+ * @weight: weight of the entities that this counter refers to.
+ * @num_active: number of active entities with this weight.
+ * @weights_node: weights tree member (see bfq_data's @queue_weights_tree
+ *                and @group_weights_tree).
+ */
+struct bfq_weight_counter {
+	short int weight;
+	unsigned int num_active;
+	struct rb_node weights_node;
+};
+
+/**
  * struct bfq_entity - schedulable entity.
  * @rb_node: service_tree member.
+ * @weights_counter: pointer to the weight counter associated with this entity.
  * @on_st: flag, true if the entity is on a tree (either the active or
  *         the idle one of its service_tree).
  * @finish: B-WF2Q+ finish timestamp (aka F_i).
@@ -133,6 +148,7 @@ struct bfq_sched_data {
  */
 struct bfq_entity {
 	struct rb_node rb_node;
+	struct bfq_weight_counter *weight_counter;
 
 	int on_st;
 
@@ -186,10 +202,10 @@ struct bfq_group;
  * @seek_mean: mean seek distance
  * @last_request_pos: position of the last request enqueued
  * @pid: pid of the process owning the queue, used for logging purposes.
- * @last_rais_start_finish: start time of the current weight-raising period if
- *                          the @bfq-queue is being weight-raised, otherwise
- *                          finish time of the last weight-raising period
- * @raising_cur_max_time: current max raising time for this queue
+ * @last_wr_start_finish: start time of the current weight-raising period if
+ *                        the @bfq-queue is being weight-raised, otherwise
+ *                        finish time of the last weight-raising period
+ * @wr_cur_max_time: current max raising time for this queue
  * @soft_rt_next_start: minimum time instant such that, only if a new request
  *                      is enqueued after this time instant in an idle
  *                      @bfq_queue with no outstanding requests, then the
@@ -248,10 +264,10 @@ struct bfq_queue {
 	struct bfq_io_cq *bic;
 
 	/* weight-raising fields */
-	unsigned long raising_cur_max_time;
+	unsigned long wr_cur_max_time;
 	unsigned long soft_rt_next_start;
-	unsigned long last_rais_start_finish;
-	unsigned int raising_coeff;
+	unsigned long last_wr_start_finish;
+	unsigned int wr_coeff;
 	unsigned long last_idle_bklogged;
 	unsigned long service_from_backlogged;
 };
@@ -275,13 +291,13 @@ struct bfq_ttime {
  * @icq: associated io_cq structure
  * @bfqq: array of two process queues, the sync and the async
  * @ttime: associated @bfq_ttime struct
- * @raising_time_left: snapshot of the time left before weight raising ends
- *		       for the sync queue associated to this process; this
- *		       snapshot is taken to remember this value while the weight
- *		       raising is suspended because the queue is merged with a
- *		       shared queue, and is used to set @raising_cur_max_time
- *		       when the queue is split from the shared queue and its
- *		       weight is raised again
+ * @wr_time_left: snapshot of the time left before weight raising ends
+ *                for the sync queue associated to this process; this
+ *		  snapshot is taken to remember this value while the weight
+ *		  raising is suspended because the queue is merged with a
+ *		  shared queue, and is used to set @raising_cur_max_time
+ *		  when the queue is split from the shared queue and its
+ *		  weight is raised again
  * @saved_idle_window: same purpose as the previous field for the idle window
  */
 struct bfq_io_cq {
@@ -289,25 +305,56 @@ struct bfq_io_cq {
 	struct bfq_queue *bfqq[2];
 	struct bfq_ttime ttime;
 
-	unsigned int raising_time_left;
+	unsigned int wr_time_left;
 	unsigned int saved_idle_window;
+};
+
+enum bfq_device_speed {
+	BFQ_BFQD_FAST,
+	BFQ_BFQD_SLOW,
 };
 
 /**
  * struct bfq_data - per device data structure.
  * @queue: request queue for the managed device.
  * @root_group: root bfq_group for the device.
+ * @active_numerous_groups: number of bfq_groups containing more than one
+ *                          active @bfq_entity.
  * @rq_pos_tree: rbtree sorted by next_request position,
  *		used when determining if two or more queues
  *		have interleaving requests (see bfq_close_cooperator).
+ * @queue_weights_tree: rbtree of weight counters of @bfq_queues, sorted by
+ *                      weight. Used to keep track of whether all @bfq_queues
+ *			have the same weight. The tree contains one counter
+ *			for each distinct weight associated to some active
+ *			and not weight-raised @bfq_queue (see the comments to
+ *                      the functions bfq_weights_tree_[add|remove] for
+ *			further details).
+ * @group_weights_tree: rbtree of non-queue @bfq_entity weight counters, sorted
+ *                      by weight. Used to keep track of whether all
+ *			@bfq_groups have the same weight. The tree contains
+ *			one counter for each distinct weight associated to
+ *			some active @bfq_group (see the comments to the
+ *			functions bfq_weights_tree_[add|remove] for further
+ *			details).
  * @busy_queues: number of bfq_queues containing requests (including the
  *		 queue under service, even if it is idling).
+ * @busy_in_flight_queues: number of @bfq_queues containing pending or
+ *                         in-flight requests, plus the @bfq_queue in service,
+ *			   even if idle but waiting for the possible arrival
+ *			   of its next sync request.
+ * @const_seeky_busy_in_flight_queues: number of constantly-seeky @bfq_queues
+ *                                     (that is, seeky queues that expired
+ *                                     for budget timeout at least once)
+ *                                     containing pending or in-flight
+ *					requests, including the in-service
+ *					@bfq_queue if constantly seeky.
  * @raised_busy_queues: number of weight-raised busy bfq_queues.
  * @queued: number of queued requests.
  * @rq_in_driver: number of requests dispatched and waiting for completion.
  * @sync_flight: number of sync requests in the driver.
  * @max_rq_in_driver: max number of reqs in driver in the last @hw_tag_samples
- *		      completed requests .
+ *		      completed requests.
  * @hw_tag_samples: nr of samples used to calculate hw_tag.
  * @hw_tag: flag set to one if the driver is showing a queueing behavior.
  * @budgets_assigned: number of budgets assigned.
@@ -341,20 +388,21 @@ struct bfq_io_cq {
  *               they are charged for the whole allocated budget, to try
  *               to preserve a behavior reasonably fair among them, but
  *               without service-domain guarantees).
- * @bfq_raising_coeff: Maximum factor by which the weight of a boosted
- *                            queue is multiplied
- * @bfq_raising_max_time: maximum duration of a weight-raising period (jiffies)
- * @bfq_raising_rt_max_time: maximum duration for soft real-time processes
- * @bfq_raising_min_idle_time: minimum idle period after which weight-raising
- *			       may be reactivated for a queue (in jiffies)
- * @bfq_raising_min_inter_arr_async: minimum period between request arrivals
- *				     after which weight-raising may be
- *				     reactivated for an already busy queue
- *				     (in jiffies)
- * @bfq_raising_max_softrt_rate: max service-rate for a soft real-time queue,
- *			         sectors per seconds
+ * @bfq_wr_coeff: Maximum factor by which the weight of a weight-raised
+ *                queue is multiplied
+ * @bfq_wr_max_time: maximum duration of a weight-raising period (jiffies)
+ * @bfq_wr_rt_max_time: maximum duration for soft real-time processes
+ * @bfq_wr_min_idle_time: minimum idle period after which weight-raising
+ *			  may be reactivated for a queue (in jiffies)
+ * @bfq_wr_min_inter_arr_async: minimum period between request arrivals
+ *				after which weight-raising may be
+ *				reactivated for an already busy queue
+ *				(in jiffies)
+ * @bfq_wr_max_softrt_rate: max service-rate for a soft real-time queue,
+ *			    sectors per seconds
  * @RT_prod: cached value of the product R*T used for computing the maximum
  *	     duration of the weight raising automatically
+ * @device_speed: device speed class for the low-latency heuristic
  * @oom_bfqq: fallback dummy bfqq for extreme OOM conditions
  *
  * All the fields are protected by the @queue lock.
@@ -363,10 +411,17 @@ struct bfq_data {
 	struct request_queue *queue;
 
 	struct bfq_group *root_group;
+#ifdef CONFIG_CGROUP_BFQIO
+	int active_numerous_groups;
+#endif
 
 	struct rb_root rq_pos_tree;
+	struct rb_root queue_weights_tree;
+	struct rb_root group_weights_tree;
 
 	int busy_queues;
+	int busy_in_flight_queues;
+	int const_seeky_busy_in_flight_queues;
 	int raised_busy_queues;
 	int queued;
 	int rq_in_driver;
@@ -410,13 +465,14 @@ struct bfq_data {
 	bool low_latency;
 
 	/* parameters of the low_latency heuristics */
-	unsigned int bfq_raising_coeff;
-	unsigned int bfq_raising_max_time;
-	unsigned int bfq_raising_rt_max_time;
-	unsigned int bfq_raising_min_idle_time;
-	unsigned long bfq_raising_min_inter_arr_async;
-	unsigned int bfq_raising_max_softrt_rate;
+	unsigned int bfq_wr_coeff;
+	unsigned int bfq_wr_max_time;
+	unsigned int bfq_wr_rt_max_time;
+	unsigned int bfq_wr_min_idle_time;
+	unsigned long bfq_wr_min_inter_arr_async;
+	unsigned int bfq_wr_max_softrt_rate;
 	u64 RT_prod;
+	enum bfq_device_speed device_speed;
 
 	struct bfq_queue oom_bfqq;
 };
@@ -430,6 +486,10 @@ enum bfqq_state_flags {
 	BFQ_BFQQ_FLAG_prio_changed,	/* task priority has changed */
 	BFQ_BFQQ_FLAG_sync,		/* synchronous queue */
 	BFQ_BFQQ_FLAG_budget_new,	/* no completion with this budget */
+	BFQ_BFQQ_FLAG_constantly_seeky,	/*
+					 * bfqq has proved to be slow and seeky
+					 * until budget timeout
+					 */
 	BFQ_BFQQ_FLAG_coop,		/* bfqq is shared */
 	BFQ_BFQQ_FLAG_split_coop,	/* shared bfqq will be split */
 	BFQ_BFQQ_FLAG_just_split,	/* queue has just been split */
@@ -458,6 +518,7 @@ BFQ_BFQQ_FNS(idle_window);
 BFQ_BFQQ_FNS(prio_changed);
 BFQ_BFQQ_FNS(sync);
 BFQ_BFQQ_FNS(budget_new);
+BFQ_BFQQ_FNS(constantly_seeky);
 BFQ_BFQQ_FNS(coop);
 BFQ_BFQQ_FNS(split_coop);
 BFQ_BFQQ_FNS(just_split);
@@ -496,6 +557,10 @@ enum bfqq_expiration {
  * @async_idle_bfqq: async queue for the idle class (ioprio is ignored).
  * @my_entity: pointer to @entity, %NULL for the toplevel group; used
  *             to avoid too many special cases during group creation/migration.
+ * @active_entities: number of active entities belonging to the group; unused
+ *                   for the root group. Used to know whether there are groups
+ *                   with more than one active @bfq_entity (see the comments
+ *		      to the function bfq_bfqq_must_not_expire()).
  *
  * Each (device, cgroup) pair has its own bfq_group, i.e., for each cgroup
  * there is a set of bfq_groups, each one collecting the lower-level
@@ -521,6 +586,8 @@ struct bfq_group {
 	struct bfq_queue *async_idle_bfqq;
 
 	struct bfq_entity *my_entity;
+
+	int active_entities;
 };
 
 /**
@@ -629,8 +696,8 @@ static void bfq_dispatch_insert(struct request_queue *q, struct request *rq);
 static struct bfq_queue *bfq_get_queue(struct bfq_data *bfqd,
 				       struct bfq_group *bfqg, int is_sync,
 				       struct io_context *ioc, gfp_t gfp_mask);
-static void bfq_end_raising_async_queues(struct bfq_data *bfqd,
-					 struct bfq_group *bfqg);
+static void bfq_end_wr_async_queues(struct bfq_data *bfqd,
+				    struct bfq_group *bfqg);
 static void bfq_put_async_queues(struct bfq_data *bfqd, struct bfq_group *bfqg);
 static void bfq_exit_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq);
 #endif
