@@ -184,7 +184,7 @@ static struct platform_device ion_dev;
 #define MSM_ION_AUDIO_SIZE	MSM_PMEM_AUDIO_SIZE
 #define MSM_ION_SF_SIZE		MSM_PMEM_SF_SIZE
 #ifdef CONFIG_MSM_ADSP_USE_PMEM
-#define MSM_ION_VIDC_SIZE	0x1B00000
+#define MSM_ION_MM_SIZE		0x1B00000
 #endif
 #define MSM_ION_HEAP_NUM	4
 #endif
@@ -7903,9 +7903,9 @@ struct ion_platform_heap msm7x30_heaps[] = {
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
 		/* PMEM_ADSP = CAMERA */
 		{
-			.id	= ION_CAMERA_HEAP_ID,
+			.id	= ION_CP_MM_HEAP_ID,
 			.type	= ION_HEAP_TYPE_CARVEOUT,
-			.name	= ION_CAMERA_HEAP_NAME,
+			.name	= ION_MM_HEAP_NAME,
 			.memory_type = ION_EBI_TYPE,
 			.extra_data = (void *)&co_ion_pdata,
 		},
@@ -7952,7 +7952,6 @@ static struct memtype_reserve msm7x30_reserve_table[] __initdata = {
 };
 
 unsigned long size;
-unsigned long msm_ion_camera_size = MSM_ION_VIDC_SIZE;
 
 static void fix_sizes(void)
 {
@@ -7999,7 +7998,7 @@ static void __init reserve_pmem_memory(void)
 static void __init size_ion_devices(void)
 {
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-	ion_pdata.heaps[1].size = msm_ion_camera_size;
+	ion_pdata.heaps[1].size = MSM_ION_MM_SIZE;
 	ion_pdata.heaps[2].size = MSM_ION_AUDIO_SIZE;
 	ion_pdata.heaps[3].size = MSM_ION_SF_SIZE;
 #endif
@@ -8008,7 +8007,7 @@ static void __init size_ion_devices(void)
 static void __init reserve_ion_memory(void)
 {
 #if defined(CONFIG_ION_MSM) && defined(CONFIG_MSM_MULTIMEDIA_USE_ION)
-	msm7x30_reserve_table[MEMTYPE_EBI0].size += msm_ion_camera_size;
+	msm7x30_reserve_table[MEMTYPE_EBI0].size += MSM_ION_MM_SIZE;
 	msm7x30_reserve_table[MEMTYPE_EBI0].size += MSM_ION_AUDIO_SIZE;
 	msm7x30_reserve_table[MEMTYPE_EBI0].size += MSM_ION_SF_SIZE;
 	msm7x30_reserve_table[MEMTYPE_EBI0].size += 1;
