@@ -1,5 +1,5 @@
 /*
- * BFQ-v7r3 for 3.4.0: data structures and common functions prototypes.
+ * BFQ-v7r4 for 3.4.0: data structures and common functions prototypes.
  *
  * Based on ideas and code from CFQ:
  * Copyright (C) 2003 Jens Axboe <axboe@kernel.dk>
@@ -341,14 +341,28 @@ enum bfq_device_speed {
  *		 queue under service, even if it is idling).
  * @busy_in_flight_queues: number of @bfq_queues containing pending or
  *                         in-flight requests, plus the @bfq_queue in service,
- *			   even if idle but waiting for the possible arrival
- *			   of its next sync request.
+ *                         even if idle but waiting for the possible arrival
+ *                         of its next sync request. This field is updated only
+ *                         if the device is rotational, but used only if the
+ *                         device is also NCQ-capable. The reason why the field
+ *                         is updated also for non-NCQ-capable rotational
+ *                         devices is related to the fact that the value of
+ *                         hw_tag may be set also later than when this field may
+ *                         need to be incremented for the first time(s).
+ *                         Taking also this possibility into account, to avoid
+ *                         unbalanced increments/decrements, would imply more
+ *                         overhead than just updating this field regardless of
+ *                         the value of hw_tag.
  * @const_seeky_busy_in_flight_queues: number of constantly-seeky @bfq_queues
  *                                     (that is, seeky queues that expired
  *                                     for budget timeout at least once)
  *                                     containing pending or in-flight
- *					requests, including the in-service
- *					@bfq_queue if constantly seeky.
+ *                                     requests, including the in-service
+ *                                     @bfq_queue if constantly seeky. This
+ *                                     field is updated only if the device
+ *                                     is rotational, but used only if the
+ *                                     device is also NCQ-capable (see the
+ *                                     comments to @busy_in_flight_queues).
  * @raised_busy_queues: number of weight-raised busy bfq_queues.
  * @queued: number of queued requests.
  * @rq_in_driver: number of requests dispatched and waiting for completion.
@@ -560,7 +574,7 @@ enum bfqq_expiration {
  * @active_entities: number of active entities belonging to the group; unused
  *                   for the root group. Used to know whether there are groups
  *                   with more than one active @bfq_entity (see the comments
- *		      to the function bfq_bfqq_must_not_expire()).
+ *                   to the function bfq_bfqq_must_not_expire()).
  *
  * Each (device, cgroup) pair has its own bfq_group, i.e., for each cgroup
  * there is a set of bfq_groups, each one collecting the lower-level
