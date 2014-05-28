@@ -381,7 +381,7 @@ static void bfq_active_insert(struct bfq_service_tree *st,
 		BUG_ON(!bfqd);
 		bfq_weights_tree_add(bfqd, entity, &bfqd->group_weights_tree);
 	}
-	if (bfqd->hw_tag && bfqg != bfqd->root_group) {
+	if (bfqg != bfqd->root_group) {
 		BUG_ON(!bfqg);
 		BUG_ON(!bfqd);
 		bfqg->active_entities++;
@@ -492,7 +492,7 @@ static void bfq_active_extract(struct bfq_service_tree *st,
 		bfq_weights_tree_remove(bfqd, entity,
 					&bfqd->group_weights_tree);
 	}
-	if (bfqd->hw_tag && bfqg != bfqd->root_group) {
+	if (bfqg != bfqd->root_group) {
 		BUG_ON(!bfqg);
 		BUG_ON(!bfqd);
 		BUG_ON(!bfqg->active_entities);
@@ -1130,7 +1130,7 @@ static void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	if (!bfqq->dispatched) {
 		bfq_weights_tree_remove(bfqd, &bfqq->entity,
 					&bfqd->queue_weights_tree);
-		if (!blk_queue_nonrot(bfqd->queue) && bfqd->hw_tag) {
+		if (!blk_queue_nonrot(bfqd->queue)) {
 			BUG_ON(!bfqd->busy_in_flight_queues);
 			bfqd->busy_in_flight_queues--;
 			if (bfq_bfqq_constantly_seeky(bfqq)) {
@@ -1165,7 +1165,7 @@ static void bfq_add_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 		if (bfqq->wr_coeff == 1)
 			bfq_weights_tree_add(bfqd, &bfqq->entity,
 					     &bfqd->queue_weights_tree);
-		if (!blk_queue_nonrot(bfqd->queue) && bfqd->hw_tag) {
+		if (!blk_queue_nonrot(bfqd->queue)) {
 			bfqd->busy_in_flight_queues++;
 			if (bfq_bfqq_constantly_seeky(bfqq))
 				bfqd->const_seeky_busy_in_flight_queues++;

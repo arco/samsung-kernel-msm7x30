@@ -668,8 +668,7 @@ static void bfq_add_request(struct request *rq)
 				bfqq->wr_cur_max_time =
 					bfqd->bfq_wr_rt_max_time;
 			bfq_log_bfqq(bfqd, bfqq,
-				     "wrais starting at %lu, "
-				     "rais_max_time %u",
+				     "wrais starting at %lu, rais_max_time %u",
 				     jiffies,
 				     jiffies_to_msecs(bfqq->wr_cur_max_time));
 		} else if (old_wr_coeff > 1) {
@@ -680,11 +679,10 @@ static void bfq_add_request(struct request *rq)
 				 !soft_rt) {
 				bfqq->wr_coeff = 1;
 				bfq_log_bfqq(bfqd, bfqq,
-					     "wrais ending at %lu, "
-					     "rais_max_time %u",
-					     jiffies,
-					     jiffies_to_msecs(bfqq->
-					     wr_cur_max_time));
+					"wrais ending at %lu, rais_max_time %u",
+					jiffies,
+					jiffies_to_msecs(bfqq->
+					wr_cur_max_time));
 			} else if (time_before(
 					bfqq->last_wr_start_finish +
 					bfqq->wr_cur_max_time,
@@ -759,10 +757,9 @@ add_bfqq_busy:
 			bfqd->raised_busy_queues++;
 			entity->ioprio_changed = 1;
 			bfq_log_bfqq(bfqd, bfqq,
-				     "non-idle wrais starting at %lu, "
-				     "rais_max_time %u",
-				     jiffies,
-				     jiffies_to_msecs(bfqq->wr_cur_max_time));
+		             "non-idle wrais starting at %lu, rais_max_time %u",
+			     jiffies,
+			     jiffies_to_msecs(bfqq->wr_cur_max_time));
 		}
 		if (prev != bfqq->next_rq)
 			bfq_updated_next_req(bfqd, bfqq);
@@ -1375,26 +1372,6 @@ static inline unsigned long bfq_min_budget(struct bfq_data *bfqd)
 		return bfqd->bfq_max_budget / 32;
 }
 
-/*
- * Decides whether idling should be done for given device and
- * given in-service queue.
- */
-static inline bool bfq_queue_nonrot_noidle(struct bfq_data *bfqd,
-					   struct bfq_queue *in_service_bfqq)
-{
-	if (in_service_bfqq == NULL)
-		return false;
-	/*
-	 * If the device is non-rotational, and hence has no seek penalty,
-	 * disable idling; but do so only if:
-	 * - device does not support queuing, otherwise we still have
-	 *   a problem with sync vs async workloads;
-	 * - the queue is not weight-raised, to preserve guarantees.
-	 */
-	return blk_queue_nonrot(bfqd->queue) && bfqd->hw_tag &&
-	       (in_service_bfqq->wr_coeff == 1);
-}
-
 static void bfq_arm_slice_timer(struct bfq_data *bfqd)
 {
 	struct bfq_queue *bfqq = bfqd->in_service_queue;
@@ -1952,7 +1929,7 @@ static void bfq_bfqq_expire(struct bfq_data *bfqd,
 	if (BFQQ_SEEKY(bfqq) && reason == BFQ_BFQQ_BUDGET_TIMEOUT &&
 	    !bfq_bfqq_constantly_seeky(bfqq)) {
 		bfq_mark_bfqq_constantly_seeky(bfqq);
-		if (!blk_queue_nonrot(bfqq->bfqd->queue) && bfqd->hw_tag)
+		if (!blk_queue_nonrot(bfqd->queue))
 			bfqd->const_seeky_busy_in_flight_queues++;
 	}
 
@@ -2204,8 +2181,7 @@ static inline bool bfq_bfqq_must_idle(struct bfq_queue *bfqq)
 	struct bfq_data *bfqd = bfqq->bfqd;
 
 	return RB_EMPTY_ROOT(&bfqq->sort_list) && bfqd->bfq_slice_idle != 0 &&
-	       bfq_bfqq_must_not_expire(bfqq) &&
-	       !bfq_queue_nonrot_noidle(bfqd, bfqq);
+	       bfq_bfqq_must_not_expire(bfqq);
 }
 
 /*
@@ -2292,13 +2268,12 @@ static void bfq_update_raising_data(struct bfq_data *bfqd,
 	struct bfq_entity *entity = &bfqq->entity;
 	if (bfqq->wr_coeff > 1) { /* queue is being weight-raised */
 		bfq_log_bfqq(bfqd, bfqq,
-			"raising period dur %u/%u msec, "
-			"old raising coeff %u, w %d(%d)",
-			jiffies_to_msecs(jiffies -
-				bfqq->last_wr_start_finish),
-			jiffies_to_msecs(bfqq->wr_cur_max_time),
-			bfqq->wr_coeff,
-			bfqq->entity.weight, bfqq->entity.orig_weight);
+		"raising period dur %u/%u msec, old raising coeff %u, w %d(%d)",
+		jiffies_to_msecs(jiffies -
+			bfqq->last_wr_start_finish),
+		jiffies_to_msecs(bfqq->wr_cur_max_time),
+		bfqq->wr_coeff,
+		bfqq->entity.weight, bfqq->entity.orig_weight);
 
 		BUG_ON(bfqq != bfqd->in_service_queue && entity->weight !=
 			entity->orig_weight * bfqq->wr_coeff);
@@ -2313,8 +2288,7 @@ static void bfq_update_raising_data(struct bfq_data *bfqd,
 					   bfqq->wr_cur_max_time)) {
 			bfqq->last_wr_start_finish = jiffies;
 			bfq_log_bfqq(bfqd, bfqq,
-				     "wrais ending at %lu, "
-				     "rais_max_time %u",
+				     "wrais ending at %lu, rais_max_time %u",
 				     bfqq->last_wr_start_finish,
 				     jiffies_to_msecs(bfqq->
 					wr_cur_max_time));
@@ -2931,7 +2905,7 @@ static void bfq_rq_enqueued(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	bfq_update_io_seektime(bfqd, bfqq, rq);
 	if (!BFQQ_SEEKY(bfqq) && bfq_bfqq_constantly_seeky(bfqq)) {
 		bfq_clear_bfqq_constantly_seeky(bfqq);
-		if (!blk_queue_nonrot(bfqq->bfqd->queue) && bfqd->hw_tag) {
+		if (!blk_queue_nonrot(bfqd->queue)) {
 			BUG_ON(!bfqd->const_seeky_busy_in_flight_queues);
 			bfqd->const_seeky_busy_in_flight_queues--;
 		}
@@ -3092,7 +3066,7 @@ static void bfq_completed_request(struct request_queue *q, struct request *rq)
 	if (!bfqq->dispatched && !bfq_bfqq_busy(bfqq)) {
 		bfq_weights_tree_remove(bfqd, &bfqq->entity,
 					&bfqd->queue_weights_tree);
-		if (!blk_queue_nonrot(bfqq->bfqd->queue) && bfqd->hw_tag) {
+		if (!blk_queue_nonrot(bfqd->queue)) {
 			BUG_ON(!bfqd->busy_in_flight_queues);
 			bfqd->busy_in_flight_queues--;
 			if (bfq_bfqq_constantly_seeky(bfqq)) {
@@ -3582,8 +3556,7 @@ static ssize_t bfq_weights_show(struct elevator_queue *e, char *page)
 	num_char += sprintf(page + num_char, "Active:\n");
 	list_for_each_entry(bfqq, &bfqd->active_list, bfqq_list) {
 	  num_char += sprintf(page + num_char,
-			      "pid%d: weight %hu, nr_queued %d %d,"
-			      " dur %d/%u\n",
+			      "pid%d: weight %hu, nr_queued %d %d, dur %d/%u\n",
 			      bfqq->pid,
 			      bfqq->entity.weight,
 			      bfqq->queued[0],
@@ -3836,7 +3809,7 @@ static int __init bfq_init(void)
 	device_speed_thresh[1] = (R_fast[1] + R_slow[1]) / 2;
 
 	elv_register(&iosched_bfq);
-	pr_info("BFQ I/O-scheduler version: v7r3");
+	pr_info("BFQ I/O-scheduler version: v7r4");
 
 	return 0;
 }
