@@ -93,16 +93,16 @@ void kgsl_pwrctrl_close(struct kgsl_device *device);
 void kgsl_timer(unsigned long data);
 void kgsl_idle_check(struct work_struct *work);
 void kgsl_pre_hwaccess(struct kgsl_device *device);
+void kgsl_check_suspended(struct kgsl_device *device);
 int kgsl_pwrctrl_sleep(struct kgsl_device *device);
-int kgsl_pwrctrl_wake(struct kgsl_device *device);
+void kgsl_pwrctrl_wake(struct kgsl_device *device);
 void kgsl_pwrctrl_pwrlevel_change(struct kgsl_device *device,
 	unsigned int level);
 int kgsl_pwrctrl_init_sysfs(struct kgsl_device *device);
 void kgsl_pwrctrl_uninit_sysfs(struct kgsl_device *device);
+bool kgsl_pwrctrl_isenabled(struct kgsl_device *device);
 void kgsl_pwrctrl_enable(struct kgsl_device *device);
 void kgsl_pwrctrl_disable(struct kgsl_device *device);
-bool kgsl_pwrctrl_isenabled(struct kgsl_device *device);
-
 static inline unsigned long kgsl_get_clkrate(struct clk *clk)
 {
 	return (clk != NULL) ? clk_get_rate(clk) : 0;
@@ -110,10 +110,4 @@ static inline unsigned long kgsl_get_clkrate(struct clk *clk)
 
 void kgsl_pwrctrl_set_state(struct kgsl_device *device, unsigned int state);
 void kgsl_pwrctrl_request_state(struct kgsl_device *device, unsigned int state);
-
-int kgsl_active_count_get(struct kgsl_device *device);
-int kgsl_active_count_get_light(struct kgsl_device *device);
-void kgsl_active_count_put(struct kgsl_device *device);
-void kgsl_active_count_wait(struct kgsl_device *device);
-
 #endif /* __KGSL_PWRCTRL_H */

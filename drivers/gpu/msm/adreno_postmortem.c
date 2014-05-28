@@ -740,9 +740,7 @@ int adreno_dump(struct kgsl_device *device, int manual)
 			(unsigned int *) &context_id,
 			KGSL_MEMSTORE_OFFSET(KGSL_MEMSTORE_GLOBAL,
 				current_context));
-
-	context = kgsl_context_get(device, context_id);
-
+	context = idr_find(&device->context_idr, context_id);
 	if (context) {
 		ts_processed = kgsl_readtimestamp(device, context,
 						  KGSL_TIMESTAMP_RETIRED);
@@ -750,8 +748,6 @@ int adreno_dump(struct kgsl_device *device, int manual)
 				context->id, ts_processed);
 	} else
 		KGSL_LOG_DUMP(device, "BAD CTXT: %d\n", context_id);
-
-	kgsl_context_put(context);
 
 	num_item = adreno_ringbuffer_count(&adreno_dev->ringbuffer,
 						cp_rb_rptr);

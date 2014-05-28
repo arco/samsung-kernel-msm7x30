@@ -60,6 +60,4 @@ void adreno_debugfs_init(struct kgsl_device *device)
 		&adreno_dev->wait_timeout);
 	debugfs_create_u32("ib_check", 0644, device->d_debugfs,
 			   &adreno_dev->ib_check_level);
-	debugfs_create_u32("active_cnt", 0444, device->d_debugfs,
-			   &device->active_cnt);
 }
