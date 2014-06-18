@@ -39,11 +39,11 @@ struct work_struct *p_batt_init;
 /* ***** Test Features ***** */
 
 //#define __BATT_TEST_DEVICE__
-//#define __AUTO_TEMP_TEST__ 
+//#define __AUTO_TEMP_TEST__
 //#define __FULL_CHARGE_TEST__
 
 /* North America TMO Features */
-/* #define EVENT_TEMPERATURE_CONTROL 
+/* #define EVENT_TEMPERATURE_CONTROL
 #define BATT_DRV_VER				0x10 */
 
 #ifndef CONFIG_HW_REV_USING_SMB328
@@ -160,14 +160,14 @@ extern unsigned int boot_check_wrong_battery;
 #ifdef EVENT_TEMPERATURE_CONTROL
 #define SYSFS_EVT_CALL_2G		"/sys/class/power_supply/battery/call_2g"
 #define SYSFS_EVT_CALL_3G		"/sys/class/power_supply/battery/call_3g"
-#define SYSFS_EVT_WAP			"/sys/class/power_supply/battery/wap"	
-#define SYSFS_EVT_CAMERA		"/sys/class/power_supply/battery/camera"	
+#define SYSFS_EVT_WAP			"/sys/class/power_supply/battery/wap"
+#define SYSFS_EVT_CAMERA		"/sys/class/power_supply/battery/camera"
 #define SYSFS_EVT_WIFI			"/sys/class/power_supply/battery/wifi"
-#define SYSFS_EVT_BT			"/sys/class/power_supply/battery/bt"	
-#define SYSFS_EVT_GPS			"/sys/class/power_supply/battery/gps"	
-#define SYSFS_EVT_MP3			"/sys/class/power_supply/battery/mp3"	
-#define SYSFS_EVT_CASE			"/sys/class/power_supply/battery/device_state"	
-#define SYSFS_DRV_INFO			"/sys/class/power_supply/battery/driver_info"	
+#define SYSFS_EVT_BT			"/sys/class/power_supply/battery/bt"
+#define SYSFS_EVT_GPS			"/sys/class/power_supply/battery/gps"
+#define SYSFS_EVT_MP3			"/sys/class/power_supply/battery/mp3"
+#define SYSFS_EVT_CASE			"/sys/class/power_supply/battery/device_state"
+#define SYSFS_DRV_INFO			"/sys/class/power_supply/battery/driver_info"
 
 #define EVT_CALL_2G	(0x1 << 0)
 #define EVT_CALL_3G	(0x1 << 1)
@@ -181,21 +181,21 @@ extern unsigned int boot_check_wrong_battery;
 #define EVT_CASE	(EVT_CALL_2G | EVT_CALL_3G | EVT_WAP | EVT_CAMERA | EVT_WIFI | EVT_MP3)
 
 #define TOTAL_EVT_TIME  (30*60*1000)  /* 30 minites */
-static int event_occur = 0;	
+static int event_occur = 0;
 static unsigned int event_start_time_msec = 0;
 static unsigned int event_total_time_msec = 0;
 
 // bit[0:3]
 #define DRVINFO_CHARGER_TYPE_INVALID		0x00000001
 #define DRVINFO_CHARGER_TYPE_NONE			0x00000002
-#define DRVINFO_CHARGER_TYPE_USB_PC			0x00000004		
+#define DRVINFO_CHARGER_TYPE_USB_PC			0x00000004
 #define DRVINFO_CHARGER_TYPE_WALL			0x00000008
 #define DRVINFO_CHARGER_TYPE_CARKIT			0x00000010
 #define DRVINFO_CHARGER_TYPE_MASK			0x0000000F
 // bit[4:7]
 #define DRVINFO_CHARGER_STATUS_INVALID		0x00000010
 #define DRVINFO_CHARGER_STATUS_GOOD			0x00000020
-#define DRVINFO_CHARGER_STATUS_BAD			0x00000040		
+#define DRVINFO_CHARGER_STATUS_BAD			0x00000040
 #define DRVINFO_CHARGER_STATUS_WEAK			0x00000080
 #define DRVINFO_CHARGER_STATUS_MASK			0x000000F0
 // bit[8:15]
@@ -211,7 +211,7 @@ static unsigned int event_total_time_msec = 0;
 #define DRVINFO_BATTERY_STATUS_BAD_TEMP		0x00020000
 #define DRVINFO_BATTERY_STATUS_BAD			0x00040000
 #define DRVINFO_BATTERY_STATUS_GOOD			0x00080000
-#define DRVINFO_BATTERY_STATUS_REMOVED		0x00100000				
+#define DRVINFO_BATTERY_STATUS_REMOVED		0x00100000
 #define DRVINFO_BATTERY_STATUS_MASK			0x00FF0000
 // bit[24:31]
 #define DRVINFO_VER_MASK					0xFF000000
@@ -239,27 +239,27 @@ const int temp_table[][2] =  {
  { 1720,  -20 },
  { 1711,  -10 },
  { 1702,  0 },
- { 1644,  10 }, 
- { 1587,  30 },  
- { 1529,  50 },  
- { 1472,  70 },    
- { 1414,  100 },  
- { 1356,  130 },    
- { 1299,  150 },  
- { 1241,  170 },  
- { 1184,  200 },  
- { 1126,  230 },  
- { 1068,  250 },  
- {  1011,  270 },  
- {  953,  300 },  
- {  895,  330 },  
- {  838,  350 },  
- {  780,  370 },    
+ { 1644,  10 },
+ { 1587,  30 },
+ { 1529,  50 },
+ { 1472,  70 },
+ { 1414,  100 },
+ { 1356,  130 },
+ { 1299,  150 },
+ { 1241,  170 },
+ { 1184,  200 },
+ { 1126,  230 },
+ { 1068,  250 },
+ {  1011,  270 },
+ {  953,  300 },
+ {  895,  330 },
+ {  838,  350 },
+ {  780,  370 },
  {  730,  400 },
  {  700,  410 },
- {  695,  420 },  
+ {  695,  420 },
  {  690,  430 },
- {  650,  440 },   
+ {  650,  440 },
  {  630,  450 },
  {  580,  460 },
  {  567,  470 },
@@ -305,8 +305,8 @@ int batt_temp_adc_info = -1;
 
 #define BATT_TEMP_LPM_HIGH_BLOCK   	570  // 47`C
 #define BATT_TEMP_LPM_HIGH_RECOVER  607  // 44`C
-#define BATT_TEMP_LPM_LOW_BLOCK   	1730 	// fixed 20110730  
-#define BATT_TEMP_LPM_LOW_RECOVER  	1720 
+#define BATT_TEMP_LPM_LOW_BLOCK   	1730 	// fixed 20110730
+#define BATT_TEMP_LPM_LOW_RECOVER  	1720
 
 #define BATT_FULL_CHARGING_VOLTAGE	4183
 #define BATT_FULL_CHARGING_CURRENT	180
@@ -424,7 +424,7 @@ struct class *jig_class;
 EXPORT_SYMBOL(jig_class);
 struct device *jig_dev;
 EXPORT_SYMBOL(jig_dev);
- 
+
 static ssize_t jig_show(struct device *dev, struct device_attribute *attr, char *buf);
 static DEVICE_ATTR(jig , S_IRUGO | S_IWUSR | S_IWOTH | S_IXOTH, jig_show, NULL);
 
@@ -496,7 +496,7 @@ struct msm_battery_info {
 	u32 batt_temp_check;
 	u32 batt_full_check;
 	u32 charging_source;
-	
+
 	u32 battery_temp;		/* in celsius */
 	u32 battery_temp_adc;	/* ADC code from CP */
 	u32 chg_current_adc;	// ICHG ADC code (charging current)
@@ -545,7 +545,7 @@ struct msm_battery_info {
 	u32 mp3_state;
 	u32 device_state;	// moudles running status
 	int driver_info;	// battery driver info
-#endif	
+#endif
 };
 
 static struct msm_battery_info msm_batt_info = {
@@ -620,7 +620,7 @@ int batt_restart(void);
 static ssize_t msm_batt_show_property(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf);
-static ssize_t msm_batt_store_property(struct device *dev, 
+static ssize_t msm_batt_store_property(struct device *dev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t count);
 
@@ -646,7 +646,7 @@ static void msm_batt_update_psy_status(void);
 static DECLARE_WORK(msm_batt_work, msm_batt_check_event);
 
 static void msm_batt_delay_init(struct work_struct *work)
-{	
+{
 	int rc;
 
 //	printk("[SSAM] %s enter!\n", __func__);
@@ -662,7 +662,7 @@ static void msm_batt_delay_init(struct work_struct *work)
 	pr_info("%s: Charger/Battery = 0x%08x/0x%08x (RPC version)\n",
 		__func__, msm_batt_info.chg_api_version,
 		msm_batt_info.batt_api_version);
-	
+
 }
 
 static void batt_timeover(unsigned long arg )
@@ -709,13 +709,13 @@ static struct device_attribute ancora_battery_attrs[] = {
 	MSM_BATTERY_ATTR(call_3g),
 	MSM_BATTERY_ATTR(wap),
 	MSM_BATTERY_ATTR(camera),
-	MSM_BATTERY_ATTR(wifi),	
+	MSM_BATTERY_ATTR(wifi),
 	MSM_BATTERY_ATTR(bt),
 	MSM_BATTERY_ATTR(gps),
-	MSM_BATTERY_ATTR(mp3),	
+	MSM_BATTERY_ATTR(mp3),
 	MSM_BATTERY_ATTR(device_state),
 	MSM_BATTERY_ATTR(driver_info),
-#endif	
+#endif
 };
 
 enum {
@@ -749,7 +749,7 @@ enum {
 	MP3_STATE,
 	DEVICE_STATE,
 	DRIVER_INFO,
-#endif	
+#endif
 };
 
 static int msm_batt_create_attrs(struct device * dev)
@@ -800,7 +800,7 @@ static ssize_t msm_batt_show_property(struct device *dev,
 		case RESET_SOC :
 			i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 				fg_reset_soc());
-			break;				
+			break;
 #endif
 		case BATT_TEMP_CHECK:
 			i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
@@ -810,7 +810,7 @@ static ssize_t msm_batt_show_property(struct device *dev,
 			i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 				msm_batt_info.charging_source);
 			break;
-		case BATT_CHG_CURRENT: // ICHG ADC code (charging current)	
+		case BATT_CHG_CURRENT: // ICHG ADC code (charging current)
 			i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 				msm_batt_info.chg_current_adc);
 			break;
@@ -848,35 +848,35 @@ static ssize_t msm_batt_show_property(struct device *dev,
 #ifdef EVENT_TEMPERATURE_CONTROL
 		case CALL_2G_STATE:
 			i += scnprintf(buf + i, PAGE_SIZE - i, "0x%08x\n", msm_batt_info.call_2g_state);
-			break;			
+			break;
 		case CALL_3G_STATE:
 			i += scnprintf(buf + i, PAGE_SIZE - i, "0x%08x\n", msm_batt_info.call_3g_state);
-			break;			
+			break;
 		case WAP_STATE:
 			i += scnprintf(buf + i, PAGE_SIZE - i, "0x%08x\n", msm_batt_info.wap_state);
-			break;			
+			break;
 		case CAMERA_STATE:
 			i += scnprintf(buf + i, PAGE_SIZE - i, "0x%08x\n", msm_batt_info.camera_state);
-			break;			
+			break;
 		case WIFI_STATE:
 			i += scnprintf(buf + i, PAGE_SIZE - i, "0x%08x\n", msm_batt_info.wifi_state);
-			break;			
+			break;
 		case BT_STATE:
 			i += scnprintf(buf + i, PAGE_SIZE - i, "0x%08x\n", msm_batt_info.bt_state);
-			break;			
+			break;
 		case GPS_STATE:
 			i += scnprintf(buf + i, PAGE_SIZE - i, "0x%08x\n", msm_batt_info.gps_state);
-			break;			
+			break;
 		case MP3_STATE:
 			i += scnprintf(buf + i, PAGE_SIZE - i, "0x%08x\n", msm_batt_info.mp3_state);
-			break;			
+			break;
 		case DEVICE_STATE:
 			i += scnprintf(buf + i, PAGE_SIZE - i, "0x%08x\n", msm_batt_info.device_state);
 			break;
 		case DRIVER_INFO:
-			i += scnprintf(buf + i, PAGE_SIZE - i, "0x%08x\n", msm_batt_info.driver_info);			
+			i += scnprintf(buf + i, PAGE_SIZE - i, "0x%08x\n", msm_batt_info.driver_info);
 			break;
-#endif			
+#endif
 		default:
 			i = -EINVAL;
 	}
@@ -884,7 +884,7 @@ static ssize_t msm_batt_show_property(struct device *dev,
 	return i;
 }
 
-static ssize_t msm_batt_store_property(struct device *dev, 
+static ssize_t msm_batt_store_property(struct device *dev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t count)
 {
@@ -924,7 +924,7 @@ static ssize_t msm_batt_store_property(struct device *dev,
 		break;
 #ifdef EVENT_TEMPERATURE_CONTROL
 	case CALL_2G_STATE:
- 		if (sscanf(buf, "%d\n", &x) == 1) 
+ 		if (sscanf(buf, "%d\n", &x) == 1)
 		{
 			if (x == 1)
 			{
@@ -937,11 +937,11 @@ static ssize_t msm_batt_store_property(struct device *dev,
 				msm_batt_info.call_2g_state = 0;
 			}
 			ret = count;
-			pr_info("[BATT] %s: Changed! CALL_2G_STATE, DEVICE_STATE = 0x%x\n", __func__, msm_batt_info.device_state);			
+			pr_info("[BATT] %s: Changed! CALL_2G_STATE, DEVICE_STATE = 0x%x\n", __func__, msm_batt_info.device_state);
 		}
 		break;
 	case CALL_3G_STATE:
- 		if (sscanf(buf, "%d\n", &x) == 1) 
+ 		if (sscanf(buf, "%d\n", &x) == 1)
 		{
 			if (x == 1)
 			{
@@ -954,11 +954,11 @@ static ssize_t msm_batt_store_property(struct device *dev,
 				msm_batt_info.call_3g_state = 0;
 			}
 			ret = count;
-			pr_info("[BATT] %s: Changed! CALL_3G_STATE, DEVICE_STATE = 0x%x\n", __func__, msm_batt_info.device_state);			
-		}		
-		break;		
+			pr_info("[BATT] %s: Changed! CALL_3G_STATE, DEVICE_STATE = 0x%x\n", __func__, msm_batt_info.device_state);
+		}
+		break;
 	case WAP_STATE:
- 		if (sscanf(buf, "%d\n", &x) == 1) 
+ 		if (sscanf(buf, "%d\n", &x) == 1)
 		{
 			if (x == 1)
 			{
@@ -971,11 +971,11 @@ static ssize_t msm_batt_store_property(struct device *dev,
 				msm_batt_info.wap_state = 0;
 			}
 			ret = count;
-			pr_info("[BATT] %s: Changed! WAP_STATE, DEVICE_STATE = 0x%x\n", __func__, msm_batt_info.device_state);			
-		}		
-		break;		
+			pr_info("[BATT] %s: Changed! WAP_STATE, DEVICE_STATE = 0x%x\n", __func__, msm_batt_info.device_state);
+		}
+		break;
 	case CAMERA_STATE:
- 		if (sscanf(buf, "%d\n", &x) == 1) 
+ 		if (sscanf(buf, "%d\n", &x) == 1)
 		{
 			if (x == 1)
 			{
@@ -988,11 +988,11 @@ static ssize_t msm_batt_store_property(struct device *dev,
 				msm_batt_info.camera_state = 0;
 			}
 			ret = count;
-			pr_info("[BATT] %s: Changed! CAMERA_STATE, DEVICE_STATE = 0x%x\n", __func__, msm_batt_info.device_state);			
-		}		
-		break;		
+			pr_info("[BATT] %s: Changed! CAMERA_STATE, DEVICE_STATE = 0x%x\n", __func__, msm_batt_info.device_state);
+		}
+		break;
 	case WIFI_STATE:
- 		if (sscanf(buf, "%d\n", &x) == 1) 
+ 		if (sscanf(buf, "%d\n", &x) == 1)
 		{
 			if (x == 1)
 			{
@@ -1005,11 +1005,11 @@ static ssize_t msm_batt_store_property(struct device *dev,
 				msm_batt_info.wifi_state= 0;
 			}
 			ret = count;
-			pr_info("[BATT] %s: Changed! WIFI_STATE, DEVICE_STATE = 0x%x\n", __func__, msm_batt_info.device_state);			
-		}		
-		break;		
+			pr_info("[BATT] %s: Changed! WIFI_STATE, DEVICE_STATE = 0x%x\n", __func__, msm_batt_info.device_state);
+		}
+		break;
 	case BT_STATE:
- 		if (sscanf(buf, "%d\n", &x) == 1) 
+ 		if (sscanf(buf, "%d\n", &x) == 1)
 		{
 			if (x == 1)
 			{
@@ -1022,11 +1022,11 @@ static ssize_t msm_batt_store_property(struct device *dev,
 				msm_batt_info.bt_state= 0;
 			}
 			ret = count;
-			pr_info("[BATT] %s: Changed! BT_STATE, DEVICE_STATE = 0x%x\n", __func__, msm_batt_info.device_state);			
-		}		
-		break;		
+			pr_info("[BATT] %s: Changed! BT_STATE, DEVICE_STATE = 0x%x\n", __func__, msm_batt_info.device_state);
+		}
+		break;
 	case GPS_STATE:
- 		if (sscanf(buf, "%d\n", &x) == 1) 
+ 		if (sscanf(buf, "%d\n", &x) == 1)
 		{
 			if (x == 1)
 			{
@@ -1039,11 +1039,11 @@ static ssize_t msm_batt_store_property(struct device *dev,
 				msm_batt_info.gps_state= 0;
 			}
 			ret = count;
-			pr_info("[BATT] %s: Changed! GPS_STATE, DEVICE_STATE = 0x%x\n", __func__, msm_batt_info.device_state);			
-		}		
-		break;		
+			pr_info("[BATT] %s: Changed! GPS_STATE, DEVICE_STATE = 0x%x\n", __func__, msm_batt_info.device_state);
+		}
+		break;
 	case MP3_STATE:
- 		if (sscanf(buf, "%d\n", &x) == 1) 
+ 		if (sscanf(buf, "%d\n", &x) == 1)
 		{
 			if (x == 1)
 			{
@@ -1056,10 +1056,10 @@ static ssize_t msm_batt_store_property(struct device *dev,
 				msm_batt_info.mp3_state= 0;
 			}
 			ret = count;
-			pr_info("[BATT] %s: Changed! MP3_STATE, DEVICE_STATE = 0x%x\n", __func__, msm_batt_info.device_state);			
-		}		
-		break;		
-#endif		
+			pr_info("[BATT] %s: Changed! MP3_STATE, DEVICE_STATE = 0x%x\n", __func__, msm_batt_info.device_state);
+		}
+		break;
+#endif
 	default:
 		return -EINVAL;
 	}	/* end of switch */
@@ -1072,7 +1072,7 @@ static int msm_power_get_property(struct power_supply *psy,
 				  enum power_supply_property psp,
 				  union power_supply_propval *val)
 {
-	
+
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 		if (psy->type == POWER_SUPPLY_TYPE_MAINS) {
@@ -1137,14 +1137,14 @@ static u32 get_voltage_from_fuelgauge(void)
 {
 	if (is_attached)
 		return (fg_read_vcell());	// +0 (voltage drop compensation)
-	return 3700;	// default 
+	return 3700;	// default
 }
 
 static u32 get_level_from_fuelgauge(void)
 {
 	if (is_attached)
 		return fg_read_soc();
-	return 100;	// default 
+	return 100;	// default
 }
 #endif
 
@@ -1152,7 +1152,7 @@ static int msm_batt_power_get_property(struct power_supply *psy,
 				       enum power_supply_property psp,
 				       union power_supply_propval *val)
 {
-	
+
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = msm_batt_info.batt_status;
@@ -1191,7 +1191,7 @@ static int msm_batt_power_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_BATT_TEMP_ADC:
 		val->intval = msm_batt_info.battery_temp_adc;
-		break;		
+		break;
 	case POWER_SUPPLY_PROP_BATT_VOL:
 		val->intval = msm_batt_info.battery_voltage;
 		break;
@@ -1200,19 +1200,19 @@ static int msm_batt_power_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_BATT_VF_ADC:
 //		val->intval = msm_batt_info.battery_vf;
-		break;		
+		break;
 	case POWER_SUPPLY_PROP_BATT_VOL_ADC_AVER:
 #ifdef EVENT_TEMPERATURE_CONTROL
-		val->intval = msm_batt_info.driver_info;		
+		val->intval = msm_batt_info.driver_info;
 #else
 		val->intval = msm_batt_info.battery_level;
-#endif		
+#endif
 		break;
 	case POWER_SUPPLY_PROP_BATT_TEMP_ADC_AVER:
 		val->intval = msm_batt_info.battery_temp;
 		break;
 	case POWER_SUPPLY_PROP_BATT_VOL_AVER:
-#ifdef EVENT_TEMPERATURE_CONTROL		
+#ifdef EVENT_TEMPERATURE_CONTROL
 		val->intval = msm_batt_info.device_state;
 #else
 		val->intval = msm_batt_info.battery_voltage;
@@ -1245,7 +1245,7 @@ struct timer_list fg_alert_timer;
 extern int (*fg_alert_handler)(int);
 static void fg_set_alert_ext(unsigned long arg)
 {
-	
+
 	if (msm_batt_info.charging_source == NO_CHG)
 	{
 		pr_info("[BATT] %s: low battery, power off...\n", __func__);
@@ -1258,10 +1258,10 @@ static void fg_set_alert_ext(unsigned long arg)
 
 static int fg_set_alert(int value)
 {
-	
+
 	if (value)
 	{
-		is_alert = 
+		is_alert =
 		mod_timer(&fg_alert_timer, (jiffies + (1 * TIME_UNIT_MINUTE)));
 //		is_alert = 1;
 //		wake_lock_timeout(&vbus_wake_lock, 30 * TIME_UNIT_SECOND);
@@ -1280,12 +1280,12 @@ static int fg_set_alert(int value)
 
 static void msm_batt_chg_en(chg_enable_type enable)
 {
-#ifdef CONFIG_CHARGER_SMB328A	
+#ifdef CONFIG_CHARGER_SMB328A
 	struct power_supply *psy = power_supply_get_by_name("smb328a-charger");
    	union power_supply_propval val_type, val_chg_current, val_topoff;
 	int ret;
 #endif
-	
+
 	if (enable == START_CHARGING)
 	{
 		if (msm_batt_info.charging_source == NO_CHG)	// *Note: DO NOT USE "&" operation for NO_CHG (0x0), it returns FALSE always.
@@ -1315,7 +1315,7 @@ static void msm_batt_chg_en(chg_enable_type enable)
 		{
 			pr_info("[BATT] %s: Start charging! (charging_source = USB)\n", __func__);
 			hsusb_chg_connected_ext(USB_CHG_TYPE__SDP);
-	
+
 			if (board_hw_revision >= CONFIG_HW_REV_USING_SMB328)
 				val_chg_current.intval = 450;
 			else
@@ -1323,11 +1323,11 @@ static void msm_batt_chg_en(chg_enable_type enable)
 		}
 
 		msm_batt_set_charging_start_time(START_CHARGING);
-	
+
 		if (board_hw_revision >= CONFIG_HW_REV_USING_SMB328)
 		{
 			val_type.intval = POWER_SUPPLY_STATUS_CHARGING;
-			
+
 			/* Step1. */
 			/* Set charging current */
  			ret = psy->set_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW,
@@ -1358,7 +1358,7 @@ static void msm_batt_chg_en(chg_enable_type enable)
 		 		return ret;
 		 	}
 		}
-		
+
 #ifdef MAX17043_FUEL_GAUGE
 		fg_set_alert(0);
 #endif
@@ -1372,7 +1372,7 @@ static void msm_batt_chg_en(chg_enable_type enable)
 			if(board_hw_revision >= CONFIG_HW_REV_USING_SMB328)
 			{
 				val_type.intval = POWER_SUPPLY_STATUS_DISCHARGING;
-				
+
 				ret = psy->set_property(psy, POWER_SUPPLY_PROP_STATUS, &val_type);
 				if (ret) {
 					printk("[BATT] %s: fail to set charging status(%d)\n",
@@ -1388,7 +1388,7 @@ static void msm_batt_chg_en(chg_enable_type enable)
 			if(board_hw_revision >= CONFIG_HW_REV_USING_SMB328)
 			{
 				val_type.intval = POWER_SUPPLY_STATUS_DISCHARGING;
-				
+
 				ret = psy->set_property(psy, POWER_SUPPLY_PROP_STATUS, &val_type);
 				if (ret) {
 					printk("[BATT] %s: fail to set charging status(%d)\n",
@@ -1399,7 +1399,7 @@ static void msm_batt_chg_en(chg_enable_type enable)
 			else
 				hsusb_chg_vbus_draw_ext(0); // discharging
 		}
-		
+
 		msm_batt_average_chg_current(-1);	// Initialize all current data sampling
 
 		pr_info("[BATT] %s: Stop charging! (charging_source = 0x%x, full_check = %d)\n",
@@ -1414,7 +1414,7 @@ static int msm_batt_average_chg_current(int chg_current_adc)
 	static int index = 0;
 	int i, sum, max, min, ret;
 
-	
+
 
 	if (chg_current_adc == 0)
 		return 0;
@@ -1638,8 +1638,8 @@ static int is_over_event_time(void)
 #ifdef __AUTO_TEMP_TEST__
 	total_time = 90 * 1000;	// 90sec
 #else
-	total_time = TOTAL_EVT_TIME;	
-#endif		
+	total_time = TOTAL_EVT_TIME;
+#endif
 
 	if(jiffies_to_msecs(jiffies) >= event_start_time_msec)
 	{
@@ -1654,7 +1654,7 @@ static int is_over_event_time(void)
 	{
 		pr_info("[BATT] %s : evt time is over! event_start_time_msec=%u, event_total_time_msec=%u\n", __func__, event_start_time_msec, event_total_time_msec);
 		return 1;
-	}	
+	}
 	else
 	{
 		return 0;
@@ -1754,7 +1754,7 @@ static int msm_batt_control_temperature(int temp_adc)
 		return 0;
 
 	// check event status
-	if (msm_batt_info.device_state & EVT_CASE) 
+	if (msm_batt_info.device_state & EVT_CASE)
 	{
 		if (!event_occur)
 		{
@@ -1771,7 +1771,7 @@ static int msm_batt_control_temperature(int temp_adc)
 			{
 				sec_set_time_for_event(0);
 				event_occur=0;
-				pr_info("[BATT] %s : EVT time over! device_state = 0x%x\n", __func__, msm_batt_info.device_state);				
+				pr_info("[BATT] %s : EVT time over! device_state = 0x%x\n", __func__, msm_batt_info.device_state);
 			}
 		}
 	}
@@ -1781,23 +1781,23 @@ static int msm_batt_control_temperature(int temp_adc)
 		high_block = BATT_TEMP_LPM_HIGH_BLOCK;
 		high_recover = BATT_TEMP_LPM_HIGH_RECOVER;
 		low_block = BATT_TEMP_LPM_LOW_BLOCK;
-		low_recover = BATT_TEMP_LPM_LOW_RECOVER;			
+		low_recover = BATT_TEMP_LPM_LOW_RECOVER;
 	}
 	else
 	{
-  	if (event_occur) 
+  	if (event_occur)
 	{
 		high_block = BATT_TEMP_EVT_HIGH_BLOCK;
 		high_recover = BATT_TEMP_EVT_HIGH_RECOVER;
 			low_block = BATT_TEMP_EVT_LOW_BLOCK;
-			low_recover = BATT_TEMP_EVT_LOW_RECOVER;		
+			low_recover = BATT_TEMP_EVT_LOW_RECOVER;
 	}
 	else
 	{
 		high_block = BATT_TEMP_HIGH_BLOCK;
 		high_recover = BATT_TEMP_HIGH_RECOVER;
 		low_block = BATT_TEMP_LOW_BLOCK;
-		low_recover = BATT_TEMP_LOW_RECOVER;	
+		low_recover = BATT_TEMP_LOW_RECOVER;
 	}
 	}
 
@@ -1805,7 +1805,7 @@ static int msm_batt_control_temperature(int temp_adc)
 	static unsigned int auto_test_start_time = 0;
 	static unsigned int auto_test_interval = (1 * TIME_UNIT_MINUTE);
 	static int auto_test_mode = 0;	// 0:normal, 1:overheat, 2:normal, 3:cold, 4:normal, 5:evt_overheat, 6:overheat_abs_doing
- 		
+
 	if (msm_batt_info.charging_source != NO_CHG)	// charging
 	{
 		if (auto_test_start_time == 0)
@@ -1820,45 +1820,45 @@ static int msm_batt_control_temperature(int temp_adc)
 
 		if (auto_test_mode == 1 )
 		{
-			msm_batt_info.device_state = 0;				
+			msm_batt_info.device_state = 0;
 			temp_adc = high_block - 1;
 			msm_batt_info.battery_temp_adc = temp_adc;
 		}
 		else if (auto_test_mode == 3)
 		{
-			msm_batt_info.device_state = 0;						
+			msm_batt_info.device_state = 0;
 			temp_adc = low_block + 1;
 			msm_batt_info.battery_temp_adc = temp_adc;
-		}		
+		}
 		else if ( auto_test_mode == 5 )
 		{
-			msm_batt_info.device_state = 0xFF;		
+			msm_batt_info.device_state = 0xFF;
 			temp_adc = high_block - 1;	// evt over heat
-			msm_batt_info.battery_temp_adc = temp_adc;		
+			msm_batt_info.battery_temp_adc = temp_adc;
 		}
 		else if ( auto_test_mode == 6 )
 		{
-			msm_batt_info.device_state = 0;		
+			msm_batt_info.device_state = 0;
 			temp_adc = high_block - 1;	// over heat
-			msm_batt_info.battery_temp_adc = temp_adc;		
-		}		
+			msm_batt_info.battery_temp_adc = temp_adc;
+		}
 
-		pr_debug("[BATT] auto test mode= %d (0:normal, 1:overheat, 2:normal, 3:cold, 4:normal, 5:evt_overheat, 6:overheat_abs_doing)\n", auto_test_mode);		
-		pr_debug("[BATT] event_occur= %d, high_block= %d, high_recover= %d, low_block= %d, low_recover= %d\n", event_occur, high_block, high_recover, low_block, low_recover);				
+		pr_debug("[BATT] auto test mode= %d (0:normal, 1:overheat, 2:normal, 3:cold, 4:normal, 5:evt_overheat, 6:overheat_abs_doing)\n", auto_test_mode);
+		pr_debug("[BATT] event_occur= %d, high_block= %d, high_recover= %d, low_block= %d, low_recover= %d\n", event_occur, high_block, high_recover, low_block, low_recover);
 
 	}
 	else	// not charging
 	{
 		auto_test_start_time = 0;
 		auto_test_mode = 0;
-		pr_debug("[BATT] auto test mode = %d, Can not found charger! please connect charger!\n", auto_test_mode);				
+		pr_debug("[BATT] auto test mode = %d, Can not found charger! please connect charger!\n", auto_test_mode);
 	}
 #endif
 
 	// map in celcius degree
 	array_size = ARRAY_SIZE(temp_table);
 	for (i = 0; i <= (array_size - 1); i++)
-	{		
+	{
 		if (i == 0)
 		{
 			if (temp_adc >= temp_table[0][0])
@@ -1897,7 +1897,7 @@ static int msm_batt_control_temperature(int temp_adc)
 	else if ((temp_adc >= high_recover) && (temp_adc <= low_recover))
 	{
 		// low recover ~ high recover (normal)
-		if ( (prev_health == POWER_SUPPLY_HEALTH_OVERHEAT) || 
+		if ( (prev_health == POWER_SUPPLY_HEALTH_OVERHEAT) ||
 			(prev_health == POWER_SUPPLY_HEALTH_COLD) )
 			new_health = POWER_SUPPLY_HEALTH_GOOD;
 	}
@@ -1948,7 +1948,7 @@ static int msm_batt_control_temperature(int temp_adc)
 		}
 
 		msm_batt_info.batt_health = new_health;
-	}	
+	}
 
 
 #else // #else of EVENT_TEMPERATURE_CONTROL
@@ -1960,7 +1960,7 @@ static int msm_batt_control_temperature(int temp_adc)
 	int i;
 	int degree;
 
- 
+
 	static char *health_text[] = {
 		"Unknown", "Good", "Overheat", "Dead", "Over voltage",
 		"Unspecified failure", "Cold",
@@ -1973,7 +1973,7 @@ static int msm_batt_control_temperature(int temp_adc)
 	static unsigned int auto_test_start_time = 0;
 	static unsigned int auto_test_interval = (2 * TIME_UNIT_MINUTE);
 	static int auto_test_mode = 0;	// 0: normal (recover cold), 1: force overheat, 2: normal (recover overheat), 3: force cold
- 		
+
 	if (msm_batt_info.charging_source != NO_CHG)	// charging
 	{
 		if (auto_test_start_time == 0)
@@ -2008,7 +2008,7 @@ static int msm_batt_control_temperature(int temp_adc)
 	// map in celcius degree
 	array_size = ARRAY_SIZE(temp_table);
 	for (i = 0; i <= (array_size - 1); i++)
-	{		
+	{
 		if (i == 0)
 		{
 			if (temp_adc >= temp_table[0][0])
@@ -2047,7 +2047,7 @@ static int msm_batt_control_temperature(int temp_adc)
 	else if ((temp_adc >= BATT_TEMP_HIGH_RECOVER) && (temp_adc <= BATT_TEMP_LOW_RECOVER))
 	{
 		// low recover ~ high recover (normal)
-		if ( (prev_health == POWER_SUPPLY_HEALTH_OVERHEAT) || 
+		if ( (prev_health == POWER_SUPPLY_HEALTH_OVERHEAT) ||
 			(prev_health == POWER_SUPPLY_HEALTH_COLD) )
 			new_health = POWER_SUPPLY_HEALTH_GOOD;
 	}
@@ -2099,7 +2099,7 @@ static int msm_batt_control_temperature(int temp_adc)
 
 		msm_batt_info.batt_health = new_health;
 	}
-	
+
 #endif // #endif of EVENT_TEMPERATURE_CONTROL
 
 	return 1;
@@ -2252,7 +2252,7 @@ static void msm_batt_update_psy_status(void)
 	u32 wc_adc;
 #endif
 
-#ifdef CONFIG_CHARGER_SMB328A	
+#ifdef CONFIG_CHARGER_SMB328A
 	struct power_supply *psy = power_supply_get_by_name("smb328a-charger");
 	union power_supply_propval val_status;
 	int ret;
@@ -2310,10 +2310,10 @@ static void msm_batt_update_psy_status(void)
 		{
             printk("[BATT] wrong battery detected!!\n");
 			msm_batt_info.batt_health = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
-			
+
 			return;
 		}
-		
+
 #ifdef BATTERY_CHECK_OVP
     /* resume charging scenario */
     if (msm_batt_resume_ovp_chg() == 1){
@@ -2367,7 +2367,7 @@ static void msm_batt_update_psy_status(void)
 
 	/* check temperature */
 //	msm_batt_info.battery_temp_adc = msm_batt_average_temperature(battery_temp_adc);
-	
+
 
 	status_changed += msm_batt_control_temperature(msm_batt_info.battery_temp_adc);
 
@@ -2405,31 +2405,31 @@ static void msm_batt_update_psy_status(void)
 				case CHARGER_TYPE_NONE:       { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_CHARGER_TYPE_MASK) | DRVINFO_CHARGER_TYPE_NONE;    } break;
 				case CHARGER_TYPE_USB_WALL:   { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_CHARGER_TYPE_MASK) | DRVINFO_CHARGER_TYPE_WALL;    } break;
 				case CHARGER_TYPE_USB_PC:     { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_CHARGER_TYPE_MASK) | DRVINFO_CHARGER_TYPE_USB_PC;  } break;
-				case CHARGER_TYPE_USB_CARKIT: { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_CHARGER_TYPE_MASK) | DRVINFO_CHARGER_TYPE_CARKIT;  } break;				
+				case CHARGER_TYPE_USB_CARKIT: { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_CHARGER_TYPE_MASK) | DRVINFO_CHARGER_TYPE_CARKIT;  } break;
 				default:                      { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_CHARGER_TYPE_MASK) | DRVINFO_CHARGER_TYPE_INVALID; } break;
-			}			
+			}
 			switch (battery_status)
 			{
 				case BATTERY_STATUS_GOOD:     { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_BATTERY_STATUS_MASK) | DRVINFO_BATTERY_STATUS_GOOD;    } break;
 				case BATTERY_STATUS_BAD_TEMP: { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_BATTERY_STATUS_MASK) | DRVINFO_BATTERY_STATUS_BAD_TEMP;    } break;
 				case BATTERY_STATUS_BAD:      { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_BATTERY_STATUS_MASK) | DRVINFO_BATTERY_STATUS_BAD;  } break;
-				case BATTERY_STATUS_REMOVED:  { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_BATTERY_STATUS_MASK) | DRVINFO_BATTERY_STATUS_REMOVED;    } break;				
+				case BATTERY_STATUS_REMOVED:  { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_BATTERY_STATUS_MASK) | DRVINFO_BATTERY_STATUS_REMOVED;    } break;
 				default:                      { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_BATTERY_STATUS_MASK) | DRVINFO_BATTERY_STATUS_INVALID; } break;
-			}		
+			}
 			switch (msm_batt_info.batt_status)
 			{
 				case POWER_SUPPLY_STATUS_CHARGING:
-				{ 
+				{
 					if (msm_batt_info.batt_recharging==1)
-						msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_CHARGING_PHASE_MASK) | DRVINFO_CHARGING_PHASE_RECHARGING;    					
+						msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_CHARGING_PHASE_MASK) | DRVINFO_CHARGING_PHASE_RECHARGING;
 					else
-						msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_CHARGING_PHASE_MASK) | DRVINFO_CHARGING_PHASE_CHARGING;    					
-				} 
+						msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_CHARGING_PHASE_MASK) | DRVINFO_CHARGING_PHASE_CHARGING;
+				}
 					break;
 				case POWER_SUPPLY_STATUS_NOT_CHARGING: { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_CHARGING_PHASE_MASK) | DRVINFO_CHARGING_PHASE_NOT_CHARGING; } break;
 				case POWER_SUPPLY_STATUS_DISCHARGING:  { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_CHARGING_PHASE_MASK) | DRVINFO_CHARGING_PHASE_DIS_CHARGING; } break;
-				case POWER_SUPPLY_STATUS_FULL:         { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_CHARGING_PHASE_MASK) | DRVINFO_CHARGING_PHASE_FULL;         } break;				
-				default:                               { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_CHARGING_PHASE_MASK) | DRVINFO_CHARGING_PHASE_INVALID;      } break;				
+				case POWER_SUPPLY_STATUS_FULL:         { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_CHARGING_PHASE_MASK) | DRVINFO_CHARGING_PHASE_FULL;         } break;
+				default:                               { msm_batt_info.driver_info = (msm_batt_info.driver_info & ~DRVINFO_CHARGING_PHASE_MASK) | DRVINFO_CHARGING_PHASE_INVALID;      } break;
 			}
 			if ( BATT_DRV_VER )
 			{
@@ -2442,8 +2442,8 @@ static void msm_batt_update_psy_status(void)
 #ifdef BATTERY_CHECK_OVP
 		pr_info("[BATT] mode= %s, chgr_type=%s, batt_status=%s, batt_volt=%d%s, batt_capacity=%d%%, chg_phase=%s, temp_adc=%d(%d), curr_adc=%d, wc_adc=%d, device_state=0x%x, driver_info=0x%x, bat_ovp=%d,%d\n",
 			(charging_boot == 1)?"PWR-OFF":"PWR-ON",
-			(msm_batt_info.charger_type==CHARGER_TYPE_NONE)?"NONE":(msm_batt_info.charger_type==CHARGER_TYPE_WALL)?"WALL":(msm_batt_info.charger_type==CHARGER_TYPE_USB_PC)?"USB_PC":(msm_batt_info.charger_type==CHARGER_TYPE_USB_WALL)?"USB_WALL":(msm_batt_info.charger_type==CHARGER_TYPE_USB_CARKIT)?"USB_CARKIT":"INVALID", 
-			(msm_batt_info.batt_health==BATTERY_STATUS_GOOD)?"OK":(msm_batt_info.batt_health==BATTERY_STATUS_BAD_TEMP)?"TEMP":(msm_batt_info.batt_health==BATTERY_STATUS_BAD)?"BAD":(msm_batt_info.batt_health==BATTERY_STATUS_REMOVED)?"REMOVED":"INVALID", 
+			(msm_batt_info.charger_type==CHARGER_TYPE_NONE)?"NONE":(msm_batt_info.charger_type==CHARGER_TYPE_WALL)?"WALL":(msm_batt_info.charger_type==CHARGER_TYPE_USB_PC)?"USB_PC":(msm_batt_info.charger_type==CHARGER_TYPE_USB_WALL)?"USB_WALL":(msm_batt_info.charger_type==CHARGER_TYPE_USB_CARKIT)?"USB_CARKIT":"INVALID",
+			(msm_batt_info.batt_health==BATTERY_STATUS_GOOD)?"OK":(msm_batt_info.batt_health==BATTERY_STATUS_BAD_TEMP)?"TEMP":(msm_batt_info.batt_health==BATTERY_STATUS_BAD)?"BAD":(msm_batt_info.batt_health==BATTERY_STATUS_REMOVED)?"REMOVED":"INVALID",
 			msm_batt_info.battery_voltage,
 			msm_batt_info.batt_capacity,
 			((msm_batt_info.batt_status==POWER_SUPPLY_STATUS_CHARGING)&&(msm_batt_info.batt_recharging==1))?"RE-CHARGING": \
@@ -2452,17 +2452,17 @@ static void msm_batt_update_psy_status(void)
 				(msm_batt_info.batt_status==POWER_SUPPLY_STATUS_DISCHARGING)?"DIS-CHARGING": \
 				(msm_batt_info.batt_status==POWER_SUPPLY_STATUS_FULL)?"FULL": \
 				(msm_batt_info.batt_status==POWER_SUPPLY_STATUS_UNKNOWN)?"UNKNOWN":"INVALID",
-			msm_batt_info.battery_temp_adc, 
+			msm_batt_info.battery_temp_adc,
 			msm_batt_info.battery_temp,
-			msm_batt_info.chg_current_adc, 
+			msm_batt_info.chg_current_adc,
 			msm_batt_info.wc_adc,
 			msm_batt_info.device_state,
 			msm_batt_info.driver_info,  msm_batt_info.batt_ovp_chg_block);
 #else
 		pr_info("[BATT] mode= %s, chgr_type=%s, batt_status=%s, batt_volt=%d%s, batt_capacity=%d%%, chg_phase=%s, temp_adc=%d(%d), curr_adc=%d, wc_adc=%d, device_state=0x%x, driver_info=0x%x\n",
 			(charging_boot == 1)?"PWR-OFF":"PWR-ON",
-			(msm_batt_info.charger_type==CHARGER_TYPE_NONE)?"NONE":(msm_batt_info.charger_type==CHARGER_TYPE_WALL)?"WALL":(msm_batt_info.charger_type==CHARGER_TYPE_USB_PC)?"USB_PC":(msm_batt_info.charger_type==CHARGER_TYPE_USB_WALL)?"USB_WALL":(msm_batt_info.charger_type==CHARGER_TYPE_USB_CARKIT)?"USB_CARKIT":"INVALID", 
-			(msm_batt_info.batt_health==BATTERY_STATUS_GOOD)?"OK":(msm_batt_info.batt_health==BATTERY_STATUS_BAD_TEMP)?"TEMP":(msm_batt_info.batt_health==BATTERY_STATUS_BAD)?"BAD":(msm_batt_info.batt_health==BATTERY_STATUS_REMOVED)?"REMOVED":"INVALID", 
+			(msm_batt_info.charger_type==CHARGER_TYPE_NONE)?"NONE":(msm_batt_info.charger_type==CHARGER_TYPE_WALL)?"WALL":(msm_batt_info.charger_type==CHARGER_TYPE_USB_PC)?"USB_PC":(msm_batt_info.charger_type==CHARGER_TYPE_USB_WALL)?"USB_WALL":(msm_batt_info.charger_type==CHARGER_TYPE_USB_CARKIT)?"USB_CARKIT":"INVALID",
+			(msm_batt_info.batt_health==BATTERY_STATUS_GOOD)?"OK":(msm_batt_info.batt_health==BATTERY_STATUS_BAD_TEMP)?"TEMP":(msm_batt_info.batt_health==BATTERY_STATUS_BAD)?"BAD":(msm_batt_info.batt_health==BATTERY_STATUS_REMOVED)?"REMOVED":"INVALID",
 			msm_batt_info.battery_voltage,
 			msm_batt_info.batt_capacity,
 			((msm_batt_info.batt_status==POWER_SUPPLY_STATUS_CHARGING)&&(msm_batt_info.batt_recharging==1))?"RE-CHARGING": \
@@ -2471,9 +2471,9 @@ static void msm_batt_update_psy_status(void)
 				(msm_batt_info.batt_status==POWER_SUPPLY_STATUS_DISCHARGING)?"DIS-CHARGING": \
 				(msm_batt_info.batt_status==POWER_SUPPLY_STATUS_FULL)?"FULL": \
 				(msm_batt_info.batt_status==POWER_SUPPLY_STATUS_UNKNOWN)?"UNKNOWN":"INVALID",
-			msm_batt_info.battery_temp_adc, 
+			msm_batt_info.battery_temp_adc,
 			msm_batt_info.battery_temp,
-			msm_batt_info.chg_current_adc, 
+			msm_batt_info.chg_current_adc,
 			msm_batt_info.wc_adc,
 			msm_batt_info.device_state,
 			msm_batt_info.driver_info);
@@ -2491,7 +2491,7 @@ static void msm_batt_update_psy_status(void)
 #endif
 		}
 #endif
-      
+
 }
 	if (status_changed)
 	{
@@ -2540,7 +2540,7 @@ static int msm_batt_modify_client_arg_func(struct msm_rpc_client *batt_client,
 	u32 *req = (u32 *)buf;
 	int size = 0;
 
-	
+
 
 	*req = cpu_to_be32(batt_modify_client_req->client_handle);
 	size += sizeof(u32);
@@ -2569,7 +2569,7 @@ static int msm_batt_modify_client_ret_func(struct msm_rpc_client *batt_client,
 {
 	struct  batt_modify_client_rep *data_ptr, *buf_ptr;
 
-	
+
 
 	data_ptr = (struct batt_modify_client_rep *)data;
 	buf_ptr = (struct batt_modify_client_rep *)buf;
@@ -2878,7 +2878,7 @@ static int msm_batt_deregister_ret_func(struct msm_rpc_client *batt_client,
 {
 	struct batt_client_deregister_rep *data_ptr, *buf_ptr;
 
-	
+
 
 	data_ptr = (struct batt_client_deregister_rep *)data;
 	buf_ptr = (struct batt_client_deregister_rep *)buf;
@@ -3015,7 +3015,7 @@ static void msm_batt_cable_status_update(void)
 		msm_batt_unhandled_interrupt = 0;
 }
 
-static int msm_batt_suspend(struct platform_device *pdev, 
+static int msm_batt_suspend(struct platform_device *pdev,
 		pm_message_t state)
 {
 	pr_debug("[BATT] %s\n",__func__);
@@ -3027,7 +3027,7 @@ static int msm_batt_suspend(struct platform_device *pdev,
 static int msm_batt_resume(struct platform_device *pdev)
 {
 	pr_debug("[BATT] %s\n",__func__);
-	queue_work(msm_batt_info.msm_batt_wq, &msm_batt_work);	
+	queue_work(msm_batt_info.msm_batt_wq, &msm_batt_work);
 	mod_timer(&msm_batt_info.timer, (jiffies + BATT_CHECK_INTERVAL));
 
 	return 0;
@@ -3035,7 +3035,7 @@ static int msm_batt_resume(struct platform_device *pdev)
 
 int batt_restart(void)
 {
-	
+
 	if (msm_batt_driver_init)
 	{
 		msm_batt_cable_status_update();
@@ -3246,7 +3246,7 @@ static irqreturn_t wc_detect_irq_handler(int irq, void *data)
 {
 	int wc_detect = msm_batt_get_wireless_status();
 
-	
+
 	pr_info("[BATT] %s: WC_DETECT = (%d)\n", __func__, wc_detect);
 
 	if (wc_detect == msm_batt_info.batt_wireless)	// wireless status is not changed...
@@ -3261,7 +3261,7 @@ static irqreturn_t wc_detect_irq_handler(int irq, void *data)
 
 static void msm_batt_set_charging_start_time(chg_enable_type enable)
 {
-	
+
 	if (enable == START_CHARGING)
 	{
 		charging_start_time = jiffies;
@@ -3291,11 +3291,11 @@ static int msm_batt_is_over_abs_time(void)
 		total_time = TOTAL_CHARGING_TIME;
 	}
 
-	if (time_after((unsigned long)jiffies, (unsigned long)(charging_start_time + total_time))) 
-	{ 	 
+	if (time_after((unsigned long)jiffies, (unsigned long)(charging_start_time + total_time)))
+	{
 		pr_debug("[BATT] %s: abs time is over !! \n", __func__);
 		return 1;
-	} 
+	}
 	else
 	{
 		return 0;
@@ -3371,7 +3371,7 @@ static int check_quick_start(void)
 
 
 	/* get soc. */
-	soc_raw = fg_read_raw_soc(); 
+	soc_raw = fg_read_raw_soc();
 
 
 
@@ -3552,7 +3552,7 @@ static int __devinit msm_batt_probe(struct platform_device *pdev)
 	fg_alert_handler = fg_set_alert;
 #endif
 
-#endif 
+#endif
 
 	/* sys fs */
 	jig_class = class_create(THIS_MODULE, "jig");
@@ -3564,7 +3564,7 @@ static int __devinit msm_batt_probe(struct platform_device *pdev)
 		pr_err("Failed to create device(jig)!\n");
 
 	if (device_create_file(jig_dev, &dev_attr_jig) < 0)
-		pr_err("Failed to create device file(%s)!\n", dev_attr_jig.attr.name); 
+		pr_err("Failed to create device file(%s)!\n", dev_attr_jig.attr.name);
 	/* sys fs */
 
 	msm_batt_driver_init = 1;
@@ -3575,7 +3575,7 @@ static int __devinit msm_batt_probe(struct platform_device *pdev)
 #ifdef EVENT_TEMPERATURE_CONTROL
 	if ( charging_boot )
 	{
-		pr_debug("[BATT] %s : *** Enabled Back Charging Mode ***\n", __func__);	
+		pr_debug("[BATT] %s : *** Enabled Back Charging Mode ***\n", __func__);
 	}
 	pr_debug("[BATT] %s : High block=(%dadc), High recover=(%dadc), Low block=(%dadc), Low recover=(%dadc), Event High block=(%dadc), Event High recover=(%dadc), LPM High block=(%dadc), LPM High recover=(%dadc)\n", \
 		__func__, BATT_TEMP_HIGH_BLOCK, BATT_TEMP_HIGH_RECOVER, BATT_TEMP_LOW_BLOCK, BATT_TEMP_LOW_RECOVER, \
@@ -3583,7 +3583,7 @@ static int __devinit msm_batt_probe(struct platform_device *pdev)
 #endif
 
 	pr_debug("[BATT] %s : success!\n", __func__);
-	
+
 	return 0;
 }
 
@@ -3630,7 +3630,7 @@ static int __devinit msm_batt_init_rpc(void)
 	if (board_hw_revision < CONFIG_HW_REV_USING_SMB328)
 	{
 		msm_batt_info.msm_batt_wq =
-				create_singlethread_workqueue("msm_battery");	
+				create_singlethread_workqueue("msm_battery");
 		if (!msm_batt_info.msm_batt_wq) {
 			printk(KERN_ERR "%s: create workque failed \n", __func__);
 			return -ENOMEM;
@@ -3735,33 +3735,33 @@ static int __devinit msm_batt_init_rpc(void)
 static int __init msm_batt_init(void)
 {
 //	printk("[SSAM] %s called. version : 0x%x \n", __func__, board_hw_revision);
-	
+
 	if (board_hw_revision >= CONFIG_HW_REV_USING_SMB328)
-	{		
+	{
 		msm_batt_info.msm_batt_wq =
-			create_singlethread_workqueue("msm_battery");	
+			create_singlethread_workqueue("msm_battery");
 		if (!msm_batt_info.msm_batt_wq) {
 			printk(KERN_ERR "%s: create workque failed \n", __func__);
 			return -ENOMEM;
 		}
 
 //		printk("[SSAM] Enter delayed work. \n");
-		
+
 		schedule_delayed_work(&msm_batt_work_init, msecs_to_jiffies(5000));
 		p_batt_init = &msm_batt_work_init;
 	}
 	else
 	{
 		int rc;
-		
+
 		rc = msm_batt_init_rpc();
-		
+
 		if (rc < 0) {
 			pr_err("%s: FAIL: msm_batt_init_rpc.  rc=%d\n", __func__, rc);
 			msm_batt_cleanup();
 			return rc;
 		}
-		
+
 		pr_info("%s: Charger/Battery = 0x%08x/0x%08x (RPC version)\n",
 			__func__, msm_batt_info.chg_api_version,
 			msm_batt_info.batt_api_version);
@@ -3771,14 +3771,14 @@ static int __init msm_batt_init(void)
 	if(fsa9480_get_jig_status())
 		batt_jig_on_status = 1;
 	else
-		batt_jig_on_status = 0;	
-	
+		batt_jig_on_status = 0;
+
 	return 0;
 }
 
 static void __exit msm_batt_exit(void)
 {
-	
+
 	platform_driver_unregister(&msm_batt_driver);
 }
 
