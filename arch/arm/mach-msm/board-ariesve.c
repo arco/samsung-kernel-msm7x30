@@ -118,9 +118,6 @@
 
 #ifdef CONFIG_SAMSUNG_JACK
 #include <linux/sec_jack.h>
-#include <mach/msm_rpcrouter.h>
-#include <asm/atomic.h>
-#include <linux/err.h>
 #endif
 
 #define MDP_VSYNC_GPIO		30
@@ -257,45 +254,47 @@ struct pm8xxx_gpio_init_info {
 extern int board_hw_revision;
 int on_call_flag;
 int on_fmradio_flag;
-#ifdef CONFIG_SAMSUNG_JACK
-static int tx_set_flag=0;
-#endif
 
 #ifdef CONFIG_SAMSUNG_JACK
 static struct sec_jack_zone jack_zones[] = {
 	[0] = {
 		.adc_high	= 0,
-		.delay_ms	= 20,
+		.delay_us	= 10000,
 		.check_count	= 15,
 		.jack_type	= SEC_HEADSET_4POLE,
 	},
 	[1] = {
 		.adc_high	= 1,
-		.delay_ms	= 20,
+		.delay_us	= 10000,
 		.check_count	= 15,
 		.jack_type	= SEC_HEADSET_3POLE,
 	},
 };
 
-static int sec_jack_get_det_jack_state(void)
-{
-	return(gpio_get_value(MSM_GPIO_EAR_DET)) ^ 1;
-}
-
-static int sec_jack_get_send_key_state(void)
-{
-	return(gpio_get_value(MSM_GPIO_SHORT_SENDEND)) ^ 1;
-}
+/* To support 3-buttons earjack */
+static struct sec_jack_buttons_zone jack_buttons_zones[] = {
+	{
+		.code		= KEY_MEDIA,
+		.adc_low	= 0,
+		.adc_high	= 150,
+	},
+	{
+		.code		= KEY_VOLUMEUP,
+		.adc_low	= 151,
+		.adc_high	= 340,
+	},
+	{
+		.code		= KEY_VOLUMEDOWN,
+		.adc_low	= 341,
+		.adc_high	= 690,
+	},
+};
 
 static void sec_jack_set_micbias_state(bool state)
 {
-	if (tx_set_flag == 1)
-	{
-		state = 1;
-	}
+	pr_info("sec_jack: ear micbias %s\n", state ? "on" : "off");
 	gpio_set_value_cansleep(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_MICBIAS_EN), state);
 }
-
 
 static int sec_jack_get_adc_value(void)
 {
@@ -337,14 +336,16 @@ void sec_jack_gpio_init(void)
 }
 
 static struct sec_jack_platform_data sec_jack_data = {
-	.get_det_jack_state	= sec_jack_get_det_jack_state,
-	.get_send_key_state	= sec_jack_get_send_key_state,
-	.set_micbias_state	= sec_jack_set_micbias_state,
-	.get_adc_value		= sec_jack_get_adc_value,
-	.zones			= jack_zones,
-	.num_zones		= ARRAY_SIZE(jack_zones),
-	.det_int 		= MSM_GPIO_TO_INT(MSM_GPIO_EAR_DET),
-	.send_int 		= MSM_GPIO_TO_INT(MSM_GPIO_SHORT_SENDEND),
+	.set_micbias_state	  = sec_jack_set_micbias_state,
+	.get_adc_value		  = sec_jack_get_adc_value,
+	.zones			      = jack_zones,
+	.num_zones		      = ARRAY_SIZE(jack_zones),
+	.buttons_zones		  = jack_buttons_zones,
+	.num_buttons_zones	  = ARRAY_SIZE(jack_buttons_zones),
+	.det_gpio 		      = MSM_GPIO_EAR_DET,
+	.det_active_high      = false,
+	.send_end_gpio 		  = MSM_GPIO_SHORT_SENDEND,
+	.send_end_active_high = false,
 };
 
 static struct platform_device sec_device_jack = {
@@ -1756,20 +1757,13 @@ void msm_snddev_tx_route_config(void)
 {
 	pr_debug("%s()\n", __func__);
 	gpio_set_value_cansleep(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_MICBIAS_EN), 1);
-#ifdef CONFIG_SAMSUNG_JACK
-	tx_set_flag = 1;
-#endif
 	return;
 }
 
 void msm_snddev_tx_route_deconfig(void)
 {
 	pr_debug("%s()\n", __func__);
-	if ( ! ( ( sec_jack_get_det_jack_state() ) && (!sec_jack_get_send_key_state()) ) )
-		gpio_set_value_cansleep(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_MICBIAS_EN), 0);
-#ifdef CONFIG_SAMSUNG_JACK
-	tx_set_flag = 0;
-#endif
+	gpio_set_value_cansleep(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_MICBIAS_EN), 0);
 	return;
 }
 

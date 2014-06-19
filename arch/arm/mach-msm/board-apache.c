@@ -122,9 +122,6 @@
 
 #ifdef CONFIG_SAMSUNG_JACK
 #include <linux/sec_jack.h>
-#include <mach/msm_rpcrouter.h>
-#include <asm/atomic.h>
-#include <linux/err.h>
 #endif
 
 #if defined (CONFIG_TOUCHSCREEN_MXT224)
@@ -278,22 +275,19 @@ struct pm8xxx_gpio_init_info {
 extern int board_hw_revision;
 int on_call_flag;
 int on_fmradio_flag;
-#ifdef CONFIG_SAMSUNG_JACK
-static int tx_set_flag=0;
-#endif
 
 #ifdef CONFIG_SAMSUNG_JACK
 #ifdef GET_JACK_ADC
 static struct sec_jack_zone jack_zones[] = {
 	[0] = {
 		.adc_high	= 990,
-		.delay_ms	= 20,
+		.delay_us	= 10000,
 		.check_count	= 15,
 		.jack_type	= SEC_HEADSET_3POLE,
 	},
 	[1] = {
 		.adc_high	= 4096,
-		.delay_ms	= 20,
+		.delay_us	= 10000,
 		.check_count	= 15,
 		.jack_type	= SEC_HEADSET_4POLE,
 	},
@@ -302,20 +296,19 @@ static struct sec_jack_zone jack_zones[] = {
 static struct sec_jack_zone jack_zones[] = {
 	[0] = {
 		.adc_high	= 0,
-		.delay_ms	= 20,
+		.delay_us	= 10000,
 		.check_count	= 15,
 		.jack_type	= SEC_HEADSET_4POLE,
 	},
 	[1] = {
 		.adc_high	= 1,
-		.delay_ms	= 20,
+		.delay_us	= 10000,
 		.check_count	= 15,
 		.jack_type	= SEC_HEADSET_3POLE,
 	},
 };
 #endif
 
-#ifdef JACK_REMOTE_KEY
 static struct sec_jack_buttons_zone sec_jack_buttons_zones[] = {
 	{
 		/* 0 <= adc <=150, stable zone */
@@ -336,24 +329,10 @@ static struct sec_jack_buttons_zone sec_jack_buttons_zones[] = {
 		.adc_high	= 690,
 	},
 };
-#endif
-
-static int sec_jack_get_det_jack_state(void)
-{
-	return(gpio_get_value(MSM_GPIO_EAR_DET)) ^ 1;
-}
-
-static int sec_jack_get_send_key_state(void)
-{
-	return(gpio_get_value(MSM_GPIO_SHORT_SENDEND)) ^ 1;
-}
 
 static void sec_jack_set_micbias_state(bool state)
 {
-	if (tx_set_flag == 1)
-	{
-		state = 1;
-	}
+	pr_info("sec_jack: ear micbias %s\n", state ? "on" : "off");
 	gpio_set_value_cansleep(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_EAR_MICBIAS_EN), state);
 }
 
@@ -441,9 +420,10 @@ static int sec_jack_init_rpc(void)
 
 static int sec_jack_get_adc_value(void)
 {
+
 #ifdef GET_JACK_ADC
-   u32 adc = sec_jack_get_adc();
-   return adc;
+	u32 adc = sec_jack_get_adc();
+	return adc;
 #else
 	return(gpio_get_value(MSM_GPIO_SHORT_SENDEND)) ^ 1;
 #endif
@@ -502,20 +482,18 @@ void sec_jack_gpio_init(void)
 }
 
 static struct sec_jack_platform_data sec_jack_data = {
-	.get_det_jack_state	= sec_jack_get_det_jack_state,
-	.get_send_key_state	= sec_jack_get_send_key_state,
-	.set_micbias_state	= sec_jack_set_micbias_state,
-	.get_adc_value		= sec_jack_get_adc_value,
-	.zones			= jack_zones,
-	.num_zones		= ARRAY_SIZE(jack_zones),
-#ifdef JACK_REMOTE_KEY
-	.buttons_zones		= sec_jack_buttons_zones,
-	.num_buttons_zones	= ARRAY_SIZE(sec_jack_buttons_zones),
-#endif
-	.det_int 		= MSM_GPIO_TO_INT(MSM_GPIO_EAR_DET),
-	.send_int 		= MSM_GPIO_TO_INT(MSM_GPIO_SHORT_SENDEND),
+	.set_micbias_state    = sec_jack_set_micbias_state,
+	.get_adc_value        = sec_jack_get_adc_value,
+	.zones                = jack_zones,
+	.num_zones            = ARRAY_SIZE(jack_zones),
+	.buttons_zones        = sec_jack_buttons_zones,
+	.num_buttons_zones    = ARRAY_SIZE(sec_jack_buttons_zones),
+	.det_gpio             = MSM_GPIO_EAR_DET,
+	.det_active_high      = false,
+	.send_end_gpio 	      = MSM_GPIO_SHORT_SENDEND,
+	.send_end_active_high = false,
 #ifdef GET_JACK_ADC
-      .rpc_init = sec_jack_init_rpc,
+	.rpc_init             = sec_jack_init_rpc,
 #endif
 };
 
@@ -2111,22 +2089,15 @@ void msm_snddev_tx_ear_route_config(void)
 #ifdef CONFIG_VP_A2220  // mdhwang_Test
 	gpio_set_value_cansleep(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_MICBIAS_EN), 1);
 #endif
-#ifdef CONFIG_SAMSUNG_JACK
-	tx_set_flag = 1;
-#endif
 	return;
 }
 
 void msm_snddev_tx_ear_route_deconfig(void)
 {
 	pr_debug("%s()\n", __func__);
-	if ( ! ( ( sec_jack_get_det_jack_state() ) && (!sec_jack_get_send_key_state()) ) )
-		gpio_set_value_cansleep(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_EAR_MICBIAS_EN), 0);
+	gpio_set_value_cansleep(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_EAR_MICBIAS_EN), 0);
 #ifdef CONFIG_VP_A2220  // mdhwang_Test
 	gpio_set_value_cansleep(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_MICBIAS_EN), 0);
-#endif
-#ifdef CONFIG_SAMSUNG_JACK
-	tx_set_flag = 0;
 #endif
 	return;
 }
