@@ -5839,6 +5839,16 @@ static struct sdio_al_platform_data sdio_al_pdata = {
 	.peer_sdioc_boot_version_major = 0x0003,
 };
 
+struct platform_device msm_device_sdio_al = {
+	.name = "msm_sdio_al",
+	.id = -1,
+	.dev		= {
+		.platform_data	= &sdio_al_pdata,
+	},
+};
+
+#endif /* CONFIG_MSM_SDIO_AL */
+
 #ifdef CONFIG_VP_A2220
 
 static unsigned msm_aud_a2220_gpio[] = {
@@ -5893,16 +5903,6 @@ static struct i2c_board_info audience_a2220_i2c_board_info[] = {
 	},
 };
 #endif
-
-struct platform_device msm_device_sdio_al = {
-	.name = "msm_sdio_al",
-	.id = -1,
-	.dev		= {
-		.platform_data	= &sdio_al_pdata,
-	},
-};
-
-#endif /* CONFIG_MSM_SDIO_AL */
 
 static struct platform_device *uart3_device[] __initdata = {
 	&msm_device_uart3,
