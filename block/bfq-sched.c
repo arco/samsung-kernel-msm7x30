@@ -97,7 +97,8 @@ static inline void bfq_update_budget(struct bfq_entity *next_in_service)
  * Shift for timestamp calculations.  This actually limits the maximum
  * service allowed in one timestamp delta (small shift values increase it),
  * the maximum total weight that can be used for the queues in the system
- * (big shift values increase it), and the period of virtual time wraparounds.
+ * (big shift values increase it), and the period of virtual time
+ * wraparounds.
  */
 #define WFQ_SERVICE_SHIFT	22
 
@@ -339,7 +340,8 @@ static void bfq_weights_tree_remove(struct bfq_data *bfqd,
 
 
 /**
- * bfq_active_insert - insert an entity in the active tree of its group/device.
+ * bfq_active_insert - insert an entity in the active tree of its
+ *                     group/device.
  * @st: the service tree of the entity.
  * @entity: the entity being inserted.
  *
@@ -395,9 +397,9 @@ static void bfq_active_insert(struct bfq_service_tree *st,
  * bfq_ioprio_to_weight - calc a weight from an ioprio.
  * @ioprio: the ioprio value to convert.
  */
-static unsigned short bfq_ioprio_to_weight(int ioprio)
+static inline unsigned short bfq_ioprio_to_weight(int ioprio)
 {
-	WARN_ON(ioprio < 0 || ioprio >= IOPRIO_BE_NR);
+	BUG_ON(ioprio < 0 || ioprio >= IOPRIO_BE_NR);
 	return IOPRIO_BE_NR - ioprio;
 }
 
@@ -409,9 +411,9 @@ static unsigned short bfq_ioprio_to_weight(int ioprio)
  * 0 is used as an escape ioprio value for weights (numerically) equal or
  * larger than IOPRIO_BE_NR
  */
-static unsigned short bfq_weight_to_ioprio(int weight)
+static inline unsigned short bfq_weight_to_ioprio(int weight)
 {
-	WARN_ON(weight < BFQ_MIN_WEIGHT || weight > BFQ_MAX_WEIGHT);
+	BUG_ON(weight < BFQ_MIN_WEIGHT || weight > BFQ_MAX_WEIGHT);
 	return IOPRIO_BE_NR - weight < 0 ? 0 : IOPRIO_BE_NR - weight;
 }
 
@@ -681,7 +683,8 @@ __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
 }
 
 /**
- * bfq_bfqq_served - update the scheduler status after selection for service.
+ * bfq_bfqq_served - update the scheduler status after selection for
+ *                   service.
  * @bfqq: the queue being served.
  * @served: bytes to transfer.
  *
@@ -820,7 +823,7 @@ static void bfq_activate_entity(struct bfq_entity *entity)
  * and if the caller did not specify @requeue, put it on the idle tree.
  *
  * Return %1 if the caller should update the entity hierarchy, i.e.,
- * if the entity was under service or if it was the next_in_service for
+ * if the entity was in service or if it was the next_in_service for
  * its sched_data; return %0 otherwise.
  */
 static int __bfq_deactivate_entity(struct bfq_entity *entity, int requeue)
@@ -876,7 +879,7 @@ static void bfq_deactivate_entity(struct bfq_entity *entity, int requeue)
 			/*
 			 * The parent entity is still backlogged, and
 			 * we don't need to update it as it is still
-			 * under service.
+			 * in service.
 			 */
 			break;
 
@@ -917,7 +920,7 @@ update:
  * active tree of the device is not empty.
  *
  * NOTE: this hierarchical implementation updates vtimes quite often,
- * we may end up with reactivated tasks getting timestamps after a
+ * we may end up with reactivated processes getting timestamps after a
  * vtime skip done because we needed a ->first_active entity on some
  * intermediate node.
  */
@@ -940,8 +943,8 @@ static void bfq_update_vtime(struct bfq_service_tree *st)
  *
  * This function searches the first schedulable entity, starting from the
  * root of the tree and going on the left every time on this side there is
- * a subtree with at least one eligible (start >= vtime) entity.  The path
- * on the right is followed only if a) the left subtree contains no eligible
+ * a subtree with at least one eligible (start >= vtime) entity. The path on
+ * the right is followed only if a) the left subtree contains no eligible
  * entities and b) no eligible entity has been found yet.
  */
 static struct bfq_entity *bfq_first_active_entity(struct bfq_service_tree *st)
@@ -1134,14 +1137,14 @@ static void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 			BUG_ON(!bfqd->busy_in_flight_queues);
 			bfqd->busy_in_flight_queues--;
 			if (bfq_bfqq_constantly_seeky(bfqq)) {
-				BUG_ON(
-				   !bfqd->const_seeky_busy_in_flight_queues);
+				BUG_ON(!bfqd->
+					const_seeky_busy_in_flight_queues);
 				bfqd->const_seeky_busy_in_flight_queues--;
 			}
 		}
 	}
 	if (bfqq->wr_coeff > 1)
-		bfqd->raised_busy_queues--;
+		bfqd->wr_busy_queues--;
 
 	bfq_deactivate_bfqq(bfqd, bfqq, requeue);
 }
@@ -1172,5 +1175,5 @@ static void bfq_add_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 		}
 	}
 	if (bfqq->wr_coeff > 1)
-		bfqd->raised_busy_queues++;
+		bfqd->wr_busy_queues++;
 }

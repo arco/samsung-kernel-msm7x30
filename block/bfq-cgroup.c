@@ -9,7 +9,8 @@
  *
  * Copyright (C) 2010 Paolo Valente <paolo.valente@unimore.it>
  *
- * Licensed under the GPL-2 as detailed in the accompanying COPYING.BFQ file.
+ * Licensed under the GPL-2 as detailed in the accompanying COPYING.BFQ
+ * file.
  */
 
 #ifdef CONFIG_CGROUP_BFQIO
@@ -136,8 +137,9 @@ static struct bfq_group *bfq_group_chain_alloc(struct bfq_data *bfqd,
 			bfq_group_set_parent(prev, bfqg);
 			/*
 			 * Build a list of allocated nodes using the bfqd
-			 * filed, that is still unused and will be initialized
-			 * only after the node will be connected.
+			 * filed, that is still unused and will be
+			 * initialized only after the node will be
+			 * connected.
 			 */
 			prev->bfqd = bfqg;
 			prev = bfqg;
@@ -157,7 +159,8 @@ cleanup:
 }
 
 /**
- * bfq_group_chain_link - link an allocated group chain to a cgroup hierarchy.
+ * bfq_group_chain_link - link an allocated group chain to a cgroup
+ *                        hierarchy.
  * @bfqd: the queue descriptor.
  * @cgroup: the leaf cgroup to start from.
  * @leaf: the leaf group (to be associated to @cgroup).
@@ -430,7 +433,8 @@ static inline void bfq_reparent_leaf_entity(struct bfq_data *bfqd,
 }
 
 /**
- * bfq_reparent_active_entities - move to the root group all active entities.
+ * bfq_reparent_active_entities - move to the root group all active
+ *                                entities.
  * @bfqd: the device data structure with the root group.
  * @bfqg: the group to move from.
  * @st: the service tree with the entities.
@@ -475,8 +479,8 @@ static void bfq_destroy_group(struct bfqio_cgroup *bgrp, struct bfq_group *bfqg)
 	hlist_del(&bfqg->group_node);
 
 	/*
-	 * Empty all service_trees belonging to this group before deactivating
-	 * the group itself.
+	 * Empty all service_trees belonging to this group before
+	 * deactivating the group itself.
 	 */
 	for (i = 0; i < BFQ_IOPRIO_CLASSES; i++) {
 		st = bfqg->sched_data.service_tree + i;
@@ -496,7 +500,7 @@ static void bfq_destroy_group(struct bfqio_cgroup *bgrp, struct bfq_group *bfqg)
 		 * all the leaf entities corresponding to these queues
 		 * to the root_group.
 		 * Also, it may happen that the group has an entity
-		 * under service, which is disconnected from the active
+		 * in service, which is disconnected from the active
 		 * tree: it must be moved, too.
 		 * There is no need to put the sync queues, as the
 		 * scheduler has taken no reference.
@@ -766,10 +770,11 @@ static int bfqio_can_attach(struct cgroup *cgroup, struct cgroup_taskset *tset)
 		ioc = task->io_context;
 		if (ioc != NULL && atomic_read(&ioc->nr_tasks) > 1)
 			/*
-			 * ioc == NULL means that the task is either too young or
-			 * exiting: if it has still no ioc the ioc can't be shared,
-			 * if the task is exiting the attach will fail anyway, no
-			 * matter what we return here.
+			 * ioc == NULL means that the task is either too
+			 * young or exiting: if it has still no ioc the
+			 * ioc can't be shared, if the task is exiting the
+			 * attach will fail anyway, no matter what we
+			 * return here.
 			 */
 			ret = -EINVAL;
 		task_unlock(task);
