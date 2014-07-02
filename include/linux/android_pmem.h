@@ -175,6 +175,14 @@ struct android_pmem_platform_data
 	 * indicates this pmem may be reused via fmem
 	 */
 	int reusable;
+	/*
+	 * memory will be dynamically allocated using CMA
+	 */
+	int use_cma;
+	/*
+	 * private data
+	 */
+	void *private_data;
 };
 
 int pmem_setup(struct android_pmem_platform_data *pdata,
