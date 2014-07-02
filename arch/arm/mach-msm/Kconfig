@@ -2407,14 +2407,6 @@ config MSM_MULTIMEDIA_USE_ION
 	  instead of pmem. Selecting this may also involve userspace
 	  dependencies as well.
 
-config MSM_ADSP_USE_PMEM
-	bool "Camera and ADSP support using PMEM"
-	depends on ANDROID_PMEM
-	help
-	  Enable support for camera and adsp drivers using PMEM for buffer
-	  management instead of ION. Selecting this may also involve userspace
-	  dependencies as well.
-
 config MSM_OCMEM
 	bool "MSM On-Chip memory driver (OCMEM)"
 	help
