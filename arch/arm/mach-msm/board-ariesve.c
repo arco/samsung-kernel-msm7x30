@@ -154,7 +154,7 @@ EXPORT_SYMBOL(switch_dev);
 
 #define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE, 4096)
 
-#ifdef CONFIG_MSM_ION_MM_USE_CMA
+#if defined(CONFIG_MSM_ION_MM_USE_CMA) || defined(CONFIG_MSM_PMEM_ADSP_USE_CMA)
 #define MSM_DMA_CONTIGUOUS_BASE			0x0
 #define MSM_DMA_CONTIGUOUS_LIMIT		0x20000000
 static u64 msm_dmamask = DMA_BIT_MASK(32);
@@ -4078,11 +4078,26 @@ static struct platform_device msm_migrate_pages_device = {
 };
 
 #ifdef CONFIG_ANDROID_PMEM
+#ifdef CONFIG_MSM_PMEM_ADSP_USE_CMA
+static struct platform_device pmem_adsp_heap_device = {
+	.name = "pmem-adsp-heap-device",
+	.id = -1,
+	.dev = {
+		.dma_mask = &msm_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	}
+};
+#endif
+
 static struct android_pmem_platform_data android_pmem_adsp_pdata = {
 	.name = "pmem_adsp",
 	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
 	.cached = 0,
 	.memory_type = MEMTYPE_EBI0,
+#ifdef CONFIG_MSM_PMEM_ADSP_USE_CMA
+	.use_cma = 1,
+	.private_data = &pmem_adsp_heap_device.dev,
+#endif
 };
 
 static struct platform_device android_pmem_adsp_device = {
@@ -7234,7 +7249,7 @@ static void __init size_pmem_devices(void)
 
 static void __init reserve_pmem_memory(void)
 {
-#ifdef CONFIG_ANDROID_PMEM
+#if defined(CONFIG_ANDROID_PMEM) && !defined(CONFIG_MSM_PMEM_ADSP_USE_CMA)
 	msm7x30_reserve_table[MEMTYPE_EBI0].size += android_pmem_adsp_pdata.size;
 #endif
 }
@@ -7289,6 +7304,13 @@ static void __init msm7x30_reserve(void)
 	dma_declare_contiguous(
 			&ion_mm_heap_device.dev,
 			MSM_ION_MM_SIZE,
+			MSM_DMA_CONTIGUOUS_BASE,
+			MSM_DMA_CONTIGUOUS_LIMIT);
+#endif
+#ifdef CONFIG_MSM_PMEM_ADSP_USE_CMA
+	dma_declare_contiguous(
+			&pmem_adsp_heap_device.dev,
+			pmem_adsp_size,
 			MSM_DMA_CONTIGUOUS_BASE,
 			MSM_DMA_CONTIGUOUS_LIMIT);
 #endif
