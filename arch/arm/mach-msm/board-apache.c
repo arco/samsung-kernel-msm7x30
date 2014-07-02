@@ -171,7 +171,7 @@ EXPORT_SYMBOL(switch_dev);
 
 #define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE + MSM_FB_EXT_BUF_SIZE, 4096)
 
-#ifdef CONFIG_CMA
+#ifdef CONFIG_MSM_ION_MM_USE_CMA
 #define MSM_DMA_CONTIGUOUS_BASE			0x0
 #define MSM_DMA_CONTIGUOUS_LIMIT		0x20000000
 static u64 msm_dmamask = DMA_BIT_MASK(32);
@@ -185,7 +185,7 @@ static struct platform_device ion_dev;
 #define MSM_ION_SF_SIZE			0x1D00000
 #define MSM_ION_MM_SIZE			0x1C80000
 
-#ifdef CONFIG_CMA
+#ifdef CONFIG_MSM_ION_MM_USE_CMA
 #define MSM_ION_MM_HEAP_TYPE	ION_HEAP_TYPE_DMA
 #define MSM_ION_MM_SIZE_CARVING	0x0
 #else
@@ -7842,7 +7842,7 @@ static struct ion_co_heap_pdata co_mm_ion_pdata = {
 	.align = PAGE_SIZE,
 };
 
-#ifdef CONFIG_CMA
+#ifdef CONFIG_MSM_ION_MM_USE_CMA
 static struct platform_device ion_mm_heap_device = {
 	.name = "ion-mm-heap-device",
 	.id = -1,
@@ -7872,7 +7872,7 @@ struct ion_platform_heap msm7x30_heaps[] = {
 			.name	= ION_MM_HEAP_NAME,
 			.memory_type = ION_EBI_TYPE,
 			.extra_data = (void *)&co_mm_ion_pdata,
-#ifdef CONFIG_CMA
+#ifdef CONFIG_MSM_ION_MM_USE_CMA
 			.priv	= (void *)&ion_mm_heap_device.dev,
 #endif
 		},
@@ -7978,14 +7978,12 @@ static void __init msm7x30_reserve(void)
 {
 	reserve_info = &msm7x30_reserve_info;
 	msm_reserve();
-#ifdef CONFIG_CMA
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
+#ifdef CONFIG_MSM_ION_MM_USE_CMA
 	dma_declare_contiguous(
 			&ion_mm_heap_device.dev,
 			MSM_ION_MM_SIZE,
 			MSM_DMA_CONTIGUOUS_BASE,
 			MSM_DMA_CONTIGUOUS_LIMIT);
-#endif
 #endif
 #ifdef CONFIG_ANDROID_PERSISTENT_RAM
 	add_persistent_ram();

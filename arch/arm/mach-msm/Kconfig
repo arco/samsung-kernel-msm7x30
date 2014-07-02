@@ -2400,12 +2400,32 @@ config MSM_L2_SPM
 	  on supported chipsets.
 
 config MSM_MULTIMEDIA_USE_ION
-	bool "Multimedia suport using Ion"
+	bool "Multimedia support using ION"
 	depends on ION_MSM
 	help
 	  Enable support for multimedia drivers using Ion for buffer management
 	  instead of pmem. Selecting this may also involve userspace
 	  dependencies as well.
+
+config MSM_ION_MM_USE_CMA
+	bool "Use CMA for ION MM heap"
+	depends on MSM_MULTIMEDIA_USE_ION && (MACH_ANCORA || MACH_ANCORA_TMO || MACH_APACHE || MACH_ARIESVE)
+	select CMA
+	help
+	  Enable switching from carveout heap to DMA heap for ION heap
+	  targeting MM features. The memory area will be dynamically allocated
+	  through CMA framework and can be re-allocated when it's not being
+	  used by any client.
+
+config MSM_PMEM_ADSP_USE_CMA
+	bool "Use CMA for PMEM ADSP heap"
+	depends on ANDROID_PMEM && (MACH_ANCORA || MACH_ANCORA_TMO || MACH_APACHE || MACH_ARIESVE)
+	select CMA
+	help
+	  Enable switching from PMEM bitmap allocator to DMA allocator for
+	  PMEM ADSP heap. The memory area will be dynamically allocated through
+	  CMA framework and can be re-allocated when it's not being used by
+	  any client.
 
 config MSM_OCMEM
 	bool "MSM On-Chip memory driver (OCMEM)"
