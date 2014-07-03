@@ -183,12 +183,13 @@ static u64 msm_dmamask = DMA_BIT_MASK(32);
 static struct platform_device ion_dev;
 #define MSM_ION_AUDIO_SIZE		0x0200000
 #define MSM_ION_SF_SIZE			0x1D00000
-#define MSM_ION_MM_SIZE			0x1C80000
 
 #ifdef CONFIG_MSM_ION_MM_USE_CMA
+#define MSM_ION_MM_SIZE			0x3000000
 #define MSM_ION_MM_HEAP_TYPE	ION_HEAP_TYPE_DMA
 #define MSM_ION_MM_SIZE_CARVING	0x0
 #else
+#define MSM_ION_MM_SIZE			0x1C80000
 #define MSM_ION_MM_HEAP_TYPE	ION_HEAP_TYPE_CARVEOUT
 #define MSM_ION_MM_SIZE_CARVING	MSM_ION_MM_SIZE
 #endif
