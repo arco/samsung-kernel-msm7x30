@@ -56,7 +56,8 @@
 #define PMEM_DEBUG 0
 #endif
 
-#define SYSTEM_ALLOC_RETRY 10
+#define SYSTEM_ALLOC_RETRY	10
+#define DMA_ALLOC_RETRY		10
 
 /* indicates that a refernce to this file has been taken via get_pmem_file,
  * the file should not be released until put_pmem_file is called */
@@ -594,25 +595,30 @@ static int pmem_free_from_id(const int id, const int index)
 
 static int request_dma_memory(int id)
 {
-	unsigned char *vaddr;
+	unsigned char *vaddr = NULL;
+	unsigned int retry = 0;
 	dma_addr_t handle;
 
 	DLOG("request dma memory id %d\n", id);
 
-	vaddr = NULL;
-
-	if (!pmem[id].cached)
-		vaddr = dma_alloc_writecombine(pmem[id].private_data,
-					pmem[id].size, &handle, GFP_KERNEL);
-	else
-		vaddr = dma_alloc_nonconsistent(pmem[id].private_data,
-					pmem[id].size, &handle, GFP_KERNEL);
+	do {
+		if (!pmem[id].cached)
+			vaddr = dma_alloc_writecombine(pmem[id].private_data,
+						pmem[id].size, &handle, GFP_KERNEL);
+		else
+			vaddr = dma_alloc_nonconsistent(pmem[id].private_data,
+						pmem[id].size, &handle, GFP_KERNEL);
+		retry++;
+	} while (!vaddr && retry < DMA_ALLOC_RETRY);
 
 	if (!vaddr) {
 		pr_err("pmem: dma alloc failed for id=%d size=%ld\n",
 			id, pmem[id].size);
 		return -1;
 	}
+
+	DLOG("dma alloc succeeded for id %d, size %ld, retry %u\n",
+			id, pmem[id].size, retry);
 
 	pmem[id].base = handle;
 	pmem[id].vbase = vaddr;
