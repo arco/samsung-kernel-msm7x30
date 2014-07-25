@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2497,270 +2497,6 @@ static void a3xx_drawctxt_restore(struct adreno_device *adreno_dev,
 	}
 }
 
-static const unsigned int _a3xx_pwron_fixup_fs_instructions[] = {
-	0x00000000, 0x10000400, 0x00000000, 0x00000000,
-	0x00000000, 0x00000000, 0x00000000, 0x03000000,
-};
-
-/**
- * adreno_a3xx_pwron_fixup_init() - Initalize a special command buffer to run a
- * post-power collapse shader workaround
- * @adreno_dev: Pointer to a adreno_device struct
- *
- * A3xx targets require a CL Exec after recovery from power-collapse.
- * Construct the IB once at init time and keep it handy.
- *
- * Returns: 0 on success or negative on error
- */
-int adreno_a3xx_pwron_fixup_init(struct adreno_device *adreno_dev)
-{
-	unsigned int *cmds;
-	int count = sizeof(_a3xx_pwron_fixup_fs_instructions) >> 2;
-	int ret;
-	/* Return if the fixup is already in place */
-	if (test_bit(ADRENO_DEVICE_PWRON_FIXUP, &adreno_dev->priv))
-		return 0;
-
-	ret = kgsl_allocate_contiguous(&adreno_dev->pwron_fixup, PAGE_SIZE);
-
-	if (ret)
-		return ret;
-	adreno_dev->pwron_fixup.flags |= KGSL_MEMFLAGS_GPUREADONLY;
-	cmds = adreno_dev->pwron_fixup.hostptr;
-
-	*cmds++ = cp_type0_packet(A3XX_UCHE_CACHE_INVALIDATE0_REG, 2);
-	*cmds++ = 0x00000000;
-	*cmds++ = 0x90000000;
-	*cmds++ = cp_type3_packet(CP_WAIT_FOR_IDLE, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type3_packet(CP_REG_RMW, 3);
-	*cmds++ = A3XX_RBBM_CLOCK_CTL;
-	*cmds++ = 0xFFFCFFFF;
-	*cmds++ = 0x00010000;
-	*cmds++ = cp_type3_packet(CP_WAIT_FOR_IDLE, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CONTROL_0_REG, 1);
-	*cmds++ = 0x1E000150;
-	*cmds++ = cp_type3_packet(CP_WAIT_FOR_IDLE, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type3_packet(CP_SET_CONSTANT, 2);
-	*cmds++ = CP_REG(A3XX_HLSQ_CONTROL_0_REG) | (0x1 << 30);
-	*cmds++ = 0x1E000150;
-	*cmds++ = cp_type3_packet(CP_WAIT_FOR_IDLE, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CONTROL_0_REG, 1);
-	*cmds++ = 0x1E000150;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CONTROL_1_REG, 1);
-	*cmds++ = 0x00000040;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CONTROL_2_REG, 1);
-	*cmds++ = 0x80000000;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CONTROL_3_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_VS_CONTROL_REG, 1);
-	*cmds++ = 0x00000001;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_FS_CONTROL_REG, 1);
-	*cmds++ = 0x00001002 | (count >> 3) << 24;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CONST_VSPRESV_RANGE_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CONST_FSPRESV_RANGE_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CL_NDRANGE_0_REG, 1);
-	*cmds++ = 0x00401101;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CL_NDRANGE_1_REG, 1);
-	*cmds++ = 0x00000400;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CL_NDRANGE_2_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CL_NDRANGE_3_REG, 1);
-	*cmds++ = 0x00000001;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CL_NDRANGE_4_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CL_NDRANGE_5_REG, 1);
-	*cmds++ = 0x00000001;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CL_NDRANGE_6_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CL_CONTROL_0_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CL_CONTROL_1_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CL_KERNEL_CONST_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CL_KERNEL_GROUP_X_REG, 1);
-	*cmds++ = 0x00000010;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CL_KERNEL_GROUP_Y_REG, 1);
-	*cmds++ = 0x00000001;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CL_KERNEL_GROUP_Z_REG, 1);
-	*cmds++ = 0x00000001;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CL_WG_OFFSET_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_SP_CTRL_REG, 1);
-	*cmds++ = 0x00040000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_CTRL_REG0, 1);
-	*cmds++ = 0x0000000A;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_CTRL_REG1, 1);
-	*cmds++ = 0x00000001;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_PARAM_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_OUT_REG_0, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_OUT_REG_1, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_OUT_REG_2, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_OUT_REG_3, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_OUT_REG_4, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_OUT_REG_5, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_OUT_REG_6, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_OUT_REG_7, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_VPC_DST_REG_0, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_VPC_DST_REG_1, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_VPC_DST_REG_2, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_VPC_DST_REG_3, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_OBJ_OFFSET_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_OBJ_START_REG, 1);
-	*cmds++ = 0x00000004;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_PVT_MEM_PARAM_REG, 1);
-	*cmds++ = 0x04008001;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_PVT_MEM_ADDR_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_PVT_MEM_SIZE_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_VS_LENGTH_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_CTRL_REG0, 1);
-	*cmds++ = 0x00B0400A | (count >> 3) << 24;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_CTRL_REG1, 1);
-	*cmds++ = 0x00300402;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_OBJ_OFFSET_REG, 1);
-	*cmds++ = 0x00010000;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_OBJ_START_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_PVT_MEM_PARAM_REG, 1);
-	*cmds++ = 0x04008001;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_PVT_MEM_ADDR_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_PVT_MEM_SIZE_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_FLAT_SHAD_MODE_REG_0, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_FLAT_SHAD_MODE_REG_1, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_OUTPUT_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_MRT_REG_0, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_MRT_REG_1, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_MRT_REG_2, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_MRT_REG_3, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_IMAGE_OUTPUT_REG_0, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_IMAGE_OUTPUT_REG_1, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_IMAGE_OUTPUT_REG_2, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_IMAGE_OUTPUT_REG_3, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_SP_FS_LENGTH_REG, 1);
-	*cmds++ = count >> 3;
-	*cmds++ = cp_type0_packet(A3XX_RB_MODE_CONTROL, 1);
-	*cmds++ = 0x00008000;
-	*cmds++ = cp_type0_packet(A3XX_RB_RENDER_CONTROL, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_RB_MSAA_CONTROL, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_RB_ALPHA_REFERENCE, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_RB_MRT_CONTROL0, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_RB_MRT_CONTROL1, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_RB_MRT_CONTROL2, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_RB_MRT_CONTROL3, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_RB_MRT_BUF_INFO0, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_RB_MRT_BUF_INFO1, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_RB_MRT_BUF_INFO2, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_RB_MRT_BUF_INFO3, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_RB_MRT_BUF_BASE0, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_RB_MRT_BUF_BASE1, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_RB_MRT_BUF_BASE2, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_RB_MRT_BUF_BASE3, 1);
-	*cmds++ = 0x00000000;
-
-	*cmds++ = cp_type0_packet(A3XX_RB_PERFCOUNTER0_SELECT, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_RB_PERFCOUNTER1_SELECT, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_RB_FRAME_BUFFER_DIMENSION, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type3_packet(CP_WAIT_FOR_IDLE, 1);
-	*cmds++ = 0x00000000;
-
-	*cmds++ = cp_type3_packet(CP_LOAD_STATE, 2 + count);
-	*cmds++ = (6 << CP_LOADSTATE_STATEBLOCKID_SHIFT) |
-		  ((count >> 3) << CP_LOADSTATE_NUMOFUNITS_SHIFT);
-	*cmds++ = 0x00000000;
-	memcpy(cmds, _a3xx_pwron_fixup_fs_instructions, count << 2);
-	cmds += count;
-
-	*cmds++ = cp_type3_packet(CP_EXEC_CL, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_nop_packet(1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type3_packet(CP_WAIT_FOR_IDLE, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CL_CONTROL_0_REG, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type3_packet(CP_WAIT_FOR_IDLE, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type0_packet(A3XX_HLSQ_CONTROL_0_REG, 1);
-	*cmds++ = 0x1E000150;
-	*cmds++ = cp_type3_packet(CP_WAIT_FOR_IDLE, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type3_packet(CP_SET_CONSTANT, 2);
-	*cmds++ = CP_REG(A3XX_HLSQ_CONTROL_0_REG);
-	*cmds++ = 0x1E000050;
-	*cmds++ = cp_type3_packet(CP_WAIT_FOR_IDLE, 1);
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type3_packet(CP_REG_RMW, 3);
-	*cmds++ = A3XX_RBBM_CLOCK_CTL;
-	*cmds++ = 0xFFFCFFFF;
-	*cmds++ = 0x00000000;
-	*cmds++ = cp_type3_packet(CP_WAIT_FOR_IDLE, 1);
-	*cmds++ = 0x00000000;
-
-	/*
-	 * Remember the number of dwords in the command buffer for when we
-	 * program the indirect buffer call in the ringbuffer
-	 */
-	adreno_dev->pwron_fixup_dwords =
-		(cmds - (unsigned int *)adreno_dev->pwron_fixup.hostptr);
-
-	/* Mark the flag in ->priv to show that we have the fix */
-	set_bit(ADRENO_DEVICE_PWRON_FIXUP, &adreno_dev->priv);
-	return 0;
-}
-
 static int a3xx_rb_init(struct adreno_device *adreno_dev,
 			 struct adreno_ringbuffer *rb)
 {
@@ -2786,8 +2522,8 @@ static int a3xx_rb_init(struct adreno_device *adreno_dev,
 	GSL_RB_WRITE(cmds, cmds_gpu, 0x00000001);
 	GSL_RB_WRITE(cmds, cmds_gpu, 0x00000000);
 	GSL_RB_WRITE(cmds, cmds_gpu, 0x00000000);
-	/* Protected mode control - turned off for A3XX */
-	GSL_RB_WRITE(cmds, cmds_gpu, 0x00000000);
+	/* Enable protected mode registers for A3XX */
+	GSL_RB_WRITE(cmds, cmds_gpu, 0x20000000);
 	GSL_RB_WRITE(cmds, cmds_gpu, 0x00000000);
 	GSL_RB_WRITE(cmds, cmds_gpu, 0x00000000);
 
@@ -2849,9 +2585,16 @@ static void a3xx_err_callback(struct adreno_device *adreno_dev, int bit)
 	case A3XX_INT_CP_HW_FAULT:
 		err = "ringbuffer hardware fault";
 		break;
-	case A3XX_INT_CP_REG_PROTECT_FAULT:
-		err = "ringbuffer protected mode error interrupt";
-		break;
+	case A3XX_INT_CP_REG_PROTECT_FAULT: {
+		unsigned int reg;
+		kgsl_regread(device, A3XX_CP_PROTECT_STATUS, &reg);
+
+		KGSL_DRV_CRIT(device,
+			"CP | Protected mode error| %s | addr=%x\n",
+			reg & (1 << 24) ? "WRITE" : "READ",
+			(reg & 0x1FFFF) >> 2);
+		return;
+	}
 	case A3XX_INT_CP_AHB_ERROR_HALT:
 		err = "ringbuffer AHB error interrupt";
 		break;
@@ -3403,6 +3146,46 @@ static void a3xx_perfcounter_init(struct adreno_device *adreno_dev)
 			NULL, PERFCOUNTER_FLAG_KERNEL);
 }
 
+/**
+ * a3xx_protect_init() - Initializes register protection on a3xx
+ * @device: Pointer to the device structure
+ * Performs register writes to enable protected access to sensitive
+ * registers
+ */
+static void a3xx_protect_init(struct kgsl_device *device)
+{
+	int index = 0;
+
+	/* enable access protection to privileged registers */
+	kgsl_regwrite(device, A3XX_CP_PROTECT_CTRL, 0x00000007);
+
+	/* RBBM registers */
+	adreno_set_protected_registers(device, &index, 0x18, 0);
+	adreno_set_protected_registers(device, &index, 0x20, 2);
+	adreno_set_protected_registers(device, &index, 0x33, 0);
+	adreno_set_protected_registers(device, &index, 0x42, 0);
+	adreno_set_protected_registers(device, &index, 0x50, 4);
+	adreno_set_protected_registers(device, &index, 0x63, 0);
+	adreno_set_protected_registers(device, &index, 0x100, 4);
+
+	/* CP registers */
+	adreno_set_protected_registers(device, &index, 0x1C0, 5);
+	adreno_set_protected_registers(device, &index, 0x1EC, 1);
+	adreno_set_protected_registers(device, &index, 0x1F6, 1);
+	adreno_set_protected_registers(device, &index, 0x1F8, 2);
+	adreno_set_protected_registers(device, &index, 0x45E, 2);
+	adreno_set_protected_registers(device, &index, 0x460, 4);
+
+	/* RB registers */
+	adreno_set_protected_registers(device, &index, 0xCC0, 0);
+
+	/* VBIF registers */
+	adreno_set_protected_registers(device, &index, 0x3000, 6);
+
+	/* SMMU registers */
+	adreno_set_protected_registers(device, &index, 0x4000, 14);
+}
+
 static void a3xx_start(struct adreno_device *adreno_dev)
 {
 	struct kgsl_device *device = &adreno_dev->dev;
@@ -3466,6 +3249,8 @@ static void a3xx_start(struct adreno_device *adreno_dev)
 		adreno_regwrite(device, A3XX_RB_GMEM_BASE_ADDR,
 			(unsigned int)(adreno_dev->ocmem_base >> 14));
 	}
+	/* Turn on protection */
+	a3xx_protect_init(device);
 
 	/* Turn on performance counters */
 	adreno_regwrite(device, A3XX_RBBM_PERFCTR_CTL, 0x01);
