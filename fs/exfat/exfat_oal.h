@@ -44,7 +44,7 @@ extern "C" {
 	INT32 sm_P(struct semaphore *sm);
 	void  sm_V(struct semaphore *sm);
 
-	TIMESTAMP_T *tm_current(TIMESTAMP_T *tm);
+	TIMESTAMP_T *tm_current(TIMESTAMP_T *tm, UINT8 tz_utc);
 
 #ifdef __cplusplus
 }

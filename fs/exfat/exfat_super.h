@@ -55,6 +55,7 @@ struct exfat_mount_options {
 	unsigned short codepage;  
 	char *iocharset;         
 	unsigned char casesensitive;
+	unsigned char tz_utc;
 	unsigned char errors;   
 #if EXFAT_CONFIG_DISCARD
 	unsigned char discard; 

@@ -535,6 +535,7 @@ INT32 ffsWriteFile(struct inode *inode, FILE_ID_T *fid, void *buffer, UINT64 cou
 	struct super_block *sb = inode->i_sb;
 	FS_INFO_T *p_fs = &(EXFAT_SB(sb)->fs_info);
 	BD_INFO_T *p_bd = &(EXFAT_SB(sb)->bd_info);
+	UINT8 tz_utc = EXFAT_SB(sb)->options.tz_utc;
 
 	if (fid->type != TYPE_FILE)
 		return FFS_PERMISSIONERR;
@@ -680,7 +681,7 @@ INT32 ffsWriteFile(struct inode *inode, FILE_ID_T *fid, void *buffer, UINT64 cou
 		ep2 = ep;
 	}
 
-	p_fs->fs_func->set_entry_time(ep, tm_current(&tm), TM_MODIFY);
+	p_fs->fs_func->set_entry_time(ep, tm_current(&tm, tz_utc), TM_MODIFY);
 	p_fs->fs_func->set_entry_attr(ep, fid->attr);
 
 	if (p_fs->vol_type != EXFAT)
@@ -734,6 +735,7 @@ INT32 ffsTruncateFile(struct inode *inode, UINT64 old_size, UINT64 new_size)
 	FS_INFO_T *p_fs = &(EXFAT_SB(sb)->fs_info);
 	FILE_ID_T *fid = &(EXFAT_I(inode)->fid);
 	ENTRY_SET_CACHE_T *es=NULL;
+	UINT8 tz_utc = EXFAT_SB(sb)->options.tz_utc;
 
 	if (fid->type != TYPE_FILE)
 		return FFS_PERMISSIONERR;
@@ -789,7 +791,7 @@ INT32 ffsTruncateFile(struct inode *inode, UINT64 old_size, UINT64 new_size)
 		ep2 = ep;
 	}
 
-	p_fs->fs_func->set_entry_time(ep, tm_current(&tm), TM_MODIFY);
+	p_fs->fs_func->set_entry_time(ep, tm_current(&tm, tz_utc), TM_MODIFY);
 	p_fs->fs_func->set_entry_attr(ep, fid->attr);
 
 	p_fs->fs_func->set_entry_size(ep2, new_size);
@@ -2757,12 +2759,13 @@ INT32 fat_init_dir_entry(struct super_block *sb, CHAIN_T *p_dir, INT32 entry, UI
 {
 	UINT32 sector;
 	DOS_DENTRY_T *dos_ep;
+	UINT8 tz_utc = EXFAT_SB(sb)->options.tz_utc;
 
 	dos_ep = (DOS_DENTRY_T *) get_entry_in_dir(sb, p_dir, entry, &sector);
 	if (!dos_ep)
 		return FFS_MEDIAERR;
 
-	init_dos_entry(dos_ep, type, start_clu);
+	init_dos_entry(dos_ep, type, start_clu, tz_utc);
 	buf_modify(sb, sector);
 
 	return FFS_SUCCESS;
@@ -2775,6 +2778,7 @@ INT32 exfat_init_dir_entry(struct super_block *sb, CHAIN_T *p_dir, INT32 entry, 
 	UINT8 flags;
 	FILE_DENTRY_T *file_ep;
 	STRM_DENTRY_T *strm_ep;
+	UINT8 tz_utc = EXFAT_SB(sb)->options.tz_utc;
 
 	flags = (type == TYPE_FILE) ? 0x01 : 0x03;
 
@@ -2786,7 +2790,7 @@ INT32 exfat_init_dir_entry(struct super_block *sb, CHAIN_T *p_dir, INT32 entry, 
 	if (!strm_ep)
 		return FFS_MEDIAERR;
 
-	init_file_entry(file_ep, type);
+	init_file_entry(file_ep, type, tz_utc);
 	buf_modify(sb, sector);
 
 	init_strm_entry(strm_ep, flags, start_clu, size);
@@ -2877,7 +2881,7 @@ INT32 exfat_init_ext_entry(struct super_block *sb, CHAIN_T *p_dir, INT32 entry, 
 	return FFS_SUCCESS;
 } 
 
-void init_dos_entry(DOS_DENTRY_T *ep, UINT32 type, UINT32 start_clu)
+void init_dos_entry(DOS_DENTRY_T *ep, UINT32 type, UINT32 start_clu, UINT8 tz_utc)
 {
 	TIMESTAMP_T tm, *tp;
 
@@ -2886,7 +2890,7 @@ void init_dos_entry(DOS_DENTRY_T *ep, UINT32 type, UINT32 start_clu)
 	SET16_A(ep->start_clu_hi, CLUSTER_16(start_clu >> 16));
 	SET32_A(ep->size, 0);
 
-	tp = tm_current(&tm);
+	tp = tm_current(&tm, tz_utc);
 	fat_set_entry_time((DENTRY_T *) ep, tp, TM_CREATE);
 	fat_set_entry_time((DENTRY_T *) ep, tp, TM_MODIFY);
 	SET16_A(ep->access_date, 0);
@@ -2941,13 +2945,13 @@ void init_ext_entry(EXT_DENTRY_T *ep, INT32 order, UINT8 chksum, UINT16 *uniname
 	}
 } 
 
-void init_file_entry(FILE_DENTRY_T *ep, UINT32 type)
+void init_file_entry(FILE_DENTRY_T *ep, UINT32 type, UINT8 tz_utc)
 {
 	TIMESTAMP_T tm, *tp;
 
 	exfat_set_entry_type((DENTRY_T *) ep, type);
 
-	tp = tm_current(&tm);
+	tp = tm_current(&tm, tz_utc);
 	exfat_set_entry_time((DENTRY_T *) ep, tp, TM_CREATE);
 	exfat_set_entry_time((DENTRY_T *) ep, tp, TM_MODIFY);
 	exfat_set_entry_time((DENTRY_T *) ep, tp, TM_ACCESS);
