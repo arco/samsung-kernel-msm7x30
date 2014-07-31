@@ -27,6 +27,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/msm_audio_aac.h>
 #include <linux/memory_alloc.h>
+#include <linux/msm_ion.h>
 #include <mach/msm_memtypes.h>
 
 #include <mach/msm_adsp.h>
@@ -141,6 +142,10 @@ struct audio_in {
 	int stopped; /* set when stopped, cleared on flush */
 	int abort; /* set when error, like sample rate mismatch */
 	char *build_id;
+
+	struct ion_client *client;
+	struct ion_handle *input_buff_handle;
+	struct ion_handle *output_buff_handle;
 };
 
 struct audio_frame {
@@ -1289,16 +1294,20 @@ static int audaac_in_release(struct inode *inode, struct file *file)
 	audpreproc_aenc_free(audio->enc_id);
 	audio->audrec = NULL;
 	audio->opened = 0;
-	if (audio->data) {
-		iounmap(audio->map_v_read);
-		free_contiguous_memory_by_paddr(audio->phys);
-		audio->data = NULL;
-	}
-	if (audio->out_data) {
-		iounmap(audio->map_v_write);
-		free_contiguous_memory_by_paddr(audio->out_phys);
+
+	if ((audio->mode == MSM_AUD_ENC_MODE_NONTUNNEL) && \
+	   (audio->out_data)) {
+		ion_unmap_kernel(audio->client, audio->input_buff_handle);
+		ion_free(audio->client, audio->input_buff_handle);
 		audio->out_data = NULL;
 	}
+
+	if (audio->data) {
+		ion_unmap_kernel(audio->client, audio->output_buff_handle);
+		ion_free(audio->client, audio->output_buff_handle);
+		audio->data = NULL;
+	}
+	ion_client_destroy(audio->client);
 	mutex_unlock(&audio->lock);
 	return 0;
 }
@@ -1310,37 +1319,30 @@ static int audaac_in_open(struct inode *inode, struct file *file)
 	struct audio_in *audio = &the_audio_aac_in;
 	int rc;
 	int encid;
+	int dma_size = 0;
+	int len = 0;
+	unsigned long ionflag = 0;
+	ion_phys_addr_t addr = 0;
+	struct ion_handle *handle = NULL;
+	struct ion_client *client = NULL;
 
 	mutex_lock(&audio->lock);
 	if (audio->opened) {
 		rc = -EBUSY;
 		goto done;
 	}
-	audio->phys = allocate_contiguous_ebi_nomap(DMASZ, SZ_4K);
-	if (audio->phys) {
-		audio->map_v_read = ioremap(audio->phys, DMASZ);
-		if (IS_ERR(audio->map_v_read)) {
-			MM_ERR("could not map DMA buffers\n");
-			rc = -ENOMEM;
-			free_contiguous_memory_by_paddr(audio->phys);
-			goto done;
-		}
-		audio->data = audio->map_v_read;
-	} else {
-		MM_ERR("could not allocate DMA buffers\n");
-		rc = -ENOMEM;
-		goto done;
-	}
-	MM_DBG("Memory addr = 0x%8x  phy addr = 0x%8x\n",\
-		(int) audio->data, (int) audio->phys);
 	if ((file->f_mode & FMODE_WRITE) &&
 				(file->f_mode & FMODE_READ)) {
 		audio->mode = MSM_AUD_ENC_MODE_NONTUNNEL;
+		dma_size = DMASZ;
+		MM_DBG("Opened for non tunnel mode encoding\n");
 	} else if (!(file->f_mode & FMODE_WRITE) &&
 					(file->f_mode & FMODE_READ)) {
 		audio->mode = MSM_AUD_ENC_MODE_TUNNEL;
+		dma_size = DMASZ;
 		MM_DBG("Opened for tunnel mode encoding\n");
 	} else {
+		MM_ERR("Invalid mode\n");
 		rc = -EACCES;
 		goto done;
 	}
@@ -1388,23 +1390,101 @@ static int audaac_in_open(struct inode *inode, struct file *file)
 	audaac_in_flush(audio);
 	audaac_out_flush(audio);
 
-	audio->out_phys = allocate_contiguous_ebi_nomap(BUFFER_SIZE, SZ_4K);
-	if (!audio->out_phys) {
-		MM_ERR("could not allocate write buffers\n");
+
+	client = msm_ion_client_create(UINT_MAX, "Audio_AAC_in_client");
+	if (IS_ERR_OR_NULL(client)) {
+		MM_ERR("Unable to create ION client\n");
 		rc = -ENOMEM;
-		goto evt_error;
+		goto client_create_error;
+	}
+	audio->client = client;
+
+	MM_DBG("allocating mem sz = %d\n", dma_size);
+	handle = ion_alloc(client, dma_size, SZ_4K,
+		ION_HEAP(ION_AUDIO_HEAP_ID), 0);
+	if (IS_ERR_OR_NULL(handle)) {
+		MM_ERR("Unable to create allocate O/P buffers\n");
+		rc = -ENOMEM;
+		goto output_buff_alloc_error;
+	}
+
+	audio->output_buff_handle = handle;
+
+	rc = ion_phys(client , handle, &addr, &len);
+	if (rc) {
+		MM_ERR("O/P buffers:Invalid phy: %x sz: %x\n",
+			(unsigned int) addr, (unsigned int) len);
+		rc = -ENOMEM;
+		goto output_buff_get_phys_error;
 	} else {
-		audio->map_v_write = ioremap(
-					audio->out_phys, BUFFER_SIZE);
-		if (IS_ERR(audio->map_v_write)) {
-			MM_ERR("could not map write phys address\n");
+		MM_INFO("O/P buffers:valid phy: %x sz: %x\n",
+			(unsigned int) addr, (unsigned int) len);
+	}
+	audio->phys = (int32_t)addr;
+
+	rc = ion_handle_get_flags(client, handle, &ionflag);
+	if (rc) {
+		MM_ERR("could not get flags for the handle\n");
+		rc = -ENOMEM;
+		goto output_buff_get_flags_error;
+	}
+
+	audio->map_v_read = ion_map_kernel(client, handle);
+	if (IS_ERR(audio->map_v_read)) {
+		MM_ERR("could not map read buffers,freeing instance 0x%08x\n",
+				(int)audio);
+		rc = -ENOMEM;
+		goto output_buff_map_error;
+	}
+	audio->data = audio->map_v_read;
+	MM_DBG("read buf: phy addr 0x%08x kernel addr 0x%08x\n",
+		audio->phys, (int)audio->data);
+
+	audio->out_data = NULL;
+	if (audio->mode == MSM_AUD_ENC_MODE_NONTUNNEL) {
+
+		MM_DBG("allocating BUFFER_SIZE  %d\n", BUFFER_SIZE);
+		handle = ion_alloc(client, BUFFER_SIZE,
+				SZ_4K, ION_HEAP(ION_AUDIO_HEAP_ID), 0);
+		if (IS_ERR_OR_NULL(handle)) {
+			MM_ERR("Unable to create allocate I/P buffers\n");
 			rc = -ENOMEM;
-			free_contiguous_memory_by_paddr(audio->out_phys);
-			goto evt_error;
+			goto input_buff_alloc_error;
+		}
+
+		audio->input_buff_handle = handle;
+
+		rc = ion_phys(client , handle, &addr, &len);
+		if (rc) {
+			MM_ERR("I/P buffers:Invalid phy: %x sz: %x\n",
+				(unsigned int) addr, (unsigned int) len);
+			rc = -ENOMEM;
+			goto input_buff_get_phys_error;
+		} else {
+			MM_INFO("Got valid phy: %x sz: %x\n",
+				(unsigned int) addr,
+				(unsigned int) len);
+		}
+		audio->out_phys = (int32_t)addr;
+
+		rc = ion_handle_get_flags(client,
+			handle, &ionflag);
+		if (rc) {
+			MM_ERR("could not get flags for the handle\n");
+			rc = -ENOMEM;
+			goto input_buff_get_flags_error;
+		}
+
+		audio->map_v_write = ion_map_kernel(client, handle);
+		if (IS_ERR(audio->map_v_write)) {
+			MM_ERR("could not map write buffers\n");
+			rc = -ENOMEM;
+			goto input_buff_map_error;
 		}
 		audio->out_data = audio->map_v_write;
 		MM_DBG("write buf: phy addr 0x%08x kernel addr 0x%08x\n",
-				audio->out_phys, (int)audio->out_data);
+					(unsigned int)addr,
+					(unsigned int)audio->out_data);
 	}
 	audio->build_id = socinfo_get_build_id();
 	MM_DBG("Modem build id = %s\n", audio->build_id);
@@ -1429,9 +1509,7 @@ static int audaac_in_open(struct inode *inode, struct file *file)
 					aac_in_listener, (void *) audio);
 	if (rc) {
 		MM_ERR("failed to register device event listener\n");
-		iounmap(audio->map_v_write);
-		free_contiguous_memory_by_paddr(audio->out_phys);
-		goto evt_error;
+		goto input_buff_map_error;
 	}
 	audio->mfield = META_OUT_SIZE;
 	file->private_data = audio;
@@ -1441,7 +1519,19 @@ static int audaac_in_open(struct inode *inode, struct file *file)
 done:
 	mutex_unlock(&audio->lock);
 	return rc;
-evt_error:
+input_buff_map_error:
+input_buff_get_flags_error:
+input_buff_get_phys_error:
+	ion_free(client, audio->input_buff_handle);
+input_buff_alloc_error:
+	ion_unmap_kernel(client, audio->output_buff_handle);
+output_buff_map_error:
+output_buff_get_phys_error:
+output_buff_get_flags_error:
+	ion_free(client, audio->output_buff_handle);
+output_buff_alloc_error:
+	ion_client_destroy(client);
+client_create_error:
 	msm_adsp_put(audio->audrec);
 	audpreproc_aenc_free(audio->enc_id);
 	mutex_unlock(&audio->lock);

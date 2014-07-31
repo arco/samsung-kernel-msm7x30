@@ -30,8 +30,10 @@
 #include <linux/earlysuspend.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <linux/memory_alloc.h>
 #include <linux/msm_audio.h>
+#include <linux/memory_alloc.h>
+#include <linux/msm_ion.h>
+
 #include <mach/msm_adsp.h>
 
 #include <mach/iommu.h>
@@ -133,9 +135,9 @@ struct audmp3_event {
 	union msm_audio_event_payload payload;
 };
 
-struct audmp3_pmem_region {
+struct audmp3_ion_region {
 	struct list_head list;
-	struct file *file;
+	struct ion_handle *handle;
 	int fd;
 	void *vaddr;
 	unsigned long paddr;
@@ -243,7 +245,7 @@ struct audio {
 
 	uint32_t device_events;
 
-	struct list_head pmem_region_queue; /* protected by lock */
+	struct list_head ion_region_queue; /* protected by lock */
 	struct audmp3_drv_operations drv_ops;
 
 	struct msm_audio_bitstream_info stream_info;
@@ -254,6 +256,9 @@ struct audio {
 	int eq_needs_commit;
 	struct audpp_cmd_cfg_object_params_eqalizer eq;
 	struct audpp_cmd_cfg_object_params_volume vol_pan;
+	struct ion_client *client;
+	struct ion_handle *input_buff_handle;
+	struct ion_handle *output_buff_handle;
 };
 
 static int auddec_dsp_config(struct audio *audio, int enable);
@@ -266,7 +271,7 @@ static void audplay_buffer_refresh(struct audio *audio);
 static void audio_dsp_event(void *private, unsigned id, uint16_t *msg);
 static void audmp3_post_event(struct audio *audio, int type,
 	union msm_audio_event_payload payload);
-static unsigned long audmp3_pmem_fixup(struct audio *audio, void *addr,
+static unsigned long audmp3_ion_fixup(struct audio *audio, void *addr,
 				unsigned long len, int ref_up);
 
 static void mp3_listner(u32 evt_id, union auddev_evt_data *evt_payload,
@@ -1084,7 +1089,7 @@ static long audmp3_process_event_req(struct audio *audio, void __user *arg)
 	if (drv_evt->event_type == AUDIO_EVENT_WRITE_DONE ||
 	    drv_evt->event_type == AUDIO_EVENT_READ_DONE) {
 		mutex_lock(&audio->lock);
-		audmp3_pmem_fixup(audio, drv_evt->payload.aio_buf.buf_addr,
+		audmp3_ion_fixup(audio, drv_evt->payload.aio_buf.buf_addr,
 				  drv_evt->payload.aio_buf.buf_len, 0);
 		mutex_unlock(&audio->lock);
 	}
@@ -1094,23 +1099,150 @@ static long audmp3_process_event_req(struct audio *audio, void __user *arg)
 	return rc;
 }
 
-static int audmp3_pmem_lookup_vaddr(struct audio *audio, void *addr,
-		     unsigned long len, struct audmp3_pmem_region **region)
+static int audmp3_ion_check(struct audio *audio,
+		void *vaddr, unsigned long len)
 {
-	struct audmp3_pmem_region *region_elt;
+	struct audmp3_ion_region *region_elt;
+	struct audmp3_ion_region t = { .vaddr = vaddr, .len = len };
 
+	list_for_each_entry(region_elt, &audio->ion_region_queue, list) {
+		if (CONTAINS(region_elt, &t) || CONTAINS(&t, region_elt) ||
+		    OVERLAPS(region_elt, &t)) {
+			MM_ERR("region (vaddr %p len %ld)"
+				" clashes with registered region"
+				" (vaddr %p paddr %p len %ld)\n",
+				vaddr, len,
+				region_elt->vaddr,
+				(void *)region_elt->paddr,
+				region_elt->len);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int audmp3_ion_add(struct audio *audio,
+			struct msm_audio_ion_info *info)
+{
+	ion_phys_addr_t paddr;
+	size_t len;
+	unsigned long kvaddr;
+	struct audmp3_ion_region *region;
+	int rc = -EINVAL;
+	struct ion_handle *handle;
+	unsigned long ionflag;
+	void *temp_ptr;
+
+	MM_DBG("\n"); /* Macro prints the file name and function */
+	region = kmalloc(sizeof(*region), GFP_KERNEL);
+
+	if (!region) {
+		rc = -ENOMEM;
+		goto end;
+	}
+
+	handle = ion_import_dma_buf(audio->client, info->fd);
+	if (IS_ERR_OR_NULL(handle)) {
+		pr_err("%s: could not get handle of the given fd\n", __func__);
+		goto import_error;
+	}
+
+	rc = ion_handle_get_flags(audio->client, handle, &ionflag);
+	if (rc) {
+		pr_err("%s: could not get flags for the handle\n", __func__);
+		goto flag_error;
+	}
+
+	temp_ptr = ion_map_kernel(audio->client, handle);
+	if (IS_ERR_OR_NULL(temp_ptr)) {
+		pr_err("%s: could not get virtual address\n", __func__);
+		goto map_error;
+	}
+	kvaddr = (unsigned long) temp_ptr;
+
+	rc = ion_phys(audio->client, handle, &paddr, &len);
+	if (rc) {
+		pr_err("%s: could not get physical address\n", __func__);
+		goto ion_error;
+	}
+
+	rc = audmp3_ion_check(audio, info->vaddr, len);
+	if (rc < 0) {
+		MM_ERR("audpcm_ion_check failed\n");
+		goto ion_error;
+	}
+
+	region->handle = handle;
+	region->vaddr = info->vaddr;
+	region->fd = info->fd;
+	region->paddr = paddr;
+	region->kvaddr = kvaddr;
+	region->len = len;
+	region->ref_cnt = 0;
+	MM_DBG("[%p]:add region paddr %lx vaddr %p, len %lu kvaddr %lx\n",
+		audio, region->paddr, region->vaddr,
+		region->len, region->kvaddr);
+	list_add_tail(&region->list, &audio->ion_region_queue);
+	return rc;
+
+ion_error:
+	ion_unmap_kernel(audio->client, handle);
+map_error:
+flag_error:
+	ion_free(audio->client, handle);
+import_error:
+	kfree(region);
+end:
+	return rc;
+}
+
+static int audmp3_ion_remove(struct audio *audio,
+			struct msm_audio_ion_info *info)
+{
+	struct audmp3_ion_region *region;
+	struct list_head *ptr, *next;
+	int rc = -EINVAL;
+
+	list_for_each_safe(ptr, next, &audio->ion_region_queue) {
+		region = list_entry(ptr, struct audmp3_ion_region, list);
+
+		if (region != NULL && (region->fd == info->fd) &&
+		    (region->vaddr == info->vaddr)) {
+			if (region->ref_cnt) {
+				MM_DBG("%s[%p]:region %p in use ref_cnt %d\n",
+					__func__, audio, region,
+					region->ref_cnt);
+				break;
+			}
+			MM_DBG("remove region fd %d vaddr %p\n",
+				info->fd, info->vaddr);
+			list_del(&region->list);
+			ion_unmap_kernel(audio->client, region->handle);
+			ion_free(audio->client, region->handle);
+			kfree(region);
+			rc = 0;
+			break;
+		}
+	}
+
+	return rc;
+}
+
+static int audmp3_ion_lookup_vaddr(struct audio *audio, void *addr,
+			unsigned long len, struct audmp3_ion_region **region)
+{
+	struct audmp3_ion_region *region_elt;
 	int match_count = 0;
-
 	*region = NULL;
 
 	/* returns physical address or zero */
-	list_for_each_entry(region_elt, &audio->pmem_region_queue,
-		list) {
+	list_for_each_entry(region_elt, &audio->ion_region_queue, list) {
 		if (addr >= region_elt->vaddr &&
 		    addr < region_elt->vaddr + region_elt->len &&
 		    addr + len <= region_elt->vaddr + region_elt->len) {
 			/* offset since we could pass vaddr inside a registerd
-			 * pmem buffer
+			 * ion buffer
 			 */
 
 			match_count++;
@@ -1120,29 +1252,31 @@ static int audmp3_pmem_lookup_vaddr(struct audio *audio, void *addr,
 	}
 
 	if (match_count > 1) {
-		MM_ERR("multiple hits for vaddr %p, len %ld\n", addr, len);
-		list_for_each_entry(region_elt,
-		  &audio->pmem_region_queue, list) {
+		MM_ERR("%s[%p]:multiple hits for vaddr %p, len %ld\n",
+			 __func__, audio, addr, len);
+		list_for_each_entry(region_elt, &audio->ion_region_queue,
+					list) {
 			if (addr >= region_elt->vaddr &&
-			    addr < region_elt->vaddr + region_elt->len &&
-			    addr + len <= region_elt->vaddr + region_elt->len)
-				MM_ERR("\t%p, %ld --> %p\n", region_elt->vaddr,
+			addr < region_elt->vaddr + region_elt->len &&
+			addr + len <= region_elt->vaddr + region_elt->len)
+					MM_ERR("\t%s[%p]:%p, %ld --> %p\n",
+						__func__, audio,
+						region_elt->vaddr,
 						region_elt->len,
 						(void *)region_elt->paddr);
 		}
 	}
-
 	return *region ? 0 : -1;
 }
 
-unsigned long audmp3_pmem_fixup(struct audio *audio, void *addr,
+unsigned long audmp3_ion_fixup(struct audio *audio, void *addr,
 		    unsigned long len, int ref_up)
 {
-	struct audmp3_pmem_region *region;
+	struct audmp3_ion_region *region;
 	unsigned long paddr;
 	int ret;
 
-	ret = audmp3_pmem_lookup_vaddr(audio, addr, len, &region);
+	ret = audmp3_ion_lookup_vaddr(audio, addr, len, &region);
 	if (ret) {
 		MM_ERR("lookup (%p, %ld) failed\n", addr, len);
 		return 0;
@@ -1178,7 +1312,7 @@ static int audmp3_aio_buf_add(struct audio *audio, unsigned dir,
 			buf_node->buf.buf_addr, buf_node->buf.buf_len,
 			buf_node->buf.data_len);
 
-	buf_node->paddr = audmp3_pmem_fixup(
+	buf_node->paddr = audmp3_ion_fixup(
 		audio, buf_node->buf.buf_addr,
 		buf_node->buf.buf_len, 1);
 
@@ -1261,6 +1395,10 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	uint16_t enable_mask;
 	int enable;
 	int prev_state;
+	unsigned long ionflag = 0;
+	ion_phys_addr_t addr = 0;
+	struct ion_handle *handle = NULL;
+	int len = 0;
 
 	MM_DBG("cmd = %d\n", cmd);
 
@@ -1501,25 +1639,50 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				MM_DBG("allocate PCM buffer %d\n",
 					config.buffer_count *
 					config.buffer_size);
-				audio->read_phys =
-					allocate_contiguous_ebi_nomap(
-							config.buffer_size *
-							config.buffer_count,
-							SZ_4K);
-				if (!audio->read_phys) {
+
+				handle = ion_alloc(audio->client,
+					(config.buffer_size *
+					config.buffer_count),
+					SZ_4K, ION_HEAP(ION_AUDIO_HEAP_ID), 0);
+				if (IS_ERR_OR_NULL(handle)) {
+					MM_ERR("Unable to alloc I/P buffs\n");
 					rc = -ENOMEM;
 					break;
 				}
-				audio->map_v_read = ioremap(
-							audio->read_phys,
-							config.buffer_size *
-							config.buffer_count);
-				if (IS_ERR(audio->map_v_read)) {
-					MM_ERR("failed to map read buffer"
-							" physical address\n");
+
+				audio->input_buff_handle = handle;
+
+				rc = ion_phys(audio->client ,
+					handle, &addr, &len);
+				if (rc) {
+					MM_ERR("Invalid phy: %x sz: %x\n",
+						(unsigned int) addr,
+						(unsigned int) len);
 					rc = -ENOMEM;
-					free_contiguous_memory_by_paddr(
-							audio->read_phys);
+					break;
+				} else {
+					MM_INFO("Got valid phy: %x sz: %x\n",
+						(unsigned int) audio->read_phys,
+						(unsigned int) len);
+				}
+				audio->read_phys = (int32_t)addr;
+
+				rc = ion_handle_get_flags(audio->client,
+					handle, &ionflag);
+				if (rc) {
+					MM_ERR("could not get flags\n");
+					rc = -ENOMEM;
+					break;
+				}
+
+				audio->map_v_read = ion_map_kernel(
+					audio->client,
+					handle);
+
+				if (IS_ERR(audio->map_v_read)) {
+					MM_ERR("map of read buf failed\n");
+					rc = -ENOMEM;
+					ion_free(audio->client, handle);
 				} else {
 					uint8_t index;
 					uint32_t offset = 0;
@@ -1558,6 +1721,26 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		MM_DBG("AUDIO_PAUSE %ld\n", arg);
 		rc = audpp_pause(audio->dec_id, (int) arg);
 		break;
+
+	case AUDIO_REGISTER_ION: {
+			struct msm_audio_ion_info info;
+			MM_DBG("AUDIO_REGISTER_ION\n");
+			if (copy_from_user(&info, (void *) arg, sizeof(info)))
+				rc = -EFAULT;
+			else
+				rc = audmp3_ion_add(audio, &info);
+			break;
+		}
+
+	case AUDIO_DEREGISTER_ION: {
+			struct msm_audio_ion_info info;
+			MM_DBG("AUDIO_DEREGISTER_ION\n");
+			if (copy_from_user(&info, (void *) arg, sizeof(info)))
+				rc = -EFAULT;
+			else
+				rc = audmp3_ion_remove(audio, &info);
+			break;
+		}
 
 	case AUDIO_GET_STREAM_INFO:{
 		if (audio->stream_info.sample_rate == 0) {
@@ -1987,6 +2170,21 @@ static ssize_t audio_write(struct file *file, const char __user *buf,
 	}
 	return rc;
 }
+static void audmp3_reset_ion_region(struct audio *audio)
+{
+	struct audmp3_ion_region *region;
+	struct list_head *ptr, *next;
+
+	list_for_each_safe(ptr, next, &audio->ion_region_queue) {
+		region = list_entry(ptr, struct audmp3_ion_region, list);
+		list_del(&region->list);
+		ion_unmap_kernel(audio->client, region->handle);
+		ion_free(audio->client, region->handle);
+		kfree(region);
+	}
+
+	return;
+}
 
 static int audio_release(struct inode *inode, struct file *file)
 {
@@ -1998,6 +2196,7 @@ static int audio_release(struct inode *inode, struct file *file)
 	audio_disable(audio);
 	audio->drv_ops.out_flush(audio);
 	audio->drv_ops.in_flush(audio);
+	audmp3_reset_ion_region(audio);
 
 	msm_adsp_put(audio->audplay);
 	audpp_adec_free(audio->dec_id);
@@ -2008,19 +2207,18 @@ static int audio_release(struct inode *inode, struct file *file)
 	audio->event_abort = 1;
 	wake_up(&audio->event_wait);
 	audmp3_reset_event_queue(audio);
-	if (audio->data) {
-		iounmap(audio->map_v_write);
-		free_contiguous_memory_by_paddr(audio->phys);
-	}
-	if (audio->read_data) {
-		iounmap(audio->map_v_read);
-		free_contiguous_memory_by_paddr(audio->read_phys);
-	}
 	mutex_unlock(&audio->lock);
 #ifdef CONFIG_DEBUG_FS
 	if (audio->dentry)
 		debugfs_remove(audio->dentry);
 #endif
+	if (!(audio->drv_status & ADRV_STATUS_AIO_INTF)) {
+		ion_unmap_kernel(audio->client, audio->output_buff_handle);
+		ion_free(audio->client, audio->output_buff_handle);
+		ion_unmap_kernel(audio->client, audio->input_buff_handle);
+		ion_free(audio->client, audio->input_buff_handle);
+	}
+	ion_client_destroy(audio->client);
 	kfree(audio);
 	return 0;
 }
@@ -2158,7 +2356,13 @@ static int audio_open(struct inode *inode, struct file *file)
 	struct audio *audio = NULL;
 	int rc, i, dec_attrb, decid;
 	struct audmp3_event *e_node = NULL;
-	unsigned pmem_sz = DMASZ_MAX;
+	unsigned mem_sz = DMASZ_MAX;
+	unsigned long ionflag = 0;
+	ion_phys_addr_t addr = 0;
+	struct ion_handle *handle = NULL;
+	struct ion_client *client = NULL;
+	int len = 0;
+
 #ifdef CONFIG_DEBUG_FS
 	/* 4 bytes represents decoder number, 1 byte for terminate string */
 	char name[sizeof "msm_mp3_" + 5];
@@ -2200,7 +2404,71 @@ static int audio_open(struct inode *inode, struct file *file)
 	}
 	audio->dec_id = decid & MSM_AUD_DECODER_MASK;
 
-	/* AIO interface */
+	client = msm_ion_client_create(UINT_MAX, "Audio_MP3_Client");
+	if (IS_ERR_OR_NULL(client)) {
+		pr_err("Unable to create ION client\n");
+		rc = -ENOMEM;
+		goto client_create_error;
+	}
+	audio->client = client;
+
+	/* Non AIO interface */
+	if (!(file->f_flags & O_NONBLOCK)) {
+
+		MM_DBG("memsz = %d\n", mem_sz);
+
+		handle = ion_alloc(client, mem_sz, SZ_4K,
+			ION_HEAP(ION_AUDIO_HEAP_ID), 0);
+		if (IS_ERR_OR_NULL(handle)) {
+			MM_ERR("Unable to create allocate O/P buffers\n");
+			rc = -ENOMEM;
+			goto output_buff_alloc_error;
+		}
+		audio->output_buff_handle = handle;
+
+		rc = ion_phys(client , handle, &addr, &len);
+		if (rc) {
+			MM_ERR("O/P buffers:Invalid phy: %x sz: %x\n",
+				(unsigned int) addr, (unsigned int) len);
+			goto output_buff_get_phys_error;
+		} else {
+			MM_INFO("O/P buffers:valid phy: %x sz: %x\n",
+				(unsigned int) addr, (unsigned int) len);
+		}
+		audio->phys = (int32_t)addr;
+
+
+		rc = ion_handle_get_flags(client, handle, &ionflag);
+		if (rc) {
+			MM_ERR("could not get flags for the handle\n");
+			goto output_buff_get_flags_error;
+		}
+
+		audio->map_v_write = ion_map_kernel(client, handle);
+		if (IS_ERR(audio->map_v_write)) {
+			MM_ERR("could not map write buffers\n");
+			rc = -ENOMEM;
+			goto output_buff_map_error;
+		}
+		audio->data = audio->map_v_write;
+		MM_DBG("write buf: phy addr 0x%08x kernel addr 0x%08x\n",
+			audio->phys, (int)audio->data);
+
+		audio->out_dma_sz = mem_sz;
+	}
+
+	rc = msm_adsp_get(audio->module_name, &audio->audplay,
+		&audplay_adsp_ops, audio);
+
+	if (rc) {
+		MM_ERR("failed to get %s module, freeing instance 0x%08x\n",
+				audio->module_name, (int)audio);
+		if (!(file->f_flags & O_NONBLOCK))
+			goto err;
+		else
+			goto resource_err;
+	}
+
 	if (file->f_flags & O_NONBLOCK) {
 		MM_DBG("set to aio interface\n");
 		audio->drv_status |= ADRV_STATUS_AIO_INTF;
@@ -2212,41 +2480,6 @@ static int audio_open(struct inode *inode, struct file *file)
 		audio->drv_ops.fsync = audmp3_async_fsync;
 	} else {
 		MM_DBG("set to std io interface\n");
-		while (pmem_sz >= DMASZ_MIN) {
-			MM_DBG("pmemsz = %d\n", pmem_sz);
-			audio->phys = allocate_contiguous_ebi_nomap(pmem_sz,
-									SZ_4K);
-			if (audio->phys) {
-				audio->map_v_write = ioremap(
-							audio->phys, pmem_sz);
-				if (IS_ERR(audio->map_v_write)) {
-					MM_ERR("failed to map write physical"
-						" address , freeing instance"
-						"0x%08x\n", (int)audio);
-					rc = -ENOMEM;
-					free_contiguous_memory_by_paddr(
-								audio->phys);
-					audpp_adec_free(audio->dec_id);
-					kfree(audio);
-					goto done;
-				}
-				audio->data = audio->map_v_write;
-				MM_DBG("write buf: phy addr 0x%08x kernel addr\
-					0x%08x\n", audio->phys,\
-					(int)audio->data);
-				break;
-			} else if (pmem_sz == DMASZ_MIN) {
-				MM_ERR("could not allocate write buffers, \
-						freeing instance 0x%08x\n",
-						(int)audio);
-				rc = -ENOMEM;
-				audpp_adec_free(audio->dec_id);
-				kfree(audio);
-				goto done;
-			} else
-				pmem_sz >>= 1;
-		}
-		audio->out_dma_sz = pmem_sz;
 		audio->drv_ops.pcm_buf_update = audio_update_pcm_buf_entry;
 		audio->drv_ops.buffer_refresh = audplay_buffer_refresh;
 		audio->drv_ops.send_data = audplay_send_data;
@@ -2262,15 +2495,6 @@ static int audio_open(struct inode *inode, struct file *file)
 		audio->out[1].size = audio->out[0].size;
 	}
 
-	rc = msm_adsp_get(audio->module_name, &audio->audplay,
-		&audplay_adsp_ops, audio);
-
-	if (rc) {
-		MM_ERR("failed to get %s module freeing instance 0x%08x\n",
-				audio->module_name, (int)audio);
-		goto err;
-	}
-
 	/* Initialize all locks of audio instance */
 	mutex_init(&audio->lock);
 	mutex_init(&audio->write_lock);
@@ -2281,7 +2505,7 @@ static int audio_open(struct inode *inode, struct file *file)
 	init_waitqueue_head(&audio->read_wait);
 	INIT_LIST_HEAD(&audio->out_queue);
 	INIT_LIST_HEAD(&audio->in_queue);
-	INIT_LIST_HEAD(&audio->pmem_region_queue);
+	INIT_LIST_HEAD(&audio->ion_region_queue);
 	INIT_LIST_HEAD(&audio->free_event_queue);
 	INIT_LIST_HEAD(&audio->event_queue);
 	init_waitqueue_head(&audio->wait);
@@ -2311,7 +2535,11 @@ static int audio_open(struct inode *inode, struct file *file)
 					(void *)audio);
 	if (rc) {
 		MM_ERR("%s: failed to register listner\n", __func__);
-		goto event_err;
+		msm_adsp_put(audio->audplay);
+		if (!(file->f_flags & O_NONBLOCK))
+			goto err;
+		else
+			goto resource_err;
 	}
 
 #ifdef CONFIG_DEBUG_FS
@@ -2343,13 +2571,16 @@ static int audio_open(struct inode *inode, struct file *file)
 			sizeof(struct msm_audio_bitstream_info));
 done:
 	return rc;
-event_err:
-	msm_adsp_put(audio->audplay);
 err:
-	if (audio->data) {
-		iounmap(audio->map_v_write);
-		free_contiguous_memory_by_paddr(audio->phys);
-	}
+	ion_unmap_kernel(client, audio->output_buff_handle);
+output_buff_map_error:
+output_buff_get_flags_error:
+output_buff_get_phys_error:
+	ion_free(client, audio->output_buff_handle);
+output_buff_alloc_error:
+	ion_client_destroy(client);
+client_create_error:
+resource_err:
 	audpp_adec_free(audio->dec_id);
 	kfree(audio);
 	return rc;
