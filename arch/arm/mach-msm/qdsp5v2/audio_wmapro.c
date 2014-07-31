@@ -282,6 +282,7 @@ static int audio_disable(struct audio *audio)
 			rc = -EFAULT;
 		else
 			rc = 0;
+		audio->stopped = 1;
 		wake_up(&audio->write_wait);
 		wake_up(&audio->read_wait);
 		msm_adsp_disable(audio->audplay);
@@ -397,7 +398,7 @@ static void audio_dsp_event(void *private, unsigned id, uint16_t *msg)
 				MM_DBG("decoder status: cfg\n");
 				break;
 			case AUDPP_DEC_STATUS_PLAY:
-				MM_DBG("decoder status: play \n");
+				MM_DBG("decoder status: play\n");
 				audpp_route_stream(audio->dec_id,
 						audio->source);
 				if (audio->pcm_feedback) {
@@ -443,7 +444,6 @@ static void audio_dsp_event(void *private, unsigned id, uint16_t *msg)
 		if (audio->pcm_feedback)
 			audplay_buffer_refresh(audio);
 		break;
-
 	case AUDPP_MSG_PCMDMAMISSED:
 		MM_DBG("PCMDMAMISSED\n");
 		audio->teos = 1;
@@ -647,23 +647,30 @@ done:
 
 static void audio_flush(struct audio *audio)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&audio->dsp_lock, flags);
 	audio->out[0].used = 0;
 	audio->out[1].used = 0;
 	audio->out_head = 0;
 	audio->out_tail = 0;
 	audio->reserved = 0;
+	spin_unlock_irqrestore(&audio->dsp_lock, flags);
 	atomic_set(&audio->out_bytes, 0);
 }
 
 static void audio_flush_pcm_buf(struct audio *audio)
 {
 	uint8_t index;
+	unsigned long flags;
 
+	spin_lock_irqsave(&audio->dsp_lock, flags);
 	for (index = 0; index < PCM_BUF_MAX_COUNT; index++)
 		audio->in[index].used = 0;
 	audio->buf_refresh = 0;
 	audio->read_next = 0;
 	audio->fill_next = 0;
+	spin_unlock_irqrestore(&audio->dsp_lock, flags);
 }
 
 static void audio_ioport_reset(struct audio *audio)
@@ -1172,7 +1179,8 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 /* Only useful in tunnel-mode */
-static int audio_fsync(struct file *file, loff_t ppos1, loff_t ppos2, int datasync)
+static int audio_fsync(struct file *file, loff_t a, loff_t b,
+	int datasync)
 {
 	struct audio *audio = file->private_data;
 	struct buffer *frame;
@@ -1357,7 +1365,10 @@ static int audwmapro_process_eos(struct audio *audio,
 		rc = -EBUSY;
 		goto done;
 	}
-
+	if (mfield_size > audio->out[0].size) {
+		rc = -EINVAL;
+		goto done;
+	}
 	if (copy_from_user(frame->data, buf_start, mfield_size)) {
 		rc = -EFAULT;
 		goto done;
@@ -1411,6 +1422,10 @@ static ssize_t audio_write(struct file *file, const char __user *buf,
 					rc = -EINVAL;
 					break;
 				}
+				if (mfield_size > audio->out[0].size) {
+					rc = -EINVAL;
+					break;
+				}
 				MM_DBG("audio_write: mf offset_val %x\n",
 						mfield_size);
 				if (copy_from_user(cpy_ptr, buf, mfield_size)) {
@@ -1445,6 +1460,10 @@ static ssize_t audio_write(struct file *file, const char __user *buf,
 		if (audio->reserved) {
 			MM_DBG("append reserved byte %x\n", audio->rsv_byte);
 			*cpy_ptr = audio->rsv_byte;
+			if (mfield_size > frame->size) {
+				rc = -EINVAL;
+				break;
+			}
 			xfer = (count > ((frame->size - mfield_size) - 1)) ?
 				(frame->size - mfield_size) - 1 : count;
 			cpy_ptr++;
@@ -1537,6 +1556,7 @@ static void audwmapro_post_event(struct audio *audio, int type,
 		e_node = kmalloc(sizeof(struct audwmapro_event), GFP_ATOMIC);
 		if (!e_node) {
 			MM_ERR("No mem to post event %d\n", type);
+			spin_unlock_irqrestore(&audio->event_queue_lock, flags);
 			return;
 		}
 	}
@@ -1777,18 +1797,6 @@ static int audio_open(struct inode *inode, struct file *file)
 	audio->out[1].data = audio->data + audio->out[0].size;
 	audio->out[1].addr = audio->phys + audio->out[0].size;
 	audio->out[1].size = audio->out[0].size;
-
-	/*audio->wmapro_config.armdatareqthr =  1268;
-	audio->wmapro_config.numchannels = 2;
-	audio->wmapro_config.avgbytespersecond = 6003;
-	audio->wmapro_config.samplingrate = 44100;
-	audio->wmapro_config.encodeopt = 224;
-	audio->wmapro_config.validbitspersample = 16;
-	audio->wmapro_config.formattag = 354;
-	audio->wmapro_config.asfpacketlength = 2230;
-	audio->wmapro_config.channelmask = 3;
-	audio->wmapro_config.advancedencodeopt = 32834;
-	audio->wmapro_config.advancedencodeopt2 = 0;*/
 
 	audio->out_sample_rate = 44100;
 	audio->out_channel_mode = AUDPP_CMD_PCM_INTF_STEREO_V;

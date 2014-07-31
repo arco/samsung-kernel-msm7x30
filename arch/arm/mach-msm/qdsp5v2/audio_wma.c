@@ -279,6 +279,7 @@ static int audio_disable(struct audio *audio)
 			rc = -EFAULT;
 		else
 			rc = 0;
+		audio->stopped = 1;
 		wake_up(&audio->write_wait);
 		wake_up(&audio->read_wait);
 		msm_adsp_disable(audio->audplay);
@@ -394,7 +395,7 @@ static void audio_dsp_event(void *private, unsigned id, uint16_t *msg)
 				MM_DBG("decoder status: cfg\n");
 				break;
 			case AUDPP_DEC_STATUS_PLAY:
-				MM_DBG("decoder status: play \n");
+				MM_DBG("decoder status: play\n");
 				/* send  mixer command */
 				audpp_route_stream(audio->dec_id,
 						audio->source);
@@ -441,7 +442,6 @@ static void audio_dsp_event(void *private, unsigned id, uint16_t *msg)
 		if (audio->pcm_feedback)
 			audplay_buffer_refresh(audio);
 		break;
-
 	case AUDPP_MSG_PCMDMAMISSED:
 		MM_DBG("PCMDMAMISSED\n");
 		audio->teos = 1;
@@ -582,6 +582,8 @@ static int audplay_dsp_send_data_avail(struct audio *audio,
 	cmd.buf_ptr		= audio->out[idx].addr;
 	cmd.buf_size		= len/2;
 	cmd.partition_number	= 0;
+	/* complete writes to the input buffer */
+	wmb();
 	return audplay_send_queue0(audio, &cmd, sizeof(cmd));
 }
 
@@ -643,11 +645,15 @@ done:
 
 static void audio_flush(struct audio *audio)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&audio->dsp_lock, flags);
 	audio->out[0].used = 0;
 	audio->out[1].used = 0;
 	audio->out_head = 0;
 	audio->out_tail = 0;
 	audio->reserved = 0;
+	spin_unlock_irqrestore(&audio->dsp_lock, flags);
 	atomic_set(&audio->out_bytes, 0);
 }
 
@@ -655,11 +661,15 @@ static void audio_flush_pcm_buf(struct audio *audio)
 {
 	uint8_t index;
 
+	unsigned long flags;
+
+	spin_lock_irqsave(&audio->dsp_lock, flags);
 	for (index = 0; index < PCM_BUF_MAX_COUNT; index++)
 		audio->in[index].used = 0;
 	audio->buf_refresh = 0;
 	audio->read_next = 0;
 	audio->fill_next = 0;
+	spin_unlock_irqrestore(&audio->dsp_lock, flags);
 }
 
 static void audio_ioport_reset(struct audio *audio)
@@ -1159,7 +1169,8 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 /* Only useful in tunnel-mode */
-static int audio_fsync(struct file *file, loff_t ppos1, loff_t ppos2, int datasync)
+static int audio_fsync(struct file *file, loff_t a, loff_t b,
+	int datasync)
 {
 	struct audio *audio = file->private_data;
 	struct buffer *frame;
@@ -1259,6 +1270,8 @@ static ssize_t audio_read(struct file *file, char __user *buf, size_t count,
 		} else {
 			MM_DBG("audio_read: read from in[%d]\n",
 					audio->read_next);
+			/* order reads from the output buffer */
+			rmb();
 			if (copy_to_user
 			    (buf, audio->in[audio->read_next].data,
 			     audio->in[audio->read_next].used)) {
@@ -1344,7 +1357,10 @@ static int audwma_process_eos(struct audio *audio,
 		rc = -EBUSY;
 		goto done;
 	}
-
+	if (mfield_size > audio->out[0].size) {
+		rc = -EINVAL;
+		goto done;
+	}
 	if (copy_from_user(frame->data, buf_start, mfield_size)) {
 		rc = -EFAULT;
 		goto done;
@@ -1398,6 +1414,10 @@ static ssize_t audio_write(struct file *file, const char __user *buf,
 					rc = -EINVAL;
 					break;
 				}
+				if (mfield_size > audio->out[0].size) {
+					rc = -EINVAL;
+					break;
+				}
 				MM_DBG("audio_write: mf offset_val %x\n",
 						mfield_size);
 				if (copy_from_user(cpy_ptr, buf, mfield_size)) {
@@ -1432,6 +1452,10 @@ static ssize_t audio_write(struct file *file, const char __user *buf,
 		if (audio->reserved) {
 			MM_DBG("append reserved byte %x\n", audio->rsv_byte);
 			*cpy_ptr = audio->rsv_byte;
+			if (mfield_size > frame->size) {
+				rc = -EINVAL;
+				break;
+			}
 			xfer = (count > ((frame->size - mfield_size) - 1)) ?
 				(frame->size - mfield_size) - 1 : count;
 			cpy_ptr++;
@@ -1524,6 +1548,7 @@ static void audwma_post_event(struct audio *audio, int type,
 		e_node = kmalloc(sizeof(struct audwma_event), GFP_ATOMIC);
 		if (!e_node) {
 			MM_ERR("No mem to post event %d\n", type);
+			spin_unlock_irqrestore(&audio->event_queue_lock, flags);
 			return;
 		}
 	}
@@ -1728,7 +1753,7 @@ static int audio_open(struct inode *inode, struct file *file)
 		rc = -ENOMEM;
 		goto output_buff_map_error;
 	}
-			audio->data = audio->map_v_write;
+	audio->data = audio->map_v_write;
 	MM_DBG("write buf: phy addr 0x%08x kernel addr 0x%08x\n",
 		audio->phys, (int)audio->data);
 
@@ -1742,6 +1767,7 @@ static int audio_open(struct inode *inode, struct file *file)
 		goto err;
 	}
 
+	audio->input_buff_handle = NULL;
 	mutex_init(&audio->lock);
 	mutex_init(&audio->write_lock);
 	mutex_init(&audio->read_lock);
@@ -1791,7 +1817,8 @@ static int audio_open(struct inode *inode, struct file *file)
 					(void *)audio);
 	if (rc) {
 		MM_ERR("%s: failed to register listner\n", __func__);
-		goto event_err;
+		msm_adsp_put(audio->audplay);
+		goto err;
 	}
 
 #ifdef CONFIG_DEBUG_FS
@@ -1821,8 +1848,6 @@ static int audio_open(struct inode *inode, struct file *file)
 	}
 done:
 	return rc;
-event_err:
-	msm_adsp_put(audio->audplay);
 err:
 	ion_unmap_kernel(client, audio->output_buff_handle);
 output_buff_map_error:

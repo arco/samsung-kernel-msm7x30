@@ -134,10 +134,8 @@ struct audio {
 	/* data allocated for various buffers */
 	char *data;
 	int32_t phys; /* physical address of write buffer */
-
 	void *map_v_read;
 	void *map_v_write;
-
 	int mfield; /* meta field embedded in data */
 	int rflush; /* Read  flush */
 	int wflush; /* Write flush */
@@ -278,6 +276,7 @@ static int audamrwb_disable(struct audio *audio)
 			rc = -EFAULT;
 		else
 			rc = 0;
+		audio->stopped = 1;
 		wake_up(&audio->write_wait);
 		wake_up(&audio->read_wait);
 		msm_adsp_disable(audio->audplay);
@@ -301,8 +300,7 @@ static void audamrwb_update_pcm_buf_entry(struct audio *audio,
 	for (index = 0; index < payload[1]; index++) {
 		if (audio->in[audio->fill_next].addr ==
 		    payload[2 + index * 2]) {
-			MM_DBG("audamrwb_update_pcm_buf_entry: \
-				in[%d] ready\n", audio->fill_next);
+			MM_DBG("in[%d] ready\n", audio->fill_next);
 			audio->in[audio->fill_next].used =
 			    payload[3 + index * 2];
 			if ((++audio->fill_next) == audio->pcm_buf_count)
@@ -310,16 +308,15 @@ static void audamrwb_update_pcm_buf_entry(struct audio *audio,
 
 		} else {
 			MM_ERR("expected=%x ret=%x\n",
-				audio->in[audio->fill_next].addr,
-				payload[1 + index * 2]);
+					audio->in[audio->fill_next].addr,
+					payload[1 + index * 2]);
 			break;
 		}
 	}
 	if (audio->in[audio->fill_next].used == 0) {
 		audamrwb_buffer_refresh(audio);
 	} else {
-		MM_DBG("audamrwb_update_pcm_buf_entry: \
-				read cannot keep up\n");
+		MM_DBG("read cannot keep up\n");
 		audio->buf_refresh = 1;
 	}
 	wake_up(&audio->read_wait);
@@ -333,7 +330,7 @@ static void audplay_dsp_event(void *data, unsigned id, size_t len,
 	uint32_t msg[28];
 	getevent(msg, sizeof(msg));
 
-	MM_DBG("audplay_dsp_event: msg_id=%x\n", id);
+	MM_DBG("msg_id=%x\n", id);
 
 	switch (id) {
 	case AUDPLAY_MSG_DEC_NEEDS_DATA:
@@ -349,7 +346,7 @@ static void audplay_dsp_event(void *data, unsigned id, size_t len,
 		break;
 
 	default:
-		MM_DBG("unexpected message from decoder\n");
+		MM_ERR("unexpected message from decoder\n");
 	}
 }
 
@@ -609,25 +606,32 @@ static void audamrwb_send_data(struct audio *audio, unsigned needed)
 
 static void audamrwb_flush(struct audio *audio)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&audio->dsp_lock, flags);
 	audio->out[0].used = 0;
 	audio->out[1].used = 0;
 	audio->out_head = 0;
 	audio->out_tail = 0;
 	audio->reserved = 0;
 	audio->out_needed = 0;
+	spin_unlock_irqrestore(&audio->dsp_lock, flags);
 	atomic_set(&audio->out_bytes, 0);
 }
 
 static void audamrwb_flush_pcm_buf(struct audio *audio)
 {
 	uint8_t index;
+	unsigned long flags;
 
+	spin_lock_irqsave(&audio->dsp_lock, flags);
 	for (index = 0; index < PCM_BUF_MAX_COUNT; index++)
 		audio->in[index].used = 0;
 
 	audio->buf_refresh = 0;
 	audio->read_next = 0;
 	audio->fill_next = 0;
+	spin_unlock_irqrestore(&audio->dsp_lock, flags);
 }
 
 static void audamrwb_ioport_reset(struct audio *audio)
@@ -1096,7 +1100,8 @@ static long audamrwb_ioctl(struct file *file, unsigned int cmd,
 }
 
 /* Only useful in tunnel-mode */
-static int audamrwb_fsync(struct file *file, loff_t ppos1, loff_t ppos2, int datasync)
+static int audamrwb_fsync(struct file *file, loff_t a, loff_t b,
+	int datasync)
 {
 	struct audio *audio = file->private_data;
 	struct buffer *frame;
@@ -1195,12 +1200,13 @@ static ssize_t audamrwb_read(struct file *file, char __user *buf, size_t count,
 			MM_DBG("read stop - partial frame\n");
 			break;
 		} else {
-			MM_DBG("read from in[%d]\n", audio->read_next);
+			MM_DBG("read from in[%d]\n",
+				audio->read_next);
 
 			if (copy_to_user
 			    (buf, audio->in[audio->read_next].data,
 			     audio->in[audio->read_next].used)) {
-				MM_ERR("invalid addr %x\n", (unsigned int)buf);
+				MM_ERR("invalid addr %x \n", (unsigned int)buf);
 				rc = -EFAULT;
 				break;
 			}
@@ -1219,7 +1225,7 @@ static ssize_t audamrwb_read(struct file *file, char __user *buf, size_t count,
 	 */
 	if (audio->buf_refresh && !audio->rflush) {
 		audio->buf_refresh = 0;
-		MM_DBG("kick start pcm feedback again\n");
+		MM_ERR("kick start pcm feedback again\n");
 		audamrwb_buffer_refresh(audio);
 	}
 
@@ -1281,7 +1287,10 @@ static int audamrwb_process_eos(struct audio *audio,
 		rc = -EBUSY;
 		goto done;
 	}
-
+	if (mfield_size > audio->out[0].size) {
+		rc = -EINVAL;
+		goto done;
+	}
 	if (copy_from_user(frame->data, buf_start, mfield_size)) {
 		rc = -EFAULT;
 		goto done;
@@ -1339,6 +1348,10 @@ static ssize_t audamrwb_write(struct file *file, const char __user *buf,
 					rc = -EINVAL;
 					break;
 				}
+				if (mfield_size > audio->out[0].size) {
+					rc = -EINVAL;
+					break;
+				}
 				MM_DBG("mf offset_val %x\n", mfield_size);
 				if (copy_from_user(cpy_ptr, buf, mfield_size)) {
 					rc = -EFAULT;
@@ -1372,6 +1385,10 @@ static ssize_t audamrwb_write(struct file *file, const char __user *buf,
 		if (audio->reserved) {
 			MM_DBG("append reserved byte %x\n", audio->rsv_byte);
 			*cpy_ptr = audio->rsv_byte;
+			if (mfield_size > frame->size) {
+				rc = -EINVAL;
+				break;
+			}
 			xfer = (count > ((frame->size - mfield_size) - 1)) ?
 				((frame->size - mfield_size) - 1) : count;
 			cpy_ptr++;
@@ -1420,7 +1437,6 @@ static int audamrwb_release(struct inode *inode, struct file *file)
 	struct audio *audio = file->private_data;
 
 	MM_INFO("audio instance 0x%08x freeing\n", (int)audio);
-
 	mutex_lock(&audio->lock);
 	auddev_unregister_evt_listner(AUDDEV_CLNT_DEC, audio->dec_id);
 	audamrwb_disable(audio);
@@ -1467,6 +1483,7 @@ static void audamrwb_post_event(struct audio *audio, int type,
 		e_node = kmalloc(sizeof(struct audamrwb_event), GFP_ATOMIC);
 		if (!e_node) {
 			MM_ERR("No mem to post event %d\n", type);
+			spin_unlock_irqrestore(&audio->event_queue_lock, flags);
 			return;
 		}
 	}
@@ -1596,7 +1613,7 @@ static int audamrwb_open(struct inode *inode, struct file *file)
 	/* Allocate Mem for audio instance */
 	audio = kzalloc(sizeof(struct audio), GFP_KERNEL);
 	if (!audio) {
-		MM_ERR("no memory to allocate audio instance\n");
+		MM_ERR("No memory to allocate audio instance\n");
 		rc = -ENOMEM;
 		goto done;
 	}
@@ -1669,7 +1686,7 @@ static int audamrwb_open(struct inode *inode, struct file *file)
 	rc = msm_adsp_get(audio->module_name, &audio->audplay,
 		&audplay_adsp_ops_amrwb, audio);
 	if (rc) {
-		MM_ERR("failed to get %s module freeing instance 0x%08x\n",
+		MM_ERR("failed to get %s module, freeing instance 0x%08x\n",
 				audio->module_name, (int)audio);
 		goto err;
 	}

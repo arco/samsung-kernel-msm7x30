@@ -16,8 +16,8 @@
  *
  */
 
-#include <asm/ioctls.h>
 #include <asm/atomic.h>
+#include <asm/ioctls.h>
 
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -33,10 +33,10 @@
 #include <linux/msm_ion.h>
 #include <linux/slab.h>
 #include <linux/msm_audio.h>
-#include <mach/msm_adsp.h>
 
 #include <mach/qdsp5v2/audio_dev_ctl.h>
 
+#include <mach/msm_adsp.h>
 #include <mach/iommu.h>
 #include <mach/iommu_domains.h>
 #include <mach/qdsp5v2/qdsp5audppcmdi.h>
@@ -172,6 +172,7 @@ struct audio {
 	char *data;
 	int32_t phys;
 	void *map_v_write;
+
 	uint32_t drv_status;
 	int wflush; /* Write flush */
 	int opened;
@@ -302,6 +303,7 @@ static int audio_disable(struct audio *audio)
 			rc = -EFAULT;
 		else
 			rc = 0;
+		audio->stopped = 1;
 		wake_up(&audio->write_wait);
 		msm_adsp_disable(audio->audplay);
 		audpp_disable(audio->dec_id, audio);
@@ -324,13 +326,11 @@ static void audplay_dsp_event(void *data, unsigned id, size_t len,
 	case AUDPLAY_MSG_DEC_NEEDS_DATA:
 		audio->drv_ops.send_data(audio, 1);
 		break;
-
 	case ADSP_MESSAGE_ID:
-		MM_DBG("Received ADSP event:module audplaytask\n");
+		MM_DBG("Received ADSP event: module enable(audplaytask)\n");
 		break;
-
 	default:
-		MM_ERR("unexpected message from decoder\n");
+		MM_ERR("unexpected message from decoder \n");
 		break;
 	}
 }
@@ -346,8 +346,8 @@ static void audio_dsp_event(void *private, unsigned id, uint16_t *msg)
 			switch (status) {
 			case AUDPP_DEC_STATUS_SLEEP: {
 				uint16_t reason = msg[2];
-				MM_DBG("decoder status:sleep reason=0x%04x\n",
-						reason);
+				MM_DBG("decoder status: sleep reason = \
+						0x%04x\n", reason);
 				if ((reason == AUDPP_MSG_REASON_MEM)
 						|| (reason ==
 						AUDPP_MSG_REASON_NODECODER)) {
@@ -363,7 +363,7 @@ static void audio_dsp_event(void *private, unsigned id, uint16_t *msg)
 				break;
 			}
 			case AUDPP_DEC_STATUS_INIT:
-				MM_DBG("decoder status: init \n");
+				MM_DBG("decoder status: init\n");
 				audpp_cmd_cfg_adec_params(audio);
 				break;
 
@@ -379,7 +379,7 @@ static void audio_dsp_event(void *private, unsigned id, uint16_t *msg)
 				wake_up(&audio->wait);
 				break;
 			default:
-				MM_ERR("unknown decoder status\n");
+				MM_ERR("unknown decoder status \n");
 				break;
 			}
 			break;
@@ -396,7 +396,7 @@ static void audio_dsp_event(void *private, unsigned id, uint16_t *msg)
 			MM_DBG("CFG_MSG DISABLE\n");
 			audio->running = 0;
 		} else {
-			MM_ERR("audio_dsp_event: CFG_MSG %d?\n", msg[0]);
+			MM_ERR("CFG_MSG %d?\n",	msg[0]);
 		}
 		break;
 	case AUDPP_MSG_FLUSH_ACK:
@@ -419,7 +419,7 @@ static void audio_dsp_event(void *private, unsigned id, uint16_t *msg)
 		break;
 
 	default:
-		MM_DBG("audio_dsp_event: UNKNOWN (%d)\n", id);
+		MM_ERR("UNKNOWN (%d)\n", id);
 	}
 
 }
@@ -614,12 +614,16 @@ static void audpcm_async_flush(struct audio *audio)
 
 static void audio_flush(struct audio *audio)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&audio->dsp_lock, flags);
 	audio->out[0].used = 0;
 	audio->out[1].used = 0;
 	audio->out_head = 0;
 	audio->out_tail = 0;
 	audio->reserved = 0;
 	audio->out_needed = 0;
+	spin_unlock_irqrestore(&audio->dsp_lock, flags);
 	atomic_set(&audio->out_bytes, 0);
 }
 
@@ -1148,6 +1152,7 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 
+
 	case AUDIO_PAUSE:
 		MM_DBG("AUDIO_PAUSE %ld\n", arg);
 		rc = audpp_pause(audio->dec_id, (int) arg);
@@ -1291,7 +1296,7 @@ done:
 	return rc;
 }
 
-int audpcm_fsync(struct file *file, loff_t ppos1, loff_t ppos2, int datasync)
+int audpcm_fsync(struct file *file, loff_t a, loff_t b, int datasync)
 {
 	struct audio *audio = file->private_data;
 
@@ -1393,8 +1398,7 @@ static int audio_release(struct inode *inode, struct file *file)
 {
 	struct audio *audio = file->private_data;
 
-	MM_INFO("audio instance 0x%08x freeing\n", (int)audio);
-
+	MM_DBG("audio instance 0x%08x freeing\n", (int)audio);
 	mutex_lock(&audio->lock);
 	auddev_unregister_evt_listner(AUDDEV_CLNT_DEC, audio->dec_id);
 	audio_disable(audio);
@@ -1436,6 +1440,7 @@ static void audpcm_post_event(struct audio *audio, int type,
 		e_node = kmalloc(sizeof(struct audpcm_event), GFP_ATOMIC);
 		if (!e_node) {
 			MM_ERR("No mem to post event %d\n", type);
+			spin_unlock_irqrestore(&audio->event_queue_lock, flags);
 			return;
 		}
 	}
@@ -1555,7 +1560,7 @@ static int audio_open(struct inode *inode, struct file *file)
 		rc = -ENOMEM;
 		goto done;
 	}
-	MM_INFO("audio instance 0x%08x created\n", (int)audio);
+	MM_DBG("audio instance 0x%08x created\n", (int)audio);
 
 	/* Allocate the decoder */
 	dec_attrb = AUDDEC_DEC_PCM;
@@ -1703,7 +1708,7 @@ static int audio_open(struct inode *inode, struct file *file)
 		NULL, (void *) audio, &audpcm_debug_fops);
 
 	if (IS_ERR(audio->dentry))
-		MM_ERR("debugfs_create_file failed\n");
+		MM_DBG("debugfs_create_file failed\n");
 #endif
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	audio->suspend_ctl.node.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;

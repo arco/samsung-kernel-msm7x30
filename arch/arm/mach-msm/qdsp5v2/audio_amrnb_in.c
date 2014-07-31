@@ -27,8 +27,8 @@
 #include <linux/wait.h>
 #include <linux/dma-mapping.h>
 #include <linux/msm_audio_amrnb.h>
-#include <linux/msm_ion.h>
 #include <linux/memory_alloc.h>
+#include <linux/msm_ion.h>
 
 #include <mach/iommu.h>
 #include <mach/iommu_domains.h>

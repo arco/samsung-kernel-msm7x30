@@ -126,6 +126,8 @@ struct audio {
 	/* ---- End of Host PCM section */
 
 	struct msm_adsp_module *audplay;
+	void *map_v_read;
+	void *map_v_write;
 
 	/* configuration to use on next enable */
 	uint32_t out_sample_rate;
@@ -141,11 +143,10 @@ struct audio {
 	/* data allocated for various buffers */
 	char *data;
 	int32_t phys; /* physical address of write buffer */
-	void *map_v_read;
-	void *map_v_write;
 
 	int mfield; /* meta field embedded in data */
 	int rflush; /* Read  flush */
+	int eos_in_progress;
 	int wflush; /* Write flush */
 	int opened;
 	int enabled;
@@ -279,6 +280,7 @@ static int audio_disable(struct audio *audio)
 			rc = -EFAULT;
 		else
 			rc = 0;
+		audio->stopped = 1;
 		wake_up(&audio->write_wait);
 		wake_up(&audio->read_wait);
 		msm_adsp_disable(audio->audplay);
@@ -609,6 +611,8 @@ static int audplay_dsp_send_data_avail(struct audio *audio,
 	cmd.buf_ptr = audio->out[idx].addr;
 	cmd.buf_size = len / 2;
 	cmd.partition_number = 0;
+	/* complete all the writes to the input buffer */
+	wmb();
 	return audplay_send_queue0(audio, &cmd, sizeof(cmd));
 }
 
@@ -688,7 +692,12 @@ static void audplay_send_data(struct audio *audio, unsigned needed)
 			frame->used = 0;
 			audio->out_tail ^= 1;
 			wake_up(&audio->write_wait);
+		} else if ((audio->out[0].used == 0) &&
+			 (audio->out[1].used == 0) &&
+			 (audio->eos_in_progress)) {
+			wake_up(&audio->write_wait);
 		}
+
 	}
 
 	if (audio->out_needed) {
@@ -717,24 +726,31 @@ static void audplay_send_data(struct audio *audio, unsigned needed)
 
 static void audio_flush(struct audio *audio)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&audio->dsp_lock, flags);
 	audio->out[0].used = 0;
 	audio->out[1].used = 0;
 	audio->out_head = 0;
 	audio->out_tail = 0;
 	audio->reserved = 0;
 	audio->out_needed = 0;
+	spin_unlock_irqrestore(&audio->dsp_lock, flags);
 	atomic_set(&audio->out_bytes, 0);
 }
 
 static void audio_flush_pcm_buf(struct audio *audio)
 {
 	uint8_t index;
+	unsigned long flags;
 
+	spin_lock_irqsave(&audio->dsp_lock, flags);
 	for (index = 0; index < PCM_BUF_MAX_COUNT; index++)
 		audio->in[index].used = 0;
 	audio->buf_refresh = 0;
 	audio->read_next = 0;
 	audio->fill_next = 0;
+	spin_unlock_irqrestore(&audio->dsp_lock, flags);
 }
 
 static int audaac_validate_usr_config(struct msm_audio_aac_config *config)
@@ -1441,6 +1457,7 @@ static int audaac_process_eos(struct audio *audio,
 	struct buffer *frame;
 	char *buf_ptr;
 	int rc = 0;
+	unsigned long flags = 0;
 
 	MM_DBG("signal input EOS reserved=%d\n", audio->reserved);
 	if (audio->reserved) {
@@ -1469,6 +1486,10 @@ static int audaac_process_eos(struct audio *audio,
 		audio->out[0].used, audio->out[1].used, audio->out_needed);
 	frame = audio->out + audio->out_head;
 
+	spin_lock_irqsave(&audio->dsp_lock, flags);
+	audio->eos_in_progress = 1;
+	spin_unlock_irqrestore(&audio->dsp_lock, flags);
+
 	rc = wait_event_interruptible(audio->write_wait,
 		(audio->out_needed &&
 		audio->out[0].used == 0 &&
@@ -1476,10 +1497,18 @@ static int audaac_process_eos(struct audio *audio,
 		|| (audio->stopped)
 		|| (audio->wflush));
 
+	spin_lock_irqsave(&audio->dsp_lock, flags);
+	audio->eos_in_progress = 0;
+	spin_unlock_irqrestore(&audio->dsp_lock, flags);
+
 	if (rc < 0)
 		goto done;
 	if (audio->stopped || audio->wflush) {
 		rc = -EBUSY;
+		goto done;
+	}
+	if (mfield_size > audio->out[0].size) {
+		rc = -EINVAL;
 		goto done;
 	}
 
@@ -1534,6 +1563,10 @@ static ssize_t audio_write(struct file *file, const char __user *buf,
 					rc = -EINVAL;
 					break;
 				}
+				if (mfield_size > audio->out[0].size) {
+					rc = -EINVAL;
+					break;
+				}
 				MM_DBG("mf offset_val %x\n", mfield_size);
 				if (copy_from_user(cpy_ptr, buf, mfield_size)) {
 					rc = -EFAULT;
@@ -1569,6 +1602,10 @@ static ssize_t audio_write(struct file *file, const char __user *buf,
 			MM_DBG("append reserved byte %x\n",
 				audio->rsv_byte);
 			*cpy_ptr = audio->rsv_byte;
+			if (mfield_size > frame->size) {
+				rc = -EINVAL;
+				break;
+			}
 			xfer = (count > ((frame->size - mfield_size) - 1)) ?
 				(frame->size - mfield_size) - 1 : count;
 			cpy_ptr++;
@@ -1617,7 +1654,6 @@ static int audio_release(struct inode *inode, struct file *file)
 	struct audio *audio = file->private_data;
 
 	MM_INFO("audio instance 0x%08x freeing\n", (int)audio);
-
 	mutex_lock(&audio->lock);
 	auddev_unregister_evt_listner(AUDDEV_CLNT_DEC, audio->dec_id);
 	audio_disable(audio);
@@ -1661,6 +1697,7 @@ static void audaac_post_event(struct audio *audio, int type,
 		e_node = kmalloc(sizeof(struct audaac_event), GFP_ATOMIC);
 		if (!e_node) {
 			MM_ERR("No mem to post event %d\n", type);
+			spin_unlock_irqrestore(&audio->event_queue_lock, flags);
 			return;
 		}
 	}
@@ -1996,7 +2033,8 @@ static int audio_open(struct inode *inode, struct file *file)
 					(void *)audio);
 	if (rc) {
 		MM_ERR("%s: failed to register listner\n", __func__);
-		goto event_err;
+		msm_adsp_put(audio->audplay);
+		goto err;
 	}
 
 #ifdef CONFIG_DEBUG_FS
@@ -2029,8 +2067,6 @@ static int audio_open(struct inode *inode, struct file *file)
 			sizeof(struct msm_audio_bitstream_info));
 done:
 	return rc;
-event_err:
-	msm_adsp_put(audio->audplay);
 err:
 	ion_unmap_kernel(client, audio->input_buff_handle);
 input_buff_map_error:

@@ -15,26 +15,26 @@
  * GNU General Public License for more details.
  *
  */
-#include <asm/atomic.h>
-#include <asm/ioctls.h>
 
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/dma-mapping.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/wakelock.h>
-#include <linux/memory_alloc.h>
-#include <linux/msm_audio.h>
 #include <linux/pm_qos.h>
 
+#include <linux/msm_audio.h>
+
+#include <asm/atomic.h>
+#include <asm/ioctls.h>
 #include <mach/msm_adsp.h>
-#include <mach/iommu.h>
-#include <mach/iommu_domains.h>
+
 #include <mach/qdsp5v2/qdsp5audppcmdi.h>
 #include <mach/qdsp5v2/qdsp5audppmsg.h>
 #include <mach/qdsp5v2/audio_dev_ctl.h>

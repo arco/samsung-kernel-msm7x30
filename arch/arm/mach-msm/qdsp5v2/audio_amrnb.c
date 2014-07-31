@@ -26,6 +26,7 @@
 
 #include <asm/atomic.h>
 #include <asm/ioctls.h>
+
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
@@ -37,10 +38,11 @@
 #include <linux/delay.h>
 #include <linux/list.h>
 #include <linux/earlysuspend.h>
+#include <linux/slab.h>
+#include <linux/msm_audio.h>
 #include <linux/memory_alloc.h>
 #include <linux/msm_ion.h>
-#include <linux/msm_audio.h>
-#include <linux/slab.h>
+
 #include <mach/msm_adsp.h>
 #include <mach/iommu.h>
 #include <mach/iommu_domains.h>
@@ -133,6 +135,7 @@ struct audio {
 	int32_t phys; /* physical address of write buffer */
 	void *map_v_read;
 	void *map_v_write;
+
 
 	int mfield; /* meta field embedded in data */
 	int rflush; /* Read  flush */
@@ -274,6 +277,7 @@ static int audamrnb_disable(struct audio *audio)
 			rc = -EFAULT;
 		else
 			rc = 0;
+		audio->stopped = 1;
 		wake_up(&audio->write_wait);
 		wake_up(&audio->read_wait);
 		msm_adsp_disable(audio->audplay);
@@ -522,6 +526,8 @@ static int audplay_dsp_send_data_avail(struct audio *audio,
 	cmd.buf_ptr = audio->out[idx].addr;
 	cmd.buf_size = len / 2;
 	cmd.partition_number = 0;
+	/* complete writes to the input buffer */
+	wmb();
 	return audplay_send_queue0(audio, &cmd, sizeof(cmd));
 }
 
@@ -607,24 +613,31 @@ static void audamrnb_send_data(struct audio *audio, unsigned needed)
 
 static void audamrnb_flush(struct audio *audio)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&audio->dsp_lock, flags);
 	audio->out[0].used = 0;
 	audio->out[1].used = 0;
 	audio->out_head = 0;
 	audio->out_tail = 0;
 	audio->out_needed = 0;
+	spin_unlock_irqrestore(&audio->dsp_lock, flags);
 	atomic_set(&audio->out_bytes, 0);
 }
 
 static void audamrnb_flush_pcm_buf(struct audio *audio)
 {
 	uint8_t index;
+	unsigned long flags;
 
+	spin_lock_irqsave(&audio->dsp_lock, flags);
 	for (index = 0; index < PCM_BUF_MAX_COUNT; index++)
 		audio->in[index].used = 0;
 
 	audio->buf_refresh = 0;
 	audio->read_next = 0;
 	audio->fill_next = 0;
+	spin_unlock_irqrestore(&audio->dsp_lock, flags);
 }
 
 static void audamrnb_ioport_reset(struct audio *audio)
@@ -1084,7 +1097,7 @@ static long audamrnb_ioctl(struct file *file, unsigned int cmd,
 }
 
 /* Only useful in tunnel-mode */
-static int audamrnb_fsync(struct file *file, loff_t ppos1, loff_t ppos2, int datasync)
+static int audamrnb_fsync(struct file *file, loff_t a, loff_t b, int datasync)
 {
 	struct audio *audio = file->private_data;
 	int rc = 0;
@@ -1162,7 +1175,8 @@ static ssize_t audamrnb_read(struct file *file, char __user *buf, size_t count,
 			break;
 		} else {
 			MM_DBG("read from in[%d]\n", audio->read_next);
-
+			/* order reads from the output buffer */
+			rmb();
 			if (copy_to_user
 			    (buf, audio->in[audio->read_next].data,
 			     audio->in[audio->read_next].used)) {
@@ -1219,7 +1233,10 @@ static int audamrnb_process_eos(struct audio *audio,
 		rc = -EBUSY;
 		goto done;
 	}
-
+	if (mfield_size > audio->out[0].size) {
+		rc = -EINVAL;
+		goto done;
+	}
 	if (copy_from_user(frame->data, buf_start, mfield_size)) {
 		rc = -EFAULT;
 		goto done;
@@ -1278,6 +1295,10 @@ static ssize_t audamrnb_write(struct file *file, const char __user *buf,
 					rc = -EINVAL;
 					break;
 				}
+				if (mfield_size > audio->out[0].size) {
+					rc = -EINVAL;
+					break;
+				}
 				MM_DBG("mf offset_val %x\n", mfield_size);
 				if (copy_from_user(cpy_ptr, buf, mfield_size)) {
 					rc = -EFAULT;
@@ -1306,7 +1327,10 @@ static ssize_t audamrnb_write(struct file *file, const char __user *buf,
 			}
 			frame->mfield_sz = mfield_size;
 		}
-
+		if (mfield_size > frame->size) {
+			rc = -EINVAL;
+			break;
+		}
 		xfer = (count > (frame->size - mfield_size)) ?
 			(frame->size - mfield_size) : count;
 		if (copy_from_user(cpy_ptr, buf, xfer)) {
@@ -1337,7 +1361,6 @@ static int audamrnb_release(struct inode *inode, struct file *file)
 	struct audio *audio = file->private_data;
 
 	MM_INFO("audio instance 0x%08x freeing\n", (int)audio);
-
 	mutex_lock(&audio->lock);
 	auddev_unregister_evt_listner(AUDDEV_CLNT_DEC, audio->dec_id);
 	audamrnb_disable(audio);
@@ -1384,6 +1407,7 @@ static void audamrnb_post_event(struct audio *audio, int type,
 		e_node = kmalloc(sizeof(struct audamrnb_event), GFP_ATOMIC);
 		if (!e_node) {
 			MM_ERR("No mem to post event %d\n", type);
+			spin_unlock_irqrestore(&audio->event_queue_lock, flags);
 			return;
 		}
 	}
@@ -1592,7 +1616,7 @@ static int audamrnb_open(struct inode *inode, struct file *file)
 	rc = msm_adsp_get(audio->module_name, &audio->audplay,
 		&audplay_adsp_ops_amrnb, audio);
 	if (rc) {
-		MM_ERR("failed to get %s module freeing instance 0x%08x\n",
+		MM_ERR("failed to get %s module, freeing instance 0x%08x\n",
 				audio->module_name, (int)audio);
 		goto err;
 	}
