@@ -193,8 +193,8 @@ static void poweroff_touch_timer_handler2(unsigned long data)
 	/* click "yes" on second pop up menu */
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_X, 124);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_Y, 506);
-	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, 40);
-	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_WIDTH_MAJOR, 4);
+	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_PRESSURE, 40);
+	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, 4);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TRACKING_ID, 0);
 	input_mt_sync(melfas_mcs8000_ts->input_dev);
 	input_sync(melfas_mcs8000_ts->input_dev);
@@ -203,8 +203,8 @@ static void poweroff_touch_timer_handler2(unsigned long data)
 
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_X, 124);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_Y, 506);
-	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
-	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_WIDTH_MAJOR, 4);
+	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_PRESSURE, 0);
+	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, 4);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TRACKING_ID, 0);
 
 	input_mt_sync(melfas_mcs8000_ts->input_dev);
@@ -217,8 +217,8 @@ static void poweroff_touch_timer_handler(unsigned long data)
 	/* click "power off" on first pop up menu */
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_X, 282);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_Y, 640);
-	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, 40);
-	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_WIDTH_MAJOR, 4);
+	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_PRESSURE, 40);
+	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, 4);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TRACKING_ID, 0);
 	input_mt_sync(melfas_mcs8000_ts->input_dev);
 	input_sync(melfas_mcs8000_ts->input_dev);
@@ -227,8 +227,8 @@ static void poweroff_touch_timer_handler(unsigned long data)
 
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_X, 282);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_Y, 640);
-	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
-	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_WIDTH_MAJOR, 4);
+	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_PRESSURE, 0);
+	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, 4);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TRACKING_ID, 0);
 	input_mt_sync(melfas_mcs8000_ts->input_dev);
 	input_sync(melfas_mcs8000_ts->input_dev);
@@ -987,8 +987,8 @@ static void melfas_ts_work_func(struct work_struct *work)
             input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TRACKING_ID, i);
             input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_X, g_Mtouch_info[i].posX);
             input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_Y, g_Mtouch_info[i].posY);
-            input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, g_Mtouch_info[i].strength);
-            input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_WIDTH_MAJOR, g_Mtouch_info[i].width);
+            input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_PRESSURE, g_Mtouch_info[i].strength);
+            input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, g_Mtouch_info[i].width);
             input_mt_sync(melfas_mcs8000_ts->input_dev);
             
 #if DEBUG_PRINT
@@ -2400,7 +2400,7 @@ int melfas_mcs8000_ts_probe(struct i2c_client *client,
 	input_set_abs_params(melfas_mcs8000_ts->input_dev, ABS_MT_TRACKING_ID, 0, 10, 0, 0);
 	input_set_abs_params(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_X, 0, max_x, 0, 0);
 	input_set_abs_params(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_Y, 0, max_y, 0, 0);
-	input_set_abs_params(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+	input_set_abs_params(melfas_mcs8000_ts->input_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
 
 	printk("melfas_mcs8000_ts_probe: max_x: %d, max_y: %d\n", max_x, max_y);
 
@@ -2475,8 +2475,8 @@ void melfas_mcs8000_ts_gen_touch_up(void)
             input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TRACKING_ID, i);
             input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_X, g_Mtouch_info[i].posX);
             input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_Y, g_Mtouch_info[i].posY);
+            input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_PRESSURE, 0);
             input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
-            input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_WIDTH_MAJOR, 0);
             input_sync(melfas_mcs8000_ts->input_dev);
         }
     }   
