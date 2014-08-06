@@ -196,6 +196,7 @@ static void poweroff_touch_timer_handler2(unsigned long data)
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_PRESSURE, 40);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, 4);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TRACKING_ID, 0);
+	input_report_key(melfas_mcs8000_ts->input_dev, BTN_TOUCH, 1);
 	input_mt_sync(melfas_mcs8000_ts->input_dev);
 	input_sync(melfas_mcs8000_ts->input_dev);
 
@@ -206,6 +207,7 @@ static void poweroff_touch_timer_handler2(unsigned long data)
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_PRESSURE, 0);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, 4);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TRACKING_ID, 0);
+	input_report_key(melfas_mcs8000_ts->input_dev, BTN_TOUCH, 1);
 
 	input_mt_sync(melfas_mcs8000_ts->input_dev);
 	input_sync(melfas_mcs8000_ts->input_dev);
@@ -220,6 +222,7 @@ static void poweroff_touch_timer_handler(unsigned long data)
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_PRESSURE, 40);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, 4);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TRACKING_ID, 0);
+	input_report_key(melfas_mcs8000_ts->input_dev, BTN_TOUCH, 1);
 	input_mt_sync(melfas_mcs8000_ts->input_dev);
 	input_sync(melfas_mcs8000_ts->input_dev);
 
@@ -230,6 +233,7 @@ static void poweroff_touch_timer_handler(unsigned long data)
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_PRESSURE, 0);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, 4);
 	input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TRACKING_ID, 0);
+	input_report_key(melfas_mcs8000_ts->input_dev, BTN_TOUCH, 1);
 	input_mt_sync(melfas_mcs8000_ts->input_dev);
 	input_sync(melfas_mcs8000_ts->input_dev);
 
@@ -989,8 +993,9 @@ static void melfas_ts_work_func(struct work_struct *work)
             input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_Y, g_Mtouch_info[i].posY);
             input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_PRESSURE, g_Mtouch_info[i].strength);
             input_report_abs(melfas_mcs8000_ts->input_dev, ABS_MT_TOUCH_MAJOR, g_Mtouch_info[i].width);
+            input_report_key(melfas_mcs8000_ts->input_dev, BTN_TOUCH, 1);
             input_mt_sync(melfas_mcs8000_ts->input_dev);
-            
+
 #if DEBUG_PRINT
             printk(KERN_ERR "melfas_ts_work_func: Touch ID: %d, x: %d, y: %d, z: %d w: %d\n",
                    i, g_Mtouch_info[i].posX, g_Mtouch_info[i].posY, g_Mtouch_info[i].strength, g_Mtouch_info[i].width);
