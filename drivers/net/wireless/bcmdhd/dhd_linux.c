@@ -1076,17 +1076,39 @@ _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	uint buflen;
 	int ret;
 
+#ifdef MCAST_LIST_ACCUMULATION
+	int i;
+	uint32 cnt_iface[DHD_MAX_IFS];
+	cnt = 0;
+	allmulti = 0;
+
+	for (i = 0; i < DHD_MAX_IFS; i++) {
+		if (dhd->iflist[i]) {
+			dev = dhd->iflist[i]->net;
+			if (!dev)
+				continue;
+#else
 			ASSERT(dhd && dhd->iflist[ifidx]);
 			dev = dhd->iflist[ifidx]->net;
 			if (!dev)
 				return;
+#endif /* MCAST_LIST_ACCUMULATION */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
 			netif_addr_lock_bh(dev);
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35)
+#ifdef MCAST_LIST_ACCUMULATION
+			cnt_iface[i] = netdev_mc_count(dev);
+			cnt += cnt_iface[i];
+#else
 			cnt = netdev_mc_count(dev);
+#endif /* MCAST_LIST_ACCUMULATION */
+#else
+#ifdef MCAST_LIST_ACCUMULATION
+			cnt += dev->mc_count;
 #else
 			cnt = dev->mc_count;
+#endif /* MCAST_LIST_ACCUMULATION */
 #endif /* LINUX_VERSION_CODE */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
@@ -1094,7 +1116,19 @@ _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 #endif
 
 			/* Determine initial value of allmulti flag */
+#ifdef MCAST_LIST_ACCUMULATION
+			allmulti |= (dev->flags & IFF_ALLMULTI) ? TRUE : FALSE;
+		}
+	}
+#else
 	allmulti = (dev->flags & IFF_ALLMULTI) ? TRUE : FALSE;
+#endif /* MCAST_LIST_ACCUMULATION */
+#if defined(PASS_ALL_MCAST_PKTS) && defined(CUSTOMER_HW4)
+#ifdef PKT_FILTER_SUPPORT
+	if (!dhd->pub.early_suspended)
+#endif /* PKT_FILTER_SUPPORT */
+		allmulti = TRUE;
+#endif /* PASS_ALL_MCAST_PKTS && CUSTOMER_HW4 */
 
 	/* Send down the multicast list first. */
 
@@ -1114,21 +1148,43 @@ _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	memcpy(bufp, &cnt, sizeof(cnt));
 	bufp += sizeof(cnt);
 
+#ifdef MCAST_LIST_ACCUMULATION
+	for (i = 0; i < DHD_MAX_IFS; i++) {
+		if (dhd->iflist[i]) {
+			DHD_TRACE(("_dhd_set_multicast_list: ifidx %d\n", i));
+			dev = dhd->iflist[i]->net;
+#endif /* MCAST_LIST_ACCUMULATION */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
 			netif_addr_lock_bh(dev);
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35)
 			netdev_for_each_mc_addr(ha, dev) {
+#ifdef MCAST_LIST_ACCUMULATION
+				if (!cnt_iface[i])
+#else
 				if (!cnt)
+#endif /* MCAST_LIST_ACCUMULATION */
 					break;
 				memcpy(bufp, ha->addr, ETHER_ADDR_LEN);
 				bufp += ETHER_ADDR_LEN;
+#ifdef MCAST_LIST_ACCUMULATION
+				DHD_TRACE(("_dhd_set_multicast_list: cnt "
+					"%d " MACDBG "\n",
+					cnt_iface[i], MAC2STRDBG(ha->addr)));
+				cnt_iface[i]--;
+#else
 				cnt--;
+#endif /* MCAST_LIST_ACCUMULATION */
 	}
+#else
+#ifdef MCAST_LIST_ACCUMULATION
+	for (mclist = dev->mc_list; (mclist && (cnt_iface[i] > 0));
+		cnt_iface[i]--, mclist = mclist->next) {
 #else
 	for (mclist = dev->mc_list; (mclist && (cnt > 0));
 		cnt--, mclist = mclist->next) {
+#endif /* MCAST_LIST_ACCUMULATION */
 				memcpy(bufp, (void *)mclist->dmi_addr, ETHER_ADDR_LEN);
 				bufp += ETHER_ADDR_LEN;
 			}
@@ -1137,6 +1193,10 @@ _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
 			netif_addr_unlock_bh(dev);
 #endif
+#ifdef MCAST_LIST_ACCUMULATION
+		}
+	}
+#endif /* MCAST_LIST_ACCUMULATION */
 
 	memset(&ioc, 0, sizeof(ioc));
 	ioc.cmd = WLC_SET_VAR;
@@ -1189,7 +1249,17 @@ _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 
 	/* Finally, pick up the PROMISC flag as well, like the NIC driver does */
 
+#ifdef MCAST_LIST_ACCUMULATION
+	allmulti = 0;
+	for (i = 0; i < DHD_MAX_IFS; i++) {
+		if (dhd->iflist[i]) {
+			dev = dhd->iflist[i]->net;
+			allmulti |= (dev->flags & IFF_PROMISC) ? TRUE : FALSE;
+		}
+	}
+#else
 	allmulti = (dev->flags & IFF_PROMISC) ? TRUE : FALSE;
+#endif /* MCAST_LIST_ACCUMULATION */
 
 	allmulti = htol32(allmulti);
 
@@ -1379,6 +1449,9 @@ _dhd_sysioc_thread(void *data)
 #endif
 
 	while (down_interruptible(&tsk->sema) == 0) {
+#ifdef MCAST_LIST_ACCUMULATION
+		bool set_multicast = FALSE;
+#endif /* MCAST_LIST_ACCUMULATION */
 
 		SMP_RD_BARRIER_DEPENDS();
 		if (tsk->terminated) {
@@ -1423,7 +1496,11 @@ _dhd_sysioc_thread(void *data)
 					continue;
 				if (dhd->iflist[i]->set_multicast) {
 					dhd->iflist[i]->set_multicast = FALSE;
+#ifdef MCAST_LIST_ACCUMULATION
+					set_multicast = TRUE;
+#else
 					_dhd_set_multicast_list(dhd, i);
+#endif /* MCAST_LIST_ACCUMULATION */
 
 				}
 				list_for_each_entry_safe(iter, next,
@@ -1469,6 +1546,10 @@ _dhd_sysioc_thread(void *data)
 				}
 			}
 		}
+#ifdef MCAST_LIST_ACCUMULATION
+		if (set_multicast)
+			_dhd_set_multicast_list(dhd, 0);
+#endif /* MCAST_LIST_ACCUMULATION */
 
 		DHD_OS_WAKE_UNLOCK(&dhd->pub);
 		dhd_net_if_unlock_local(dhd);
