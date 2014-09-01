@@ -623,6 +623,7 @@ struct platform_device asoc_mvs_dai1 = {
 };
 #endif
 
+#ifdef CONFIG_DEVICE_NAND
 #define MSM_NAND_PHYS		0xA0200000
 #define MSM_NANDC01_PHYS	0xA0240000
 #define MSM_NANDC10_PHYS	0xA0280000
@@ -666,6 +667,7 @@ static struct resource resources_nand[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 };
+#endif
 
 static struct resource resources_otg[] = {
 	{
@@ -700,6 +702,7 @@ struct flash_platform_data msm_nand_data = {
 	.version = VERSION_2,
 };
 
+#ifdef CONFIG_DEVICE_NAND
 struct platform_device msm_device_nand = {
 	.name		= "msm_nand",
 	.id		= -1,
@@ -709,6 +712,7 @@ struct platform_device msm_device_nand = {
 		.platform_data	= &msm_nand_data,
 	},
 };
+#endif
 
 static struct msm_pm_irq_calls msm7x30_pm_irq_calls = {
 	.irq_pending = msm_irq_pending,
