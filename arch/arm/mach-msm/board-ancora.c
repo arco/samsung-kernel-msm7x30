@@ -2412,6 +2412,7 @@ static unsigned int msm_timpani_setup_power(void)
 {
 	int rc;
 
+#if 0
 	rc = config_timpani_reset();
 	if (rc < 0)
 		goto out;
@@ -2445,6 +2446,8 @@ disable_marimba_1:
 	regulator_disable(vreg_marimba_1);
 out:
 	return rc;
+#endif
+	return 0;
 };
 
 static void msm_timpani_shutdown_power(void)
@@ -3060,7 +3063,7 @@ static struct marimba_platform_data timpani_pdata = {
 	.marimba_setup = msm_timpani_setup_power,
 	.marimba_shutdown = msm_timpani_shutdown_power,
 	.codec = &timpani_codec_pdata,
-	.tsadc = &marimba_tsadc_pdata,
+//	.tsadc = &marimba_tsadc_pdata,
 	.tsadc_ssbi_adap = MARIMBA_SSBI_ADAP,
 };
 
@@ -5626,10 +5629,10 @@ qup_i2c_gpio_config(int adap_id, int config_type)
 		printk(KERN_ERR "QUP GPIO enable failed: %d\n", rc);
 	/*This needs to be enabled only for OEMS*/
 #ifndef CONFIG_QUP_EXCLUSIVE_TO_CAMERA
-	if (qup_vreg) {
-		int rc = regulator_set_voltage(qup_vreg, 1800000, 1800000);
+	if (!IS_ERR_OR_NULL(qup_vreg)) {
+		rc = regulator_enable(qup_vreg);
 		if (rc) {
-			pr_err("%s: regulator_set_voltage failed: %d\n",
+			pr_err("%s: regulator_enable failed: %d\n",
 			__func__, rc);
 		}
 	}
@@ -5678,7 +5681,7 @@ static void __init qup_device_i2c_init(void)
 	qup_device_i2c.dev.platform_data = &qup_i2c_pdata;
 	/*This needs to be enabled only for OEMS*/
 #ifndef CONFIG_QUP_EXCLUSIVE_TO_CAMERA
-	qup_vreg = regulator_get(&qup_device_i2c.dev, "gp13");
+	qup_vreg = regulator_get(&qup_device_i2c.dev, "lvsw1");
 	if (IS_ERR(qup_vreg)) {
 		dev_err(&qup_device_i2c.dev,
 			"%s: regulator_get failed: %ld\n",
@@ -5828,7 +5831,7 @@ static uint32_t msm_sdcc_setup_gpio(int dev_id, unsigned int enable)
 			msm_gpios_enable(curr->sleep_cfg_data, curr->size);
 			msm_gpios_free(curr->sleep_cfg_data, curr->size);
 		} else {
-			msm_gpios_free(curr->cfg_data, curr->size);
+			msm_gpios_disable_free(curr->cfg_data, curr->size);
 		}
 	}
 
