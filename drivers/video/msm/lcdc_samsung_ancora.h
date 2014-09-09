@@ -77,9 +77,9 @@ enum {
 
 #define LCDC_FB_XRES	480
 #define LCDC_FB_YRES	800
-#define LCDC_HPW	2
+#define LCDC_HPW		4
 #define LCDC_HBP		20
-#define LCDC_HFP		20
+#define LCDC_HFP		100
 #define LCDC_VPW		2
 #define LCDC_VBP		5
 #define LCDC_VFP		5
