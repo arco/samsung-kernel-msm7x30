@@ -2994,6 +2994,9 @@ static void audpp_cb(void *private, u32 id, u16 *msg)
 	if (id != AUDPP_MSG_CFG_MSG)
 		goto done;
 
+	if (acdb_data.device_info == NULL)
+		goto done;
+
 	if (msg[0] == AUDPP_MSG_ENA_DIS) {
 		if (--acdb_cache_rx[acdb_data.\
 				device_info->dev_id].stream_id <= 0) {
