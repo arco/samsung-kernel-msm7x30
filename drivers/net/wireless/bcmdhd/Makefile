@@ -6,37 +6,80 @@
 #
 
 DHDCFLAGS = -Wall -Wstrict-prototypes -Dlinux -DBCMDRIVER                     \
-	-DBCMDONGLEHOST -DUNRELEASEDCHIP -DBCMDMA32 -DBCMFILEIMAGE            \
-	-DDHDTHREAD -DDHD_DEBUG -DSDTEST -DBDC                                \
-	-DDHD_BCMEVENTS -DSHOW_EVENTS -DPROP_TXSTATUS -DBCMDBG                \
-	-DCUSTOMER_HW2 -DOOB_INTR_ONLY -DHW_OOB                               \
-	-DMMC_SDIO_ABORT -DBCMSDIO -DBCMLXSDMMC -DBCMPLATFORM_BUS -DWLP2P     \
-	-DWIFI_ACT_FRAME -DARP_OFFLOAD_SUPPORT                                \
-	-DKEEP_ALIVE -DGET_CUSTOM_MAC_ENABLE -DPKT_FILTER_SUPPORT             \
-	-DEMBEDDED_PLATFORM -DENABLE_INSMOD_NO_FW_LOAD -DPNO_SUPPORT          \
-	-DDHD_USE_IDLECOUNT -DSET_RANDOM_MAC_SOFTAP -DROAM_ENABLE -DVSDB      \
-	-DWL_CFG80211_VSDB_PRIORITIZE_SCAN_REQUEST                            \
-	-DESCAN_RESULT_PATCH -DSDIO_CRC_ERROR_FIX                             \
-	-DDHD_DONOT_FORWARD_BCMEVENT_AS_NETWORK_PKT -DRXFRAME_THREAD          \
-	-DSUPPORT_PM2_ONLY -DWLTDLS                                           \
-	-DMIRACAST_AMPDU_SIZE=8                                               \
-	-Idrivers/net/wireless/bcmdhd -Idrivers/net/wireless/bcmdhd/include   \
-	-Idrivers/net/wireless/bcmdhd/common/include
+        -DCUSTOMER_HW4 -DBLOCK_IPV6_PACKET -DPASS_IPV4_SUSPEND                \
+        -DSUPPORT_DEEP_SLEEP -DSIMPLE_MAC_PRINT                               \
+        -DBCMDONGLEHOST -DUNRELEASEDCHIP -DBCMDMA32 -DBCMFILEIMAGE            \
+        -DDHDTHREAD -DBDC -DHW_OOB -DOOB_INTR_ONLY                            \
+        -DDHD_BCMEVENTS -DSHOW_EVENTS -DBCMDBG -DROAM_ENABLE                  \
+        -DMMC_SDIO_ABORT -DBCMSDIO -DBCMLXSDMMC -DBCMPLATFORM_BUS -DWLP2P     \
+        -DWIFI_ACT_FRAME -DARP_OFFLOAD_SUPPORT -DESCAN_RESULT_PATCH           \
+        -DKEEP_ALIVE -DCSCAN -DPKT_FILTER_SUPPORT                             \
+        -DEMBEDDED_PLATFORM -DPNO_SUPPORT                                     \
+	    -Idrivers/net/wireless/bcmdhd -Idrivers/net/wireless/bcmdhd/include   \
+	    -Idrivers/net/wireless/bcmdhd/common/include
+
+DHDCFLAGS += -DCUSTOM_SDIO_F2_BLKSIZE=128
+
+# For p2p connection issue
+DHDCFLAGS += -DWL_SCB_TIMEOUT=10
+
+# For Passing all multicast packets to host when not in suspend mode.
+DHDCFLAGS += -DPASS_ALL_MCAST_PKTS
+
+# Early suspend
+DHDCFLAGS += -DDHD_USE_EARLYSUSPEND
+#DHDCFLAGS += -DSUPPORT_PM2_ONLY
+
+# For Static Buffer
+ifeq ($(CONFIG_BROADCOM_WIFI_RESERVED_MEM),y)
+  DHDCFLAGS += -DCONFIG_DHD_USE_STATIC_BUF
+  DHDCFLAGS += -DENHANCED_STATIC_BUF
+  DHDCFLAGS += -DSTATIC_WL_PRIV_STRUCT
+endif
+
+# SoftAP
+DHDCFLAGS += -DSUPPORT_AUTO_CHANNEL -DSUPPORT_HIDDEN_AP
+DHDCFLAGS += -DSUPPORT_SOFTAP_SINGL_DISASSOC
+DHDCFLAGS += -DUSE_STAMAC_4SOFTAP
+
+# DPC priority
+DHDCFLAGS += -DCUSTOM_DPC_PRIO_SETTING=98
+
+# WiFi turn off delay
+DHDCFLAGS += -DDEFAULT_WIFI_TURNOFF_DELAY=100
+
+# WiFi Kernel thread type
+DHDCFLAGS += -DUSE_KTHREAD_API
+
+ifneq ($(CONFIG_BCM4329),)
+  DHDCFLAGS += -DBCM4329_CHIP
+  #DHDCFLAGS += -DMCAST_LIST_ACCUMULATION
+  DHDCFLAGS += -DCUSTOM_GLOM_SETTING=0
+  DHDCFLAGS += -DPASS_ARP_PACKET
+endif
+
+ifeq ($(CONFIG_MACH_ANCORA),y)
+DHDCFLAGS += -DREAD_MACADDR
+else ifeq ($(CONFIG_MACH_ANCORA_TMO),y)
+DHDCFLAGS += -DREAD_MACADDR
+else ifeq ($(CONFIG_MACH_ARIESVE),y)
+DHDCFLAGS += -DWRITE_MACADDR
+endif
 
 DHDOFILES = aiutils.o bcmsdh_sdmmc_linux.o dhd_linux.o siutils.o bcmutils.o   \
 	dhd_linux_sched.o dhd_sdio.o bcmwifi_channels.o bcmevent.o hndpmu.o   \
 	bcmsdh.o dhd_cdc.o bcmsdh_linux.o dhd_common.o dhd_wlfc.o dhd_ip.o    \
 	linux_osl.o bcmsdh_sdmmc.o dhd_custom_gpio.o sbutils.o wldev_common.o \
-	wl_android.o dhd_pno.o
+	wl_android.o dhd_pno.o dhd_custom_sec.o
 
-obj-$(CONFIG_BCMDHD) += bcmdhd.o
-bcmdhd-objs += $(DHDOFILES)
+obj-$(CONFIG_BCMDHD) += dhd.o
+dhd-objs += $(DHDOFILES)
 ifneq ($(CONFIG_WIRELESS_EXT),)
-bcmdhd-objs += wl_iw.o
+dhd-objs += wl_iw.o
 DHDCFLAGS += -DSOFTAP -DWL_WIRELESS_EXT -DUSE_IW
 endif
 ifneq ($(CONFIG_CFG80211),)
-bcmdhd-objs += wl_cfg80211.o wl_cfgp2p.o wl_linux_mon.o dhd_cfg80211.o
+dhd-objs += wl_cfg80211.o wl_cfgp2p.o wl_linux_mon.o dhd_cfg80211.o
 DHDCFLAGS += -DWL_CFG80211 -DWL_CFG80211_STA_EVENT -DWL_ENABLE_P2P_IF
 DHDCFLAGS += -DWL_IFACE_COMB_NUM_CHANNELS
 DHDCFLAGS += -DCUSTOM_ROAM_TRIGGER_SETTING=-75
@@ -50,29 +93,4 @@ endif
 EXTRA_CFLAGS = $(DHDCFLAGS)
 ifeq ($(CONFIG_BCMDHD),m)
 EXTRA_LDFLAGS += --strip-debug
-endif
-
-DHDCFLAGS += -DCUSTOM_TDLS_RSSI_THRESHOLD_HIGH=-60
-DHDCFLAGS += -DCUSTOM_TDLS_RSSI_THRESHOLD_LOW=-70
-DHDCFLAGS += -DCUSTOM_TDLS_IDLE_MODE_SETTING=40000
-
-#########################
-# Chip dependent feature
-#########################
-ifneq ($(CONFIG_BCM4339),)
-DHDCFLAGS += -DCUSTOM_GLOM_SETTING=8 -DCUSTOM_RXCHAIN=1
-DHDCFLAGS += -DUSE_DYNAMIC_F2_BLKSIZE -DDYNAMIC_F2_BLKSIZE_FOR_NONLEGACY=128
-DHDCFLAGS += -DBCMSDIOH_TXGLOM -DCUSTOM_TXGLOM=1 -DBCMSDIOH_TXGLOM_HIGHSPEED
-DHDCFLAGS += -DCUSTOM_SDIO_F2_BLKSIZE=512
-DHDCFLAGS += -DDHDTCPACK_SUPPRESS
-DHDCFLAGS += -DUSE_WL_TXBF
-DHDCFLAGS += -DUSE_WL_FRAMEBURST
-DHDCFLAGS += -DCUSTOM_AMPDU_BA_WSIZE=32
-DHDCFLAGS += -DPROP_TXSTATUS_VSDB
-DHDCFLAGS += -DCUSTOM_MAX_TXGLOM_SIZE=32
-DHDCFLAGS += -DREPEAT_READFRAME
-DHDCFLAGS += -DROAM_AP_ENV_DETECTION
-DHDCFLAGS += -DWL11U
-else
-DHDCFLAGS += -DCUSTOM_SDIO_F2_BLKSIZE=128
 endif

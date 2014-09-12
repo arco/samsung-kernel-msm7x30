@@ -27,7 +27,11 @@
 #ifndef _dhd_dbg_
 #define _dhd_dbg_
 
+#if !defined(CUSTOMER_HW4)
 #define USE_NET_RATELIMIT		net_ratelimit()
+#else
+#define USE_NET_RATELIMIT		1
+#endif
 
 #if defined(DHD_DEBUG)
 

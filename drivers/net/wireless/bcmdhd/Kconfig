@@ -10,12 +10,12 @@ config BCMDHD
 	  If you choose to build a module, it'll be called dhd. Say M if
 	  unsure.
 
-config BCM4339
-	tristate "Broadcom 4339 wireless cards support"
+config BCM4329
+	bool "Broadcom 4329 wireless cards support"
 	depends on BCMDHD
 	---help---
 	  This module adds support for wireless adapters based on
-	  Broadcom 4339 chipset.
+	  Broadcom 4329 chipset.
 
 config BCMDHD_FW_PATH
 	depends on BCMDHD
@@ -52,3 +52,9 @@ config DHD_USE_SCHED_SCAN
 	default n
 	---help---
 	  Use CFG80211 sched scan
+
+config BROADCOM_WIFI_RESERVED_MEM
+	bool "BROADCOM Reserved memory for wifi device"
+	depends on BCM4329
+	---help---
+	  This is a configuration for broadcom WLAN driver.

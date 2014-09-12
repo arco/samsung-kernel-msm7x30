@@ -89,6 +89,18 @@
 #define CMD_MIRACAST		"MIRACAST"
 
 
+#if defined(SUPPORT_HIDDEN_AP)
+/* Hostapd private command */
+#define CMD_SET_HAPD_MAX_NUM_STA	"HAPD_MAX_NUM_STA"
+#define CMD_SET_HAPD_SSID		"HAPD_SSID"
+#define CMD_SET_HAPD_HIDE_SSID		"HAPD_HIDE_SSID"
+#endif
+#if defined(SUPPORT_AUTO_CHANNEL)
+#define CMD_SET_HAPD_AUTO_CHANNEL	"HAPD_AUTO_CHANNEL"
+#endif
+#if defined(SUPPORT_SOFTAP_SINGL_DISASSOC)
+#define CMD_HAPD_STA_DISASSOC		"HAPD_STA_DISASSOC"
+#endif
 
 /* CCX Private Commands */
 
@@ -173,7 +185,7 @@ static int lock_cookie_wifi = 'W' | 'i'<<8 | 'F'<<16 | 'i'<<24;	/* cookie is "Wi
 #endif /* ENABLE_4335BT_WAR */
 
 extern bool ap_fw_loaded;
-#if defined(CUSTOMER_HW2)
+#if defined(CUSTOMER_HW2) || defined(CUSTOMER_HW4)
 extern char iface_name[IFNAMSIZ];
 #endif 
 
@@ -238,6 +250,9 @@ static int wl_android_set_suspendopt(struct net_device *dev, char *command, int 
 	int ret_now;
 	int ret = 0;
 
+#ifdef CUSTOMER_HW4
+	if (!dhd_download_fw_on_driverload) {
+#endif /* CUSTOMER_HW4 */
 		suspend_flag = *(command + strlen(CMD_SETSUSPENDOPT) + 1) - '0';
 
 		if (suspend_flag != 0)
@@ -251,6 +266,9 @@ static int wl_android_set_suspendopt(struct net_device *dev, char *command, int 
 			else
 				DHD_ERROR(("%s: failed %d\n", __FUNCTION__, ret));
 		}
+#ifdef CUSTOMER_HW4
+	}
+#endif /* CUSTOMER_HW4 */
 	return ret;
 }
 
@@ -597,6 +615,139 @@ static int wl_android_set_fwpath(struct net_device *net, char *command, int tota
 	return 0;
 }
 
+#if defined(SUPPORT_HIDDEN_AP)
+static int
+wl_android_set_max_num_sta(struct net_device *dev, const char* string_num)
+{
+	int max_assoc;
+
+	max_assoc = bcm_atoi(string_num);
+	DHD_INFO(("%s : HAPD_MAX_NUM_STA = %d\n", __FUNCTION__, max_assoc));
+	wldev_iovar_setint(dev, "maxassoc", max_assoc);
+	return 1;
+}
+
+static int
+wl_android_set_ssid(struct net_device *dev, const char* hapd_ssid)
+{
+	wlc_ssid_t ssid;
+	s32 ret;
+
+	ssid.SSID_len = strlen(hapd_ssid);
+	bcm_strncpy_s(ssid.SSID, sizeof(ssid.SSID), hapd_ssid, ssid.SSID_len);
+	DHD_INFO(("%s: HAPD_SSID = %s\n", __FUNCTION__, ssid.SSID));
+	ret = wldev_ioctl(dev, WLC_SET_SSID, &ssid, sizeof(wlc_ssid_t), true);
+	if (ret < 0) {
+		DHD_ERROR(("%s : WLC_SET_SSID Error:%d\n", __FUNCTION__, ret));
+	}
+	return 1;
+
+}
+
+static int
+wl_android_set_hide_ssid(struct net_device *dev, const char* string_num)
+{
+	int hide_ssid;
+	int enable = 0;
+
+	hide_ssid = bcm_atoi(string_num);
+	DHD_INFO(("%s: HAPD_HIDE_SSID = %d\n", __FUNCTION__, hide_ssid));
+	if (hide_ssid)
+		enable = 1;
+	wldev_iovar_setint(dev, "closednet", enable);
+	return 1;
+}
+#endif /* SUPPORT_HIDDEN_AP */
+
+#if defined(SUPPORT_AUTO_CHANNEL)
+static int
+wl_android_set_auto_channel(struct net_device *dev, const char* string_num,
+	char* command, int total_len)
+{
+	int channel;
+	int chosen = 0;
+	int retry = 0;
+	int ret = 0;
+
+	/* Restrict channel to 1 - 7: 2GHz, 20MHz BW, No SB */
+	u32 req_buf[8] = {7, 0x2B01, 0x2B02, 0x2B03, 0x2B04, 0x2B05, 0x2B06,
+		0x2B07};
+
+	/* Auto channel select */
+	wl_uint32_list_t request;
+
+	channel = bcm_atoi(string_num);
+	DHD_INFO(("%s : HAPD_AUTO_CHANNEL = %d\n", __FUNCTION__, channel));
+
+	if (channel == 20)
+		ret = wldev_ioctl(dev, WLC_START_CHANNEL_SEL, (void *)&req_buf,
+			sizeof(req_buf), true);
+	else { /* channel == 0 */
+		request.count = htod32(0);
+		ret = wldev_ioctl(dev, WLC_START_CHANNEL_SEL, (void *)&request,
+			sizeof(request), true);
+	}
+
+	if (ret < 0) {
+		DHD_ERROR(("%s: can't start auto channel scan, err = %d\n",
+			__FUNCTION__, ret));
+		channel = 0;
+		goto done;
+	}
+
+	/* Wait for auto channel selection, max 2500 ms */
+	bcm_mdelay(500);
+
+	retry = 10;
+	while (retry--) {
+		ret = wldev_ioctl(dev, WLC_GET_CHANNEL_SEL, &chosen, sizeof(chosen),
+			false);
+		if (ret < 0 || dtoh32(chosen) == 0) {
+			DHD_INFO(("%s: %d tried, ret = %d, chosen = %d\n",
+				__FUNCTION__, (10 - retry), ret, chosen));
+			bcm_mdelay(200);
+		}
+		else {
+			channel = (u16)chosen & 0x00FF;
+			DHD_ERROR(("%s: selected channel = %d\n", __FUNCTION__, channel));
+			break;
+		}
+	}
+
+	if (retry == 0)	{
+		DHD_ERROR(("%s: auto channel timed out, failed\n", __FUNCTION__));
+		channel = 0;
+	}
+
+done:
+	snprintf(command, 4, "%d", channel);
+	DHD_INFO(("%s: command result is %s\n", __FUNCTION__, command));
+
+	return 4;
+}
+#endif /* SUPPORT_AUTO_CHANNEL */
+
+#if defined(SUPPORT_SOFTAP_SINGL_DISASSOC)
+static int
+wl_android_sta_diassoc(struct net_device *dev, const char* straddr)
+{
+	scb_val_t scbval;
+
+	DHD_INFO(("%s: deauth STA %s\n", __FUNCTION__, straddr));
+
+	/* Unspecified reason */
+	scbval.val = htod32(1);
+	bcm_ether_atoe(straddr, &scbval.ea);
+
+	DHD_INFO(("%s: deauth STA: "MACDBG "\n", __FUNCTION__,
+		MAC2STRDBG(scbval.ea.octet)));
+
+	wldev_ioctl(dev, WLC_SCB_DEAUTHENTICATE_FOR_REASON, &scbval,
+		sizeof(scb_val_t), true);
+
+	return 1;
+}
+#endif /* SUPPORT_SOFTAP_SINGL_DISASSOC */
 
 static int
 wl_android_set_pmk(struct net_device *dev, char *command, int total_len)
@@ -1003,6 +1154,45 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		bytes_written = wl_android_set_pmk(net, command, priv_cmd.total_len);
 	else if (strnicmp(command, CMD_OKC_ENABLE, strlen(CMD_OKC_ENABLE)) == 0)
 		bytes_written = wl_android_okc_enable(net, command, priv_cmd.total_len);
+#if defined(WL_SUPPORT_AUTO_CHANNEL)
+	else if (strnicmp(command, CMD_GET_BEST_CHANNELS,
+		strlen(CMD_GET_BEST_CHANNELS)) == 0) {
+		bytes_written = wl_cfg80211_get_best_channels(net, command,
+			priv_cmd.total_len);
+	}
+#if defined(SUPPORT_AUTO_CHANNEL)
+	else if (strnicmp(command, CMD_SET_HAPD_AUTO_CHANNEL,
+		strlen(CMD_SET_HAPD_AUTO_CHANNEL)) == 0) {
+		int skip = strlen(CMD_SET_HAPD_AUTO_CHANNEL) + 3;
+		bytes_written = wl_android_set_auto_channel(net, (const char*)command+skip, command,
+			priv_cmd.total_len);
+	}
+#endif
+#if defined(SUPPORT_HIDDEN_AP)
+	else if (strnicmp(command, CMD_SET_HAPD_MAX_NUM_STA,
+		strlen(CMD_SET_HAPD_MAX_NUM_STA)) == 0) {
+		int skip = strlen(CMD_SET_HAPD_MAX_NUM_STA) + 3;
+		wl_android_set_max_num_sta(net, (const char*)command+skip);
+	}
+	else if (strnicmp(command, CMD_SET_HAPD_SSID,
+		strlen(CMD_SET_HAPD_SSID)) == 0) {
+		int skip = strlen(CMD_SET_HAPD_SSID) + 3;
+		wl_android_set_ssid(net, (const char*)command+skip);
+	}
+	else if (strnicmp(command, CMD_SET_HAPD_HIDE_SSID,
+		strlen(CMD_SET_HAPD_HIDE_SSID)) == 0) {
+		int skip = strlen(CMD_SET_HAPD_HIDE_SSID) + 3;
+		wl_android_set_hide_ssid(net, (const char*)command+skip);
+	}
+#endif /* SUPPORT_HIDDEN_AP */
+#if defined(SUPPORT_SOFTAP_SINGL_DISASSOC)
+	else if (strnicmp(command, CMD_HAPD_STA_DISASSOC,
+		strlen(CMD_HAPD_STA_DISASSOC)) == 0) {
+		int skip = strlen(CMD_HAPD_STA_DISASSOC) + 1;
+		wl_android_sta_diassoc(net, (const char*)command+skip);
+	}
+#endif /* SUPPORT_SOFTAP_SINGL_DISASSOC */
+#endif /* WL_SUPPORT_AUTO_CHANNEL */
 	else if (strnicmp(command, CMD_SETROAMMODE, strlen(CMD_SETROAMMODE)) == 0)
 		bytes_written = wl_android_set_roam_mode(net, command, priv_cmd.total_len);
 	else if (strnicmp(command, CMD_MIRACAST, strlen(CMD_MIRACAST)) == 0)
@@ -1048,7 +1238,7 @@ int wl_android_init(void)
 #ifdef ENABLE_INSMOD_NO_FW_LOAD
 	dhd_download_fw_on_driverload = FALSE;
 #endif /* ENABLE_INSMOD_NO_FW_LOAD */
-#if defined(CUSTOMER_HW2)
+#if defined(CUSTOMER_HW2) || defined(CUSTOMER_HW4)
 	if (!iface_name[0]) {
 		memset(iface_name, 0, IFNAMSIZ);
 		bcm_strncpy_s(iface_name, IFNAMSIZ, "wlan", IFNAMSIZ);

@@ -97,6 +97,15 @@ static histo_t vi_d1, vi_d2, vi_d3, vi_d4;
 #endif /* WLMEDIA_HTSF */
 
 
+#if defined(BLOCK_IPV6_PACKET) && defined(CUSTOMER_HW4)
+#define HEX_PREF_STR	"0x"
+#define UNI_FILTER_STR	"010000000000"
+#define ZERO_ADDR_STR	"000000000000"
+#define ETHER_TYPE_STR	"0000"
+#define IPV6_FILTER_STR	"20"
+#define ZERO_TYPE_STR	"00"
+#endif /* BLOCK_IPV6_PACKET && CUSTOMER_HW4 */
+
 #if defined(SOFTAP)
 extern bool ap_cfg_running;
 extern bool ap_fw_loaded;
@@ -194,6 +203,15 @@ extern void dhd_pktfilter_offload_enable(dhd_pub_t * dhd, char *arg, int enable,
 extern void dhd_pktfilter_offload_delete(dhd_pub_t *dhd, int id);
 #endif
 
+#ifdef CUSTOMER_HW4
+#ifdef READ_MACADDR
+extern int dhd_read_macaddr(struct dhd_info *dhd, struct ether_addr *mac);
+#endif
+#ifdef WRITE_MACADDR
+extern int dhd_write_macaddr(struct ether_addr *mac);
+#endif
+
+#else
 
 #ifdef READ_MACADDR
 extern int dhd_read_macaddr(struct dhd_info *dhd);
@@ -205,6 +223,7 @@ extern int dhd_write_macaddr(struct ether_addr *mac);
 #else
 static inline int dhd_write_macaddr(struct ether_addr *mac) { return 0; }
 #endif
+#endif /* CUSTOMER_HW4 */
 struct ipv6_addr {
 	char 			ipv6_addr[IPV6_ADDR_LEN];
 	dhd_ipv6_op_t 	ipv6_oper;
@@ -670,9 +689,21 @@ static int dhd_process_cid_mac(dhd_pub_t *dhdp, bool prepost)
 	dhd_info_t *dhd = (dhd_info_t *)dhdp->info;
 
 	if (prepost) { /* pre process */
+#ifdef CUSTOMER_HW4
+#ifdef READ_MACADDR
+		dhd_read_macaddr(dhd, &dhd->pub.mac);
+#endif
+#else
 		dhd_read_macaddr(dhd);
+#endif /* CUSTOMER_HW4 */
 	} else { /* post process */
+#ifdef CUSTOMER_HW4
+#ifdef WRITE_MACADDR
 		dhd_write_macaddr(&dhd->pub.mac);
+#endif
+#else
+		dhd_write_macaddr(&dhd->pub.mac);
+#endif /* CUSTOMER_HW4 */
 	}
 
 	return 0;
@@ -746,7 +777,9 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 #endif /* SUPPORT_PM2_ONLY */
 	/* wl_pkt_filter_enable_t	enable_parm; */
 	char iovbuf[32];
+#if !defined(CUSTOMER_HW4)
 	int bcn_li_dtim = 0; /* Default bcn_li_dtim in resume mode is 0 */
+#endif
 #ifndef ENABLE_FW_ROAM_SUSPEND
 	uint roamvar = 1;
 #endif /* ENABLE_FW_ROAM_SUSPEND */
@@ -777,6 +810,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 				dhd_enable_packet_filter(1, dhd);
 
 
+#if !defined(CUSTOMER_HW4)
 				/* If DTIM skip is set up as default, force it to wake
 				 * each third DTIM for better power savings.  Note that
 				 * one side effect is a chance to miss BC/MC packet.
@@ -787,7 +821,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 				if (dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf),
 					TRUE, 0) < 0)
 					DHD_ERROR(("%s: set dtim failed\n", __FUNCTION__));
-
+#endif /* !defined(CUSTOMER_HW4) */
 #ifndef ENABLE_FW_ROAM_SUSPEND
 				/* Disable firmware roaming during suspend */
 				bcm_mkiovar("roam_off", (char *)&roamvar, 4,
@@ -819,11 +853,13 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 				dhd_enable_packet_filter(0, dhd);
 #endif /* PKT_FILTER_SUPPORT */
 
+#if !defined(CUSTOMER_HW4)
 				/* restore pre-suspend setting for dtim_skip */
 				bcm_mkiovar("bcn_li_dtim", (char *)&bcn_li_dtim,
 					4, iovbuf, sizeof(iovbuf));
 
 				dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
+#endif /* !defined(CUSTOMER_HW4) */
 #ifndef ENABLE_FW_ROAM_SUSPEND
 				roamvar = dhd_roam_disable;
 				bcm_mkiovar("roam_off", (char *)&roamvar, 4, iovbuf,
@@ -2954,12 +2990,32 @@ dhd_open(struct net_device *net)
 
 		if (dhd->pub.busstate != DHD_BUS_DATA) {
 
-			/* try to bring up bus */
-			if ((ret = dhd_bus_start(&dhd->pub)) != 0) {
-				DHD_ERROR(("%s: failed with code %d\n", __FUNCTION__, ret));
-				ret = -1;
-				goto exit;
+#if defined(CUSTOMER_HW4)
+#define WAIT_DHDBUS_READY 5
+			/* Delay ifup until insmod completed in case of module type */
+			if (dhd_download_fw_on_driverload) {
+				uint retry = 0;
+
+				do {
+					OSL_DELAY(100*1000);
+				} while ((dhd->pub.busstate != DHD_BUS_DATA) &&
+					(retry++ < WAIT_DHDBUS_READY));
+
+				if (dhd->pub.busstate != DHD_BUS_DATA) {
+					DHD_ERROR(("%s: call dev open before insmod complete!\n",
+						__FUNCTION__));
+					ret = -1;
+					goto exit;
+				}
 			}
+			else
+#endif /* CUSTOMER_HW4 */
+				/* try to bring up bus */
+				if ((ret = dhd_bus_start(&dhd->pub)) != 0) {
+					DHD_ERROR(("%s: failed with code %d\n", __FUNCTION__, ret));
+					ret = -1;
+					goto exit;
+				}
 
 		}
 
@@ -3273,6 +3329,9 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	wake_lock_init(&dhd->wl_rxwake, WAKE_LOCK_SUSPEND, "wlan_rx_wake");
 	wake_lock_init(&dhd->wl_ctrlwake, WAKE_LOCK_SUSPEND, "wlan_ctrl_wake");
 	wake_lock_init(&dhd->wl_wdwake, WAKE_LOCK_SUSPEND, "wlan_wd_wake");
+#if defined(CUSTOMER_HW4) && defined(PNO_SUPPORT)
+	wake_lock_init(&dhd->pub.pno_wakelock, WAKE_LOCK_SUSPEND, "pno_wake_lock");
+#endif
 #endif /* CONFIG_HAS_WAKELOCK */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
 	mutex_init(&dhd->dhd_net_if_mutex);
@@ -4129,6 +4188,19 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	/* apply APP pktfilter */
 	dhd->pktfilter[DHD_ARP_FILTER_NUM] = "105 0 0 12 0xFFFF 0x0806";
 
+#ifdef CUSTOMER_HW4
+#ifdef BLOCK_IPV6_PACKET
+	/* Setup filter to allow only IPv4 unicast frames */
+	dhd->pktfilter[DHD_UNICAST_FILTER_NUM] = "100 0 0 0 "
+		HEX_PREF_STR UNI_FILTER_STR ZERO_ADDR_STR ETHER_TYPE_STR IPV6_FILTER_STR
+		" "
+		HEX_PREF_STR ZERO_ADDR_STR ZERO_ADDR_STR ETHER_TYPE_STR ZERO_TYPE_STR;
+#endif /* BLOCK_IPV6_PACKET */
+#ifdef PASS_IPV4_SUSPEND
+	dhd->pktfilter[DHD_MDNS_FILTER_NUM] = "104 0 0 0 0xFFFFFF 0x01005E";
+#endif /* PASS_IPV4_SUSPEND */
+#endif /* CUSTOMER_HW4 */
+
 #if defined(SOFTAP)
 	if (ap_fw_loaded) {
 		dhd_enable_packet_filter(0, dhd);
@@ -4539,7 +4611,11 @@ dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 	printf("Broadcom Dongle Host Driver: register interface [%s]"
 		" MAC: "MACDBG"\n",
 		net->name,
+#if defined(CUSTOMER_HW4)
+		MAC2STRDBG(dhd->pub.mac.octet));
+#else
 		MAC2STRDBG(net->dev_addr));
+#endif /* CUSTOMER_HW4 */
 
 #if defined(SOFTAP) && defined(WL_WIRELESS_EXT) && !defined(WL_CFG80211)
 		wl_iw_iscan_set_scan_broadcast_prep(net, 1);
@@ -4737,6 +4813,9 @@ void dhd_detach(dhd_pub_t *dhdp)
 		wake_lock_destroy(&dhd->wl_rxwake);
 		wake_lock_destroy(&dhd->wl_ctrlwake);
 		wake_lock_destroy(&dhd->wl_wdwake);
+#if defined(CUSTOMER_HW4) && defined(PNO_SUPPORT)
+	wake_lock_destroy(&dhdp->pno_wakelock);
+#endif
 #endif /* CONFIG_HAS_WAKELOCK */
 	}
 }
@@ -5453,6 +5532,10 @@ int net_os_rxfilter_add_remove(struct net_device *dev, int add_remove, int num)
 			filter_id = 102;
 			break;
 		case DHD_MULTICAST6_FILTER_NUM:
+#if defined(BLOCK_IPV6_PACKET) && defined(CUSTOMER_HW4)
+			/* customer want to use NO IPV6 packets only */
+			return ret;
+#endif /* BLOCK_IPV6_PACKET && CUSTOMER_HW4 */
 			filterp = "103 0 0 0 0xFFFF 0x3333";
 			filter_id = 103;
 			break;
@@ -5505,6 +5588,12 @@ dhd_dev_init_ioctl(struct net_device *dev)
 	int ret;
 
 	dhd_process_cid_mac(&dhd->pub, TRUE);
+
+#if defined(USE_STAMAC_4SOFTAP)
+	/* Writing STA's MAC ID to the Dongle for SOFTAP */
+	if (_dhd_set_mac_address(dhd, 0, &dhd->pub.mac) == 0)
+		DHD_INFO(("dhd_bus_start: MAC ID is overwritten\n"));
+#endif
 
 	if ((ret = dhd_preinit_ioctls(&dhd->pub)) < 0)
 		goto done;

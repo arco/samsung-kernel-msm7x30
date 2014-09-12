@@ -700,6 +700,8 @@ dhdsdio_sr_cap(dhd_bus_t *bus)
 		(bus->sih->chip == BCM4339_CHIP_ID) ||
 		(bus->sih->chip == BCM4350_CHIP_ID)) {
 		core_capext = TRUE;
+	} else if (bus->sih->chip == BCM4329_CHIP_ID) {
+			core_capext = FALSE;
 	} else {
 			core_capext = bcmsdh_reg_read(bus->sdh, CORE_CAPEXT_ADDR, 4);
 			core_capext = (core_capext & CORE_CAPEXT_SR_SUPPORTED_MASK);
@@ -1385,7 +1387,11 @@ dhdsdio_bussleep(dhd_bus_t *bus, bool sleep)
 	/* Going to sleep: set the alarm and turn off the lights... */
 	if (sleep) {
 		/* Don't sleep if something is pending */
+#ifdef CUSTOMER_HW4
+		if (bus->dpc_sched || bus->rxskip || pktq_len(&bus->txq) || bus->readframes)
+#else
 		if (bus->dpc_sched || bus->rxskip || pktq_len(&bus->txq))
+#endif /* CUSTOMER_HW4 */
 			return BCME_BUSY;
 
 

@@ -215,9 +215,11 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 		sd_err(("%s: error while trying to keep power\n", __FUNCTION__));
 		return ret;
 	}
+#if !defined(CUSTOMER_HW4)
 #if defined(OOB_INTR_ONLY)
 	bcmsdh_oob_intr_set(0);
 #endif 
+#endif  /* !defined(CUSTOMER_HW4) */
 	dhd_mmc_suspend = TRUE;
 	smp_mb();
 
@@ -226,16 +228,19 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 
 static int bcmsdh_sdmmc_resume(struct device *pdev)
 {
+#if !defined(CUSTOMER_HW4)
 #if defined(OOB_INTR_ONLY)
 	struct sdio_func *func = dev_to_sdio_func(pdev);
-#endif 
 	sd_trace(("%s Enter\n", __FUNCTION__));
+#endif
+#endif /* defined(CUSTOMER_HW4) */
 	dhd_mmc_suspend = FALSE;
+#if !defined(CUSTOMER_HW4)
 #if defined(OOB_INTR_ONLY)
 	if ((func->num == 2) && dhd_os_check_if_up(bcmsdh_get_drvdata()))
 		bcmsdh_oob_intr_set(1);
 #endif 
-
+#endif /* !(CUSTOMER_HW4) */
 	smp_mb();
 	return 0;
 }

@@ -269,6 +269,12 @@ int bcmsdh_remove(struct device *dev)
 	osl_t *osh;
 	int sdhcinfo_null = false;
 
+	/* detach ch & sdhc if dev is valid */
+	/* for 4329 chipset the detach must be done first prevents kernel panic */
+	sdhc = sdhcinfo;
+	drvinfo.detach(sdhc->ch);
+	bcmsdh_detach(sdhc->osh, sdhc->sdh);
+
 	/* find the SDIO Host Controller state for this pdev and take it out from the list */
 	for (sdhc = sdhcinfo, prev = NULL; sdhc; sdhc = sdhc->next) {
 		if (sdhc->dev == (void *)dev) {
@@ -289,10 +295,6 @@ int bcmsdh_remove(struct device *dev)
 		SDLX_MSG(("%s: failed\n", __FUNCTION__));
 		return 0;
 	}
-
-	/* detach ch & sdhc if dev is valid */
-	drvinfo.detach(sdhc->ch);
-	bcmsdh_detach(sdhc->osh, sdhc->sdh);
 
 #if !defined(CONFIG_HAS_WAKELOCK) && (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36))
 	if (pm_dev) {

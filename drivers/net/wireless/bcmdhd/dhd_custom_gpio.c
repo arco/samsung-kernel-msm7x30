@@ -41,7 +41,7 @@
 extern  void bcm_wlan_power_off(int);
 extern  void bcm_wlan_power_on(int);
 #endif /* CUSTOMER_HW */
-#if defined(CUSTOMER_HW2)
+#if defined(CUSTOMER_HW2) || defined(CUSTOMER_HW4)
 
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
@@ -88,7 +88,7 @@ int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr)
 {
 	int  host_oob_irq = 0;
 
-#if defined(CUSTOMER_HW2)
+#if defined(CUSTOMER_HW2) || defined(CUSTOMER_HW4)
 	host_oob_irq = wifi_get_irq_number(irq_flags_ptr);
 
 #else
@@ -131,7 +131,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 #ifdef CUSTOMER_HW
 			bcm_wlan_power_off(2);
 #endif /* CUSTOMER_HW */
-#if defined(CUSTOMER_HW2)
+#if defined(CUSTOMER_HW2) || defined(CUSTOMER_HW4)
 			wifi_set_power(0, WIFI_TURNOFF_DELAY);
 #endif
 			WL_ERROR(("=========== WLAN placed in RESET ========\n"));
@@ -143,7 +143,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 #ifdef CUSTOMER_HW
 			bcm_wlan_power_on(2);
 #endif /* CUSTOMER_HW */
-#if defined(CUSTOMER_HW2)
+#if defined(CUSTOMER_HW2) || defined(CUSTOMER_HW4)
 			wifi_set_power(1, 0);
 #endif
 			WL_ERROR(("=========== WLAN going back to live  ========\n"));

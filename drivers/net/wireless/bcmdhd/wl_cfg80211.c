@@ -79,7 +79,11 @@
 
 static struct device *cfg80211_parent_dev = NULL;
 struct wl_priv *wlcfg_drv_priv = NULL;
+#ifdef CUSTOMER_HW4
+u32 wl_dbg_level = WL_DBG_ERR | WL_DBG_P2P_ACTION;
+#else
 u32 wl_dbg_level = WL_DBG_ERR;
+#endif
 
 #define MAX_WAIT_TIME 1500
 
@@ -1270,7 +1274,11 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy,
 				rollback_lock = true;
 			}
 			if (net_attach && !net_attach(wl->pub, _ndev->ifindex)) {
+#ifdef CUSTOMER_HW4
+				wl_alloc_netinfo(wl, _ndev, vwdev, mode, PM_BLOCK);
+#else
 				wl_alloc_netinfo(wl, _ndev, vwdev, mode, PM_ENABLE);
+#endif /* CUSTOMER_HW4 */
 				val = 1;
 				/* Disable firmware roaming for P2P interface  */
 				wldev_iovar_setint(_ndev, "roam_off", val);
@@ -2286,8 +2294,10 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 		/* we don't do iscan in ibss */
 		ssids = this_ssid;
 	}
+#ifndef CUSTOMER_HW4
 	if (request && !p2p_scan(wl))
 		WL_TRACE_HW4(("START SCAN\n"));
+#endif
 	wl->scan_request = request;
 	wl_set_drv_status(wl, SCANNING, ndev);
 	if (iscan_req) {
@@ -9424,7 +9434,6 @@ s32 wl_cfg80211_attach_post(struct net_device *ndev)
 					wl->wdev->wiphy->interface_modes |=
 					(BIT(NL80211_IFTYPE_P2P_CLIENT)|
 					BIT(NL80211_IFTYPE_P2P_GO));
-
 				if ((err = wl_cfgp2p_init_priv(wl)) != 0)
 					goto fail;
 

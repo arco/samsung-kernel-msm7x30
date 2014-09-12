@@ -101,6 +101,9 @@ dhdcdc_cmplt(dhd_pub_t *dhd, uint32 id, uint32 len)
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
+#if defined(CUSTOMER_HW4)
+	DHD_OS_WAKE_LOCK(dhd);
+#endif
 
 	do {
 		ret = dhd_bus_rxctl(dhd->bus, (uchar*)&prot->msg, cdc_len);
@@ -108,6 +111,9 @@ dhdcdc_cmplt(dhd_pub_t *dhd, uint32 id, uint32 len)
 			break;
 	} while (CDC_IOC_ID(ltoh32(prot->msg.flags)) != id);
 
+#if defined(CUSTOMER_HW4)
+	DHD_OS_WAKE_UNLOCK(dhd);
+#endif
 
 	return ret;
 }

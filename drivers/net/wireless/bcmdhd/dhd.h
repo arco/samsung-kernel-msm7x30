@@ -345,6 +345,10 @@ typedef struct dhd_pub {
 	tcp_ack_info_t tcp_ack_info_tbl[MAXTCPSTREAMS];
 #endif /* DHDTCPACK_SUPPRESS */
 	uint32 arp_version;
+
+#if defined(CUSTOMER_HW4) && defined(PNO_SUPPORT) && defined(CONFIG_HAS_WAKELOCK)
+	struct wake_lock	pno_wakelock;
+#endif
 } dhd_pub_t;
 
 typedef struct dhd_cmn {
@@ -365,7 +369,17 @@ typedef struct dhd_cmn {
 		} 	while (0)
 	#define DHD_PM_RESUME_WAIT(a) 		_DHD_PM_RESUME_WAIT(a, 200)
 	#define DHD_PM_RESUME_WAIT_FOREVER(a) 	_DHD_PM_RESUME_WAIT(a, ~0)
+#ifdef CUSTOMER_HW4
+	#define DHD_PM_RESUME_RETURN_ERROR(a)   do { \
+			if (dhd_mmc_suspend) { \
+				printf("%s[%d]: mmc is still in suspend state!!!\n", \
+						__FUNCTION__, __LINE__); \
+				return a; \
+			} \
+		} while (0)
+#else
 	#define DHD_PM_RESUME_RETURN_ERROR(a)	do { if (dhd_mmc_suspend) return a; } while (0)
+#endif /* CUSTOMER_HW4 */
 	#define DHD_PM_RESUME_RETURN		do { if (dhd_mmc_suspend) return; } while (0)
 
 	#define DHD_SPINWAIT_SLEEP_INIT(a) DECLARE_WAIT_QUEUE_HEAD(a);
@@ -768,7 +782,9 @@ extern uint dhd_force_tx_queueing;
 #define CUSTOM_SUSPEND_BCN_LI_DTIM		DEFAULT_SUSPEND_BCN_LI_DTIM
 #endif
 
+#ifndef DEFAULT_WIFI_TURNOFF_DELAY
 #define DEFAULT_WIFI_TURNOFF_DELAY	0
+#endif
 #define WIFI_TURNOFF_DELAY		DEFAULT_WIFI_TURNOFF_DELAY
 
 #ifdef RXFRAME_THREAD
