@@ -6298,9 +6298,9 @@ static struct sdcc_gpio sdcc_cfg_data[] = {
 		.sleep_cfg_data = NULL,
 	},
 	{
-		.cfg_data = sdc2_cfg_data,
-		.size = ARRAY_SIZE(sdc2_cfg_data),
-		.sleep_cfg_data = NULL,
+		//.cfg_data = sdc2_cfg_data,
+		//.size = ARRAY_SIZE(sdc2_cfg_data),
+		//.sleep_cfg_data = NULL,
 	},
 	{
 		.cfg_data = sdc3_cfg_data,
