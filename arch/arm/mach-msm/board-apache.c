@@ -6340,7 +6340,7 @@ static uint32_t msm_sdcc_setup_gpio(int dev_id, unsigned int enable)
 			msm_gpios_enable(curr->sleep_cfg_data, curr->size);
 			msm_gpios_free(curr->sleep_cfg_data, curr->size);
 		} else {
-			msm_gpios_free(curr->cfg_data, curr->size);
+			msm_gpios_disable_free(curr->cfg_data, curr->size);
 		}
 	}
 
