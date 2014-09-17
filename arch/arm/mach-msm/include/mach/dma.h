@@ -232,16 +232,16 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr);
 #define DMOV_NAND_CRCI_CMD    5
 #define DMOV_NAND_CRCI_DATA   4
 
-#define DMOV_SDC1_CHAN        10
+#define DMOV_SDC1_CHAN        8
 #define DMOV_SDC1_CRCI        6
 
 #define DMOV_SDC2_CHAN        8
 #define DMOV_SDC2_CRCI        7
 
-#define DMOV_SDC3_CHAN        11
+#define DMOV_SDC3_CHAN        8
 #define DMOV_SDC3_CRCI        12
 
-#define DMOV_SDC4_CHAN        11
+#define DMOV_SDC4_CHAN        8
 #define DMOV_SDC4_CRCI        13
 
 #define DMOV_TSIF_CHAN        10
