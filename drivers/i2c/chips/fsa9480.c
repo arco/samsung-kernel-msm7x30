@@ -411,6 +411,10 @@ static void fsa9480_chip_init(void)
 	{
 		curr_usb_status = 1;
 	}
+	else if (fsa9480_device1 & CRA_USB_CHARGER)
+	{
+		curr_usb_status = 1;
+	}
 	else if (fsa9480_device1 & CRA_DEDICATED_CHG)
 	{
 		curr_ta_status = 1;
@@ -474,9 +478,9 @@ void fsa9480_connect_charger(void)	// vbus connected
 	fsa9480_i2c_read(REGISTER_DEVICETYPE2, &dev2);
 
 #if defined(CONFIG_MACH_APACHE)
-	if((dev1 == CRA_USB)||(dev1==0 && dev2==CRB_JIG_USB_OFF))
+	if ((dev1 == CRA_USB) || (dev1 == CRA_USB_CHARGER) || (dev1==0 && dev2==CRB_JIG_USB_OFF))
 #else
-	if (dev1 == CRA_USB)
+	if ((dev1 == CRA_USB) || (dev1 == CRA_USB_CHARGER))
 #endif
 	{
 		curr_usb_status = 1;
@@ -618,13 +622,13 @@ static ssize_t usb_switch_store(
 	if(strncmp(buf, "PDA_AP", 6) == 0 || strncmp(buf, "pda_ap", 6) == 0) {
 		sprintf(buffer, "1");
 		//samsung_enable_function( USBSTATUS_SAMSUNG_KIES);
-		printk("usb_switch_store1 %s !! \n",buf);		
+		printk("usb_switch_store1 %s !! \n",buf);
 	}
     else
     {
 		sprintf(buffer, "2");
 		//samsung_enable_function( USBSTATUS_DM);
-		printk("usb_switch_store2 %s !! \n",buf);		
+		printk("usb_switch_store2 %s !! \n",buf);
     }
 	sys_write(fd,buffer,strlen(buffer));
 
@@ -762,7 +766,7 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 	{
 #ifdef CONFIG_FORCE_FAST_CHARGE
 		if( !charging_boot && 
-			(vdev1 == CRA_USB) && 
+			((vdev1 == CRA_USB) || (vdev1 == CRA_USB_CHARGER)) && 
 			(
 				(force_fast_charge && ((attach & ATTACH) || forced_usb_type)) || 
 				(!force_fast_charge && !(attach & ATTACH) && forced_usb_type)
@@ -770,11 +774,11 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 		)
 		{
 			vdev1=CRA_DEDICATED_CHG;
-            if (attach & ATTACH)
-                forced_usb_type = 1;
-            if (attach & DETACH)
-                forced_usb_type = 0;
-			DEBUG_FSA9480("USB --- FORCE FAST CHARGE\n");
+			if (attach & ATTACH)
+				forced_usb_type = 1;
+			if (attach & DETACH)
+				forced_usb_type = 0;
+			DEBUG_FSA9480("USB --- FORCE FAST CHARGE STATUS: %s\n",(attach & ATTACH)?"ACTIVATED":"DEACTIVATED");
 		}
 #endif
 		switch (vdev1)
@@ -804,9 +808,9 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 					}
 					if(!charging_boot)
 					{
-					DEBUG_FSA9480("USB ---!charging_boot && android_probe_done\n");					
+					DEBUG_FSA9480("USB ---!charging_boot && android_probe_done\n");
 						usb_switch_state();
-					} 					
+					}
 					curr_usb_status = 1;                    
 					MicroUSBStatus=1;
 					UsbIndicator(1);
@@ -814,14 +818,14 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 				else if(attach & DETACH){
 					DEBUG_FSA9480("USB --- DETACH\n");
 					msleep(200);
-					DEBUG_FSA9480("USB --- DETACH work around \n");					
+					DEBUG_FSA9480("USB --- DETACH work around \n");
 					curr_usb_status = 0;
 					MicroUSBStatus=0;
 					UsbIndicator(0);
 				}
-                
+
 				if (attach & (ATTACH|DETACH))
-					batt_restart();                
+					batt_restart();
 
 				if (charging_boot && !curr_usb_status)
 					pm_power_off();
@@ -848,11 +852,11 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 				
 				if(attach & ATTACH){
 				    DEBUG_FSA9480("CARKIT_CHARGER --- ATTACH\n");
-				    curr_ta_status = 1;                    
+				    curr_ta_status = 1;
 				}
 				else if(attach & DETACH){
 				    DEBUG_FSA9480("CARKIT_CHARGER --- DETACH\n");
-				    curr_ta_status = 0;                    
+				    curr_ta_status = 0;
 				}
 
 				if (attach & (ATTACH|DETACH))
@@ -868,7 +872,38 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 #endif
 				break;                
 			case CRA_USB_CHARGER:
-				DEBUG_FSA9480("USB CHARGER \n");
+				/* USB 3.0 Charging */
+				if(attach & ATTACH){
+					DEBUG_FSA9480("USB CHARGER --- ATTACH\n");
+					if(!charging_boot)
+					{
+					DEBUG_FSA9480("USB CHARGER ---!charging_boot && android_probe_done\n");
+						usb_switch_state();
+					}
+					curr_usb_status = 1;
+					MicroUSBStatus=1;
+					UsbIndicator(1);
+				}
+				else if(attach & DETACH){
+					DEBUG_FSA9480("USB CHARGER --- DETACH\n");
+					msleep(200);
+					DEBUG_FSA9480("USB CHARGER --- DETACH work around \n");
+					curr_usb_status = 0;
+					MicroUSBStatus=0;
+					UsbIndicator(0);
+				}
+                
+				if (attach & (ATTACH|DETACH))
+					batt_restart();                
+
+				if (charging_boot && !curr_usb_status)
+					pm_power_off();
+
+				set_tsp_for_ta_detect(curr_usb_status);
+#if defined(CONFIG_MACH_APACHE)
+				if(fsa9480_pdata->charger_cb)
+					fsa9480_pdata->charger_cb(curr_usb_status);
+#endif
 				break;
 			case CRA_DEDICATED_CHG:
 				if(attach & ATTACH){
@@ -949,25 +984,25 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 					MicroJigUARTOffStatus=1;
 					if (is_uart_jig_on_charger)
 					{
-						curr_ta_status = 1; // FUEL GAUGE AUTO TEST					
+						curr_ta_status = 1; // FUEL GAUGE AUTO TEST
 						DEBUG_FSA9480("JIG_UART_ON --- ATTACH with  VBUS 5V INPUT! FORCE TA MODE!!! (reg = 0x%x)\n", vbus_stat);
 					}
 					else
 					{
-					    DEBUG_FSA9480("JIG_UART_ON --- ATTACH without  VBUS 5V INPUT! (reg = 0x%x\n");					
+					    DEBUG_FSA9480("JIG_UART_ON --- ATTACH without  VBUS 5V INPUT! (reg = 0x%x\n");
 					}
 				}
 				else if(attach & DETACH){                
 				    DEBUG_FSA9480("JIG_UART_ON --- DETACH\n");
 					MicroJigUARTOffStatus=0;
-					curr_ta_status = 0; // FUEL GAUGE AUTO TEST					
+					curr_ta_status = 0; // FUEL GAUGE AUTO TEST
 				}  	
-				
+
 				curr_uart_status = 1;                   
 				if ( ( attach & (ATTACH|DETACH) ) )// FUEL GAUGE AUTO TEST
-					batt_restart();				
-				break;				
-#else				
+					batt_restart();
+				break;
+#else
 				if(attach & ATTACH){                
 				    DEBUG_FSA9480("JIG_UART_ON --- ATTACH\n");
                                     MicroJigUARTOffStatus=1;
@@ -976,11 +1011,11 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 				else if(attach & DETACH){                
 				    DEBUG_FSA9480("JIG_UART_ON --- DETACH\n");
                                     MicroJigUARTOffStatus=0;
-					curr_ta_status = 0; // FUEL GAUGE AUTO TEST					
+					curr_ta_status = 0; // FUEL GAUGE AUTO TEST
 				}  	
 				curr_uart_status = 1;                   
 				if (attach & (ATTACH|DETACH))// FUEL GAUGE AUTO TEST
-					batt_restart();				
+					batt_restart();
 				break;
 #endif
 			case CRB_JIG_UART_OFF:
@@ -991,7 +1026,7 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 				else if(attach & DETACH){                
 				    DEBUG_FSA9480("JIG_UART_OFF --- DETACH\n");
                                     MicroJigUARTOffStatus=0;
-				}  				
+				}
 				curr_uart_status = 0;
 				DEBUG_FSA9480("JIG_UART_OFF \n");                
 				break;                
@@ -1154,10 +1189,11 @@ static void fsa9480_read_interrupt_register(void)
 	usb_state = (dev2 << 8) | (dev1 << 0);
 
 #if defined(CONFIG_MACH_APACHE)
-	if ( !fsa9480_probe_done && 
-		(( dev1 == CRA_USB)||(dev1==0 && dev2 == CRB_JIG_USB_OFF))) {
+	if (!fsa9480_probe_done &&
+		((dev1 == CRA_USB) || (dev1 == CRA_USB_CHARGER) || (dev1==0 && dev2 == CRB_JIG_USB_OFF))) {
 #else
-	if ( !fsa9480_probe_done && ( dev1 == CRA_USB)) {
+	if (!fsa9480_probe_done &&
+	    ((dev1 == CRA_USB) || (dev1 == CRA_USB_CHARGER))) {
 #endif
 		printk("[FSA9480] target booting with USB cable attached\n");
 		intr1 = intr1 | ATTACH;
@@ -1183,7 +1219,7 @@ static void fsa9480_read_interrupt_register(void)
 			MicroUSBStatus=0;
 			
 			UsbIndicator(0);
-			batt_restart(); 			   
+			batt_restart();
 			
 			if (charging_boot && !curr_usb_status)
 				pm_power_off();
@@ -1212,6 +1248,7 @@ static void fsa9480_read_interrupt_register(void)
 		switch (fsa9480_device1)
 		{
 			case CRA_USB:
+			case CRA_USB_CHARGER:
                 
 #ifdef CONFIG_USB_GADGET_WESTBRIDGE
     //Vova: Detection of USB attach/detach for WestBridge chip
@@ -1222,7 +1259,7 @@ static void fsa9480_read_interrupt_register(void)
 				else if (intr1 & DETACH)
 					curr_usb_status = 0;
 				if (intr1 & (ATTACH|DETACH))
-					batt_restart();			
+					batt_restart();
 				break;
 			case CRA_DEDICATED_CHG:
 				if (intr1 & ATTACH)
@@ -1310,7 +1347,7 @@ static int fsa9480_probe(struct i2c_client *client, const struct i2c_device_id *
 
 
 	if (device_create_file(switch_dev, &dev_attr_usb_state) < 0)
-		printk(KERN_ERR "[FSA9480]Failed to create device file(%s)!\n", 		
+		printk(KERN_ERR "[FSA9480]Failed to create device file(%s)!\n",
 					dev_attr_usb_state.attr.name);
 
     indicator_dev.name = DRIVER_NAME;

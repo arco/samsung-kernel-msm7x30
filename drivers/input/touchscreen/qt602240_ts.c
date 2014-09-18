@@ -2622,7 +2622,7 @@ int set_tsp_for_ta_detect(int state)
 		touchscreen_config.tchthr = 52;
 		noise_suppression_config.noisethr = 45;		   
 
-        printk("[TSP] TA Detect!!!\n");
+        printk("[TSP] Charger detected!\n");
 
         object_address = get_object_address(TOUCH_MULTITOUCHSCREEN_T9, 0);
 
@@ -2654,7 +2654,7 @@ int set_tsp_for_ta_detect(int state)
 		   touchscreen_config.tchthr = 32;
 		   noise_suppression_config.noisethr = 25;		   
 
-        printk("[TSP] TA NON-Detect!!!\n");
+        printk("[TSP] Charger non detected!\n");
 
         object_address = get_object_address(TOUCH_MULTITOUCHSCREEN_T9, 0);
 
