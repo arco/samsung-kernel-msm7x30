@@ -6,4 +6,3 @@
 extern wait_queue_head_t Si4709_waitq;
 
 #endif
-
