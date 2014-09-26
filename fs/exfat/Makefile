@@ -1,4 +1,4 @@
-obj-y += exfat_core.o exfat_fs.o
+obj-$(CONFIG_EXFAT_FS) += exfat_core.o exfat_fs.o
 
 exfat_fs-y	:= exfat_super.o
 
