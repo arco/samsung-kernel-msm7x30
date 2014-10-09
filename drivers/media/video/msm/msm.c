@@ -962,8 +962,7 @@ reg_fail:
 
 static int msm_sync_destroy(struct msm_sync *sync)
 {
-	if (sync)
-		wake_lock_destroy(&sync->wake_lock);
+	pm_qos_remove_request(&sync->idle_pm_qos);
 	return 0;
 }
 static int msm_sync_init(struct msm_sync *sync,
@@ -973,7 +972,8 @@ static int msm_sync_init(struct msm_sync *sync,
 
 	sync->sdata = pdev->dev.platform_data;
 
-	wake_lock_init(&sync->wake_lock, WAKE_LOCK_SUSPEND, "msm_camera");
+	pm_qos_add_request(&sync->idle_pm_qos, PM_QOS_CPU_DMA_LATENCY,
+					   PM_QOS_DEFAULT_VALUE);
 
 	sync->pdev = pdev;
 	sync->sctrl = *sctrl;
