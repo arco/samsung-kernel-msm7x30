@@ -2401,6 +2401,7 @@ int melfas_mcs8000_ts_probe(struct i2c_client *client,
 	melfas_mcs8000_ts->input_dev->keycode = melfas_ts_tk_keycode;	
 	set_bit(BTN_TOUCH, melfas_mcs8000_ts->input_dev->keybit);
 	set_bit(EV_ABS, melfas_mcs8000_ts->input_dev->evbit);
+        set_bit(INPUT_PROP_DIRECT, melfas_mcs8000_ts->input_dev->propbit);
 
 	input_set_abs_params(melfas_mcs8000_ts->input_dev, ABS_MT_TRACKING_ID, 0, 10, 0, 0);
 	input_set_abs_params(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_X, 0, max_x, 0, 0);
