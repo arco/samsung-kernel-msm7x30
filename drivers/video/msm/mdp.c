@@ -2160,7 +2160,7 @@ irqreturn_t mdp_isr(int irq, void *ptr)
 
 		/* DMA_E LCD-Out Complete */
 		if (mdp_interrupt & MDP_DMA_E_DONE) {
-			dma = &dma_s_data;
+			dma = &dma_e_data;
 			dma->busy = FALSE;
 			mdp_pipe_ctrl(MDP_DMA_E_BLOCK, MDP_BLOCK_POWER_OFF,
 									TRUE);
@@ -2257,9 +2257,11 @@ static void mdp_drv_init(void)
 
 	dma_s_data.busy = FALSE;
 	dma_s_data.waiting = FALSE;
+	dma_s_data.dmap_busy = FALSE;
 	init_completion(&dma_s_data.comp);
 	sema_init(&dma_s_data.mutex, 1);
 
+	mutex_init(&dma_s_data.ov_mutex);
 #ifndef CONFIG_FB_MSM_MDP303
 	dma_e_data.busy = FALSE;
 	dma_e_data.waiting = FALSE;
