@@ -725,7 +725,7 @@ static ssize_t otg_charger_type_store(
 		
 	return size;
 }
-static DEVICE_ATTR(otg_charger_type, 0664, otg_charger_type_show, otg_charger_type_store);
+static DEVICE_ATTR(otg_charger_type, 0666, otg_charger_type_show, otg_charger_type_store);
 #endif
 
 
