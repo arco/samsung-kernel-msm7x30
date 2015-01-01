@@ -823,12 +823,12 @@ void mdp4_overlay_rgb_setup(struct mdp4_overlay_pipe *pipe)
 	dst_size = ((pipe->dst_h << 16) | pipe->dst_w);
 	dst_xy = ((pipe->dst_y << 16) | pipe->dst_x);
 
-	if ((pipe->src_x + pipe->src_w) > 0x7FF) {
+	if ((pipe->src_x + pipe->src_w) < 0x7FF) {
 		offset += pipe->src_x * pipe->bpp;
 		src_xy &= 0xFFFF0000;
 	}
 
-	if ((pipe->src_y + pipe->src_h) > 0x7FF) {
+	if ((pipe->src_y + pipe->src_h) < 0x7FF) {
 		offset += pipe->src_y * pipe->src_width * pipe->bpp;
 		src_xy &= 0x0000FFFF;
 	}
