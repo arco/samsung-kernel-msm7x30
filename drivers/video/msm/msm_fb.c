@@ -55,7 +55,6 @@
 
 #ifdef CONFIG_FB_MSM_LOGO
 #define INIT_IMAGE_FILE "/ARIESVE.rle"
-#define CHARGING_IMAGE_FILE "/charging.rle"
 #endif
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
@@ -1648,12 +1647,7 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	     mfd->index, fbi->var.xres, fbi->var.yres, fbi->fix.smem_len);
 
 #ifdef CONFIG_FB_MSM_LOGO
-	if (charging_boot) {
-		if (!load_565rle_image(CHARGING_IMAGE_FILE, bf_supported)) ;
-	}
-	else {
-		if (!load_565rle_image(INIT_IMAGE_FILE, bf_supported)) ;
-	}
+	if (!load_565rle_image(INIT_IMAGE_FILE, bf_supported)) ;
 #endif
 
 	ret = 0;
