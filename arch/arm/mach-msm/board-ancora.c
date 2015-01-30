@@ -7400,6 +7400,9 @@ static void __init size_ion_devices(void)
 	ion_pdata.heaps[1].size = MSM_ION_MM_SIZE;
 	ion_pdata.heaps[2].size = MSM_ION_AUDIO_SIZE;
 	ion_pdata.heaps[3].size = MSM_ION_SF_SIZE;
+
+	/* Workaround to fix deep sleep issues */
+	msm7x30_reserve_table[MEMTYPE_EBI0].size += 1;
 #endif
 }
 
