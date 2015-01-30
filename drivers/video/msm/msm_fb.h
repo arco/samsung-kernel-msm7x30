@@ -262,7 +262,6 @@ int msm_fb_check_frame_rate(struct msm_fb_data_type *mfd,
 
 #ifdef CONFIG_FB_MSM_LOGO
 int load_565rle_image(char *filename, bool bf_supported);
-extern int charging_boot;
 #endif
 
 #endif /* MSM_FB_H */
