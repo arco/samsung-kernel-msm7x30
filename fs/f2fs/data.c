@@ -96,11 +96,9 @@ static void __submit_merged_bio(struct f2fs_bio_info *io)
 		return;
 
 	if (is_read_io(fio->rw))
-		trace_f2fs_submit_read_bio(io->sbi->sb, fio->rw,
-							fio->type, io->bio);
+		trace_f2fs_submit_read_bio(io->sbi->sb, fio, io->bio);
 	else
-		trace_f2fs_submit_write_bio(io->sbi->sb, fio->rw,
-							fio->type, io->bio);
+		trace_f2fs_submit_write_bio(io->sbi->sb, fio, io->bio);
 
 	submit_bio(fio->rw, io->bio);
 	io->bio = NULL;
@@ -137,7 +135,7 @@ int f2fs_submit_page_bio(struct f2fs_sb_info *sbi, struct page *page,
 {
 	struct bio *bio;
 
-	trace_f2fs_submit_page_bio(page, fio->blk_addr, fio->rw);
+	trace_f2fs_submit_page_bio(page, fio);
 	f2fs_trace_ios(page, fio, 0);
 
 	/* Allocate a new bio */
@@ -190,7 +188,7 @@ alloc_new:
 	f2fs_trace_ios(page, fio, 0);
 
 	up_write(&io->io_rwsem);
-	trace_f2fs_submit_page_mbio(page, fio->rw, fio->type, fio->blk_addr);
+	trace_f2fs_submit_page_mbio(page, fio);
 }
 
 /*
@@ -199,7 +197,7 @@ alloc_new:
  *  ->node_page
  *    update block addresses in the node page
  */
-static void __set_data_blkaddr(struct dnode_of_data *dn, block_t new_addr)
+static void __set_data_blkaddr(struct dnode_of_data *dn)
 {
 	struct f2fs_node *rn;
 	__le32 *addr_array;
@@ -212,7 +210,7 @@ static void __set_data_blkaddr(struct dnode_of_data *dn, block_t new_addr)
 
 	/* Get physical address of data block */
 	addr_array = blkaddr_in_node(rn);
-	addr_array[ofs_in_node] = cpu_to_le32(new_addr);
+	addr_array[ofs_in_node] = cpu_to_le32(dn->data_blkaddr);
 	set_page_dirty(node_page);
 }
 
@@ -227,8 +225,8 @@ int reserve_new_block(struct dnode_of_data *dn)
 
 	trace_f2fs_reserve_new_block(dn->inode, dn->nid, dn->ofs_in_node);
 
-	__set_data_blkaddr(dn, NEW_ADDR);
 	dn->data_blkaddr = NEW_ADDR;
+	__set_data_blkaddr(dn);
 	mark_inode_dirty(dn->inode);
 	sync_inode_page(dn);
 	return 0;
@@ -293,22 +291,23 @@ static int check_extent_cache(struct inode *inode, pgoff_t pgofs,
 	return 0;
 }
 
-void update_extent_cache(block_t blk_addr, struct dnode_of_data *dn)
+void update_extent_cache(struct dnode_of_data *dn)
 {
 	struct f2fs_inode_info *fi = F2FS_I(dn->inode);
 	pgoff_t fofs, start_fofs, end_fofs;
 	block_t start_blkaddr, end_blkaddr;
 	int need_update = true;
 
-	f2fs_bug_on(F2FS_I_SB(dn->inode), blk_addr == NEW_ADDR);
-	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
-							dn->ofs_in_node;
+	f2fs_bug_on(F2FS_I_SB(dn->inode), dn->data_blkaddr == NEW_ADDR);
 
 	/* Update the page address in the parent node */
-	__set_data_blkaddr(dn, blk_addr);
+	__set_data_blkaddr(dn);
 
 	if (is_inode_flag_set(fi, FI_NO_EXTENT))
 		return;
+
+	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
+							dn->ofs_in_node;
 
 	write_lock(&fi->ext.ext_lock);
 
@@ -323,16 +322,16 @@ void update_extent_cache(block_t blk_addr, struct dnode_of_data *dn)
 
 	/* Initial extent */
 	if (fi->ext.len == 0) {
-		if (blk_addr != NULL_ADDR) {
+		if (dn->data_blkaddr != NULL_ADDR) {
 			fi->ext.fofs = fofs;
-			fi->ext.blk_addr = blk_addr;
+			fi->ext.blk_addr = dn->data_blkaddr;
 			fi->ext.len = 1;
 		}
 		goto end_update;
 	}
 
 	/* Front merge */
-	if (fofs == start_fofs - 1 && blk_addr == start_blkaddr - 1) {
+	if (fofs == start_fofs - 1 && dn->data_blkaddr == start_blkaddr - 1) {
 		fi->ext.fofs--;
 		fi->ext.blk_addr--;
 		fi->ext.len++;
@@ -340,7 +339,7 @@ void update_extent_cache(block_t blk_addr, struct dnode_of_data *dn)
 	}
 
 	/* Back merge */
-	if (fofs == end_fofs + 1 && blk_addr == end_blkaddr + 1) {
+	if (fofs == end_fofs + 1 && dn->data_blkaddr == end_blkaddr + 1) {
 		fi->ext.len++;
 		goto end_update;
 	}
@@ -564,30 +563,25 @@ static int __allocate_data_block(struct dnode_of_data *dn)
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 	struct f2fs_inode_info *fi = F2FS_I(dn->inode);
 	struct f2fs_summary sum;
-	block_t new_blkaddr;
 	struct node_info ni;
+	int seg = CURSEG_WARM_DATA;
 	pgoff_t fofs;
-	int type;
 
 	if (unlikely(is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC)))
 		return -EPERM;
 	if (unlikely(!inc_valid_block_count(sbi, dn->inode, 1)))
 		return -ENOSPC;
 
-	__set_data_blkaddr(dn, NEW_ADDR);
-	dn->data_blkaddr = NEW_ADDR;
-
 	get_node_info(sbi, dn->nid, &ni);
 	set_summary(&sum, dn->nid, dn->ofs_in_node, ni.version);
 
-	type = CURSEG_WARM_DATA;
+	if (dn->ofs_in_node == 0 && dn->inode_page == dn->node_page)
+		seg = CURSEG_DIRECT_IO;
 
-	allocate_data_block(sbi, NULL, NULL_ADDR, &new_blkaddr, &sum, type);
+	allocate_data_block(sbi, NULL, NULL_ADDR, &dn->data_blkaddr, &sum, seg);
 
 	/* direct IO doesn't use extent cache to maximize the performance */
-	set_inode_flag(F2FS_I(dn->inode), FI_NO_EXTENT);
-	update_extent_cache(new_blkaddr, dn);
-	clear_inode_flag(F2FS_I(dn->inode), FI_NO_EXTENT);
+	__set_data_blkaddr(dn);
 
 	/* update i_size */
 	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
@@ -595,7 +589,6 @@ static int __allocate_data_block(struct dnode_of_data *dn)
 	if (i_size_read(dn->inode) < ((fofs + 1) << PAGE_CACHE_SHIFT))
 		i_size_write(dn->inode, ((fofs + 1) << PAGE_CACHE_SHIFT));
 
-	dn->data_blkaddr = new_blkaddr;
 	return 0;
 }
 
@@ -786,7 +779,7 @@ int do_write_data_page(struct page *page, struct f2fs_io_info *fio)
 		set_inode_flag(F2FS_I(inode), FI_UPDATE_WRITE);
 	} else {
 		write_data_page(page, &dn, fio);
-		update_extent_cache(fio->blk_addr, &dn);
+		update_extent_cache(&dn);
 		set_inode_flag(F2FS_I(inode), FI_APPEND_WRITE);
 	}
 out_writepage:
@@ -844,7 +837,6 @@ write:
 	/* we should bypass data pages to proceed the kworkder jobs */
 	if (unlikely(f2fs_cp_error(sbi))) {
 		SetPageError(page);
-		unlock_page(page);
 		goto out;
 	}
 

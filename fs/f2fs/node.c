@@ -58,6 +58,8 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
 	} else if (type == INO_ENTRIES) {
 		int i;
 
+		if (sbi->sb->s_bdi->dirty_exceeded)
+			return false;
 		for (i = 0; i <= UPDATE_INO; i++)
 			mem_size += (sbi->im[i].ino_num *
 				sizeof(struct ino_entry)) >> PAGE_CACHE_SHIFT;
@@ -348,7 +350,6 @@ void get_node_info(struct f2fs_sb_info *sbi, nid_t nid, struct node_info *ni)
 	struct nat_entry *e;
 	int i;
 
-	memset(&ne, 0, sizeof(struct f2fs_nat_entry));
 	ni->nid = nid;
 
 	/* Check nat cache */
@@ -362,6 +363,8 @@ void get_node_info(struct f2fs_sb_info *sbi, nid_t nid, struct node_info *ni)
 	up_read(&nm_i->nat_tree_lock);
 	if (e)
 		return;
+
+	memset(&ne, 0, sizeof(struct f2fs_nat_entry));
 
 	/* Check current segment summary */
 	mutex_lock(&curseg->curseg_mutex);
@@ -1894,7 +1897,7 @@ void flush_nat_entries(struct f2fs_sb_info *sbi)
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
 	struct f2fs_summary_block *sum = curseg->sum_blk;
-	struct nat_entry_set *setvec[NATVEC_SIZE];
+	struct nat_entry_set *setvec[SETVEC_SIZE];
 	struct nat_entry_set *set, *tmp;
 	unsigned int found;
 	nid_t set_idx = 0;
@@ -1911,7 +1914,7 @@ void flush_nat_entries(struct f2fs_sb_info *sbi)
 		remove_nats_in_journal(sbi);
 
 	while ((found = __gang_lookup_nat_set(nm_i,
-					set_idx, NATVEC_SIZE, setvec))) {
+					set_idx, SETVEC_SIZE, setvec))) {
 		unsigned idx;
 		set_idx = setvec[found - 1]->set + 1;
 		for (idx = 0; idx < found; idx++)
@@ -1991,6 +1994,7 @@ void destroy_node_manager(struct f2fs_sb_info *sbi)
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct free_nid *i, *next_i;
 	struct nat_entry *natvec[NATVEC_SIZE];
+	struct nat_entry_set *setvec[SETVEC_SIZE];
 	nid_t nid = 0;
 	unsigned int found;
 
@@ -2015,11 +2019,27 @@ void destroy_node_manager(struct f2fs_sb_info *sbi)
 	while ((found = __gang_lookup_nat_cache(nm_i,
 					nid, NATVEC_SIZE, natvec))) {
 		unsigned idx;
+
 		nid = nat_get_nid(natvec[found - 1]) + 1;
 		for (idx = 0; idx < found; idx++)
 			__del_from_nat_cache(nm_i, natvec[idx]);
 	}
 	f2fs_bug_on(sbi, nm_i->nat_cnt);
+
+	/* destroy nat set cache */
+	nid = 0;
+	while ((found = __gang_lookup_nat_set(nm_i,
+					nid, SETVEC_SIZE, setvec))) {
+		unsigned idx;
+
+		nid = setvec[found - 1]->set + 1;
+		for (idx = 0; idx < found; idx++) {
+			/* entry_cnt is not zero, when cp_error was occurred */
+			f2fs_bug_on(sbi, !list_empty(&setvec[idx]->entry_list));
+			radix_tree_delete(&nm_i->nat_set_root, setvec[idx]->set);
+			kmem_cache_free(nat_entry_set_slab, setvec[idx]);
+		}
+	}
 	up_write(&nm_i->nat_tree_lock);
 
 	kfree(nm_i->nat_bitmap);
