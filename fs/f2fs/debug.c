@@ -57,7 +57,9 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->node_pages = NODE_MAPPING(sbi)->nrpages;
 	si->meta_pages = META_MAPPING(sbi)->nrpages;
 	si->nats = NM_I(sbi)->nat_cnt;
-	si->sits = SIT_I(sbi)->dirty_sentries;
+	si->dirty_nats = NM_I(sbi)->dirty_nat_cnt;
+	si->sits = MAIN_SEGS(sbi);
+	si->dirty_sits = SIT_I(sbi)->dirty_sentries;
 	si->fnids = NM_I(sbi)->fcnt;
 	si->bg_gc = sbi->bg_gc;
 	si->util_free = (int)(free_user_blocks(sbi) >> sbi->log_blocks_per_seg)
@@ -161,20 +163,32 @@ static void update_mem_info(struct f2fs_sb_info *sbi)
 	si->base_mem += sizeof(struct f2fs_nm_info);
 	si->base_mem += __bitmap_size(sbi, NAT_BITMAP);
 
-	/* build gc */
-	si->base_mem += sizeof(struct f2fs_gc_kthread);
-
 get_cache:
+	si->cache_mem = 0;
+
+	/* build gc */
+	if (sbi->gc_thread)
+		si->cache_mem += sizeof(struct f2fs_gc_kthread);
+
+	/* build merge flush thread */
+	if (SM_I(sbi)->cmd_control_info)
+		si->cache_mem += sizeof(struct flush_cmd_control);
+
 	/* free nids */
-	si->cache_mem = NM_I(sbi)->fcnt;
-	si->cache_mem += NM_I(sbi)->nat_cnt;
-	npages = NODE_MAPPING(sbi)->nrpages;
-	si->cache_mem += npages << PAGE_CACHE_SHIFT;
-	npages = META_MAPPING(sbi)->nrpages;
-	si->cache_mem += npages << PAGE_CACHE_SHIFT;
-	si->cache_mem += sbi->n_dirty_dirs * sizeof(struct dir_inode_entry);
+	si->cache_mem += NM_I(sbi)->fcnt * sizeof(struct free_nid);
+	si->cache_mem += NM_I(sbi)->nat_cnt * sizeof(struct nat_entry);
+	si->cache_mem += NM_I(sbi)->dirty_nat_cnt *
+					sizeof(struct nat_entry_set);
+	si->cache_mem += si->inmem_pages * sizeof(struct inmem_pages);
+	si->cache_mem += sbi->n_dirty_dirs * sizeof(struct inode_entry);
 	for (i = 0; i <= UPDATE_INO; i++)
 		si->cache_mem += sbi->im[i].ino_num * sizeof(struct ino_entry);
+
+	si->page_mem = 0;
+	npages = NODE_MAPPING(sbi)->nrpages;
+	si->page_mem += npages << PAGE_CACHE_SHIFT;
+	npages = META_MAPPING(sbi)->nrpages;
+	si->page_mem += npages << PAGE_CACHE_SHIFT;
 }
 
 static int stat_show(struct seq_file *s, void *v)
@@ -260,8 +274,8 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->ndirty_dent, si->ndirty_dirs);
 		seq_printf(s, "  - meta: %4d in %4d\n",
 			   si->ndirty_meta, si->meta_pages);
-		seq_printf(s, "  - NATs: %9d\n  - SITs: %9d\n",
-			   si->nats, si->sits);
+		seq_printf(s, "  - NATs: %9d/%9d\n  - SITs: %9d/%9d\n",
+			   si->dirty_nats, si->nats, si->dirty_sits, si->sits);
 		seq_printf(s, "  - free_nids: %9d\n",
 			   si->fnids);
 		seq_puts(s, "\nDistribution of User Blocks:");
@@ -292,9 +306,14 @@ static int stat_show(struct seq_file *s, void *v)
 
 		/* memory footprint */
 		update_mem_info(si->sbi);
-		seq_printf(s, "\nMemory: %u KB = static: %u + cached: %u\n",
-				(si->base_mem + si->cache_mem) >> 10,
-				si->base_mem >> 10, si->cache_mem >> 10);
+		seq_printf(s, "\nMemory: %u KB\n",
+			(si->base_mem + si->cache_mem + si->page_mem) >> 10);
+		seq_printf(s, "  - static: %u KB\n",
+				si->base_mem >> 10);
+		seq_printf(s, "  - cached: %u KB\n",
+				si->cache_mem >> 10);
+		seq_printf(s, "  - paged : %u KB\n",
+				si->page_mem >> 10);
 	}
 	mutex_unlock(&f2fs_stat_mutex);
 	return 0;

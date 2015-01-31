@@ -137,8 +137,14 @@ struct ino_entry {
 	nid_t ino;		/* inode number */
 };
 
-/* for the list of directory inodes */
-struct dir_inode_entry {
+/*
+ * for the list of directory inodes or gc inodes.
+ * NOTE: there are two slab users for this structure, if we add/modify/delete
+ * fields in structure for one of slab users, it may affect fields or size of
+ * other one, in this condition, it's better to split both of slab and related
+ * data structure.
+ */
+struct inode_entry {
 	struct list_head list;	/* list head */
 	struct inode *inode;	/* vfs inode pointer */
 };
@@ -298,7 +304,7 @@ struct f2fs_inode_info {
 	nid_t i_xattr_nid;		/* node id that contains xattrs */
 	unsigned long long xattr_ver;	/* cp version of xattr modification */
 	struct extent_info ext;		/* in-memory extent cache entry */
-	struct dir_inode_entry *dirty_dir;	/* the pointer of dirty dir */
+	struct inode_entry *dirty_dir;	/* the pointer of dirty dir */
 
 	struct radix_tree_root inmem_root;	/* radix tree for inmem pages */
 	struct list_head inmem_pages;	/* inmemory pages managed by f2fs */
@@ -401,7 +407,8 @@ enum {
 	CURSEG_HOT_NODE,	/* direct node blocks of directory files */
 	CURSEG_WARM_NODE,	/* direct node blocks of normal files */
 	CURSEG_COLD_NODE,	/* indirect node blocks */
-	NO_CHECK_TYPE
+	NO_CHECK_TYPE,
+	CURSEG_DIRECT_IO,	/* to use for the direct IO path */
 };
 
 struct flush_cmd {
@@ -1478,7 +1485,7 @@ void f2fs_submit_page_mbio(struct f2fs_sb_info *, struct page *,
 						struct f2fs_io_info *);
 int reserve_new_block(struct dnode_of_data *);
 int f2fs_reserve_block(struct dnode_of_data *, pgoff_t);
-void update_extent_cache(block_t, struct dnode_of_data *);
+void update_extent_cache(struct dnode_of_data *);
 struct page *find_data_page(struct inode *, pgoff_t, bool);
 struct page *get_lock_data_page(struct inode *, pgoff_t);
 struct page *get_new_data_page(struct inode *, struct page *, pgoff_t, bool);
@@ -1493,8 +1500,6 @@ void stop_gc_thread(struct f2fs_sb_info *);
 block_t start_bidx_of_node(unsigned int, struct f2fs_inode_info *);
 int f2fs_gc(struct f2fs_sb_info *);
 void build_gc_manager(struct f2fs_sb_info *);
-int __init create_gc_caches(void);
-void destroy_gc_caches(void);
 
 /*
  * recovery.c
@@ -1513,7 +1518,7 @@ struct f2fs_stat_info {
 	int main_area_segs, main_area_sections, main_area_zones;
 	int hit_ext, total_ext;
 	int ndirty_node, ndirty_dent, ndirty_dirs, ndirty_meta;
-	int nats, sits, fnids;
+	int nats, dirty_nats, sits, dirty_sits, fnids;
 	int total_count, utilization;
 	int bg_gc, inline_inode, inline_dir, inmem_pages;
 	unsigned int valid_count, valid_node_count, valid_inode_count;
@@ -1531,7 +1536,7 @@ struct f2fs_stat_info {
 	unsigned int segment_count[2];
 	unsigned int block_count[2];
 	unsigned int inplace_count;
-	unsigned base_mem, cache_mem;
+	unsigned base_mem, cache_mem, page_mem;
 };
 
 static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
@@ -1617,6 +1622,7 @@ void f2fs_destroy_root_stats(void);
 #define stat_dec_inline_dir(inode)
 #define stat_inc_seg_type(sbi, curseg)
 #define stat_inc_block_count(sbi, curseg)
+#define stat_inc_inplace_blocks(sbi)
 #define stat_inc_seg_count(si, type)
 #define stat_inc_tot_blk_count(si, blks)
 #define stat_inc_data_blk_count(si, blks)
