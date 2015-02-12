@@ -1569,30 +1569,31 @@ static int mass_storage_function_init(struct android_usb_function *f,
 	struct fsg_common *common;
 	int err;
 	int i;
-	unsigned int cdrom = 0;
+	const char *name[3];
 
 	config = kzalloc(sizeof(struct mass_storage_function_config),
 								GFP_KERNEL);
 	if (!config)
 		return -ENOMEM;
 
-	printk(KERN_DEBUG "usb: %s pdata->nluns=%d, cdrom = %d\n",
-				__func__, config->fsg.nluns,
-					dev->pdata->cdrom);
-	cdrom = dev->pdata->cdrom;
-	config->fsg.nluns = 2 + cdrom;
-
-	for (i = 0; i < config->fsg.nluns; i++) {
-		config->fsg.luns[i].removable = 1;
-		config->fsg.luns[i].nofua = 1;
+	config->fsg.nluns = 1;
+	name[0] = "lun";
+	if (dev->pdata && dev->pdata->cdrom) {
+		config->fsg.luns[config->fsg.nluns].cdrom = 1;
+		config->fsg.luns[config->fsg.nluns].ro = 1;
+		config->fsg.luns[config->fsg.nluns].removable = 0;
+		name[config->fsg.nluns] = "lun0";
+		config->fsg.nluns++;
+	}
+	if (dev->pdata && dev->pdata->internal_ums) {
+		config->fsg.luns[config->fsg.nluns].cdrom = 0;
+		config->fsg.luns[config->fsg.nluns].ro = 0;
+		config->fsg.luns[config->fsg.nluns].removable = 1;
+		name[config->fsg.nluns] = "lun1";
+		config->fsg.nluns++;
 	}
 
-	if (cdrom) {
-		config->fsg.luns[i].cdrom = 1;
-		config->fsg.luns[i].ro = 1;
-		config->fsg.luns[i].removable = 0;
-		config->fsg.luns[i].nofua = 1;
-	}
+	config->fsg.luns[0].removable = 1;
 
 	common = fsg_common_init(NULL, cdev, &config->fsg);
 	if (IS_ERR(common)) {
@@ -1601,52 +1602,19 @@ static int mass_storage_function_init(struct android_usb_function *f,
 	}
 
 	for (i = 0; i < config->fsg.nluns; i++) {
-		char luns[5];
-		err = snprintf(luns, 5, "lun%d", i);
-		if (err == 0) {
-			printk(KERN_ERR "usb: %s snprintf error\n",
-					__func__);
-			goto error;
-		}
 		err = sysfs_create_link(&f->dev->kobj,
 					&common->luns[i].dev.kobj,
-					luns);
+					name[i]);
 		if (err)
 			goto error;
-	}
-
-	if (cdrom) {
-		char luns[4];
-		err = snprintf(luns, 4, "lun");
-		if (err == 0) {
-			printk(KERN_ERR "usb: %s cdfs snprintf error\n",
-					__func__);
-			goto error;
-		}
-		err = sysfs_create_link(&f->dev->kobj,
-				&common->luns[i].dev.kobj,
-				luns);
-		if (err) {
-			goto error;
-		}
 	}
 
 	config->common = common;
 	f->config = config;
 	return 0;
 error:
-	for (; i > 0 ; i--) {
-		char luns[5];
-		err = snprintf(luns, 5, "lun%d", i-1);
-		if (err == 0) {
-			printk(KERN_ERR "usb: %s snprintf error\n",
-					__func__);
-			fsg_common_release(&common->ref);
-			kfree(config);
-			return err;
-		}
-		sysfs_remove_link(&f->dev->kobj, luns);
-	}
+	for (; i > 0 ; i--)
+		sysfs_remove_link(&f->dev->kobj, name[i-1]);
 
 	fsg_common_release(&common->ref);
 	kfree(config);
