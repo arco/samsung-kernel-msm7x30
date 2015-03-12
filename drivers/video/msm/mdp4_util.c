@@ -2307,7 +2307,16 @@ static const char gc_lut[] = { /* linear */
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
 };
 
-void mdp4_mixer_gc_lut_setup(int mixer_num)
+
+#define NUM_QLUT	256
+#define MAX_KCAL_V	(NUM_QLUT-1)
+#define scaled_by_kcal(rgb, kcal) \
+	(((((unsigned int)(rgb) * (unsigned int)(kcal)) << 16) / \
+	(unsigned int)MAX_KCAL_V) >> 16)
+
+int kcal_r = 255, kcal_g = 255, kcal_b = 255;
+void mdp4_mixer_gc_lut_setup_manual(int mixer_num,
+	char red, char green, char blue)
 {
 	unsigned char *base;
 	uint32 data;
@@ -2321,15 +2330,29 @@ void mdp4_mixer_gc_lut_setup(int mixer_num)
 
 	base += 0x4000;	/* GC_LUT offset */
 
+	/* MDP cmd block enable */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+	mdp_clk_ctrl(1);
 	off = 0;
 	for (i = 0; i < 4096; i++) {
+		char r, g, b;
 		val = gc_lut[i];
-		data = (val << 16 | val << 8 | val); /* R, B, and G are same */
+		r = scaled_by_kcal(val, red);
+		g = scaled_by_kcal(val, green);
+		b = scaled_by_kcal(val, blue);
+		data = (r << 16 | b << 8 | g);
 		outpdw(base + off, data);
 		off += 4;
 	}
+
+	/* MDP cmd block disable */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+	mdp_clk_ctrl(0);
+}
+
+void mdp4_mixer_gc_lut_setup(int mixer_num)
+{
+	mdp4_mixer_gc_lut_setup_manual(mixer_num, kcal_r, kcal_g, kcal_b);
 }
 
 static const uint32 igc_video_lut[] = {	/* linear */

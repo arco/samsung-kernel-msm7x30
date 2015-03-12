@@ -355,12 +355,50 @@ static ssize_t msm_fb_msm_fb_type(struct device *dev,
 	return ret;
 }
 
+static ssize_t msm_fb_get_kcal(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d %d %d\n", kcal_r, kcal_g, kcal_b);
+}
+
+static ssize_t msm_fb_set_kcal(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	uint32_t r = 0, g = 0, b = 0;
+
+	if (count > 12)
+		return -EINVAL;
+
+	sscanf(buf, "%d %d %d", &r, &g, &b);
+
+	if (r < 0 || r > 255)
+		return -EINVAL;
+	if (g < 0 || g > 255)
+		return -EINVAL;
+	if (b < 0 || b > 255)
+		return -EINVAL;
+
+	kcal_r = r;
+	kcal_g = g;
+	kcal_b = b;
+
+	pr_info("%s: r=%d g=%d b=%d\n", __func__, r, g, b);
+
+	mdp4_mixer_gc_lut_setup(0);
+	mdp4_mixer_gc_lut_setup(1);
+
+	return count;
+}
+
 static DEVICE_ATTR(msm_fb_type, S_IRUGO, msm_fb_msm_fb_type, NULL);
 static DEVICE_ATTR(msm_fb_fps_level, S_IRUGO | S_IWUSR | S_IWGRP, NULL, \
 				msm_fb_fps_level_change);
+static DEVICE_ATTR(kcal, S_IRUGO | S_IWUSR | S_IWGRP, msm_fb_get_kcal, msm_fb_set_kcal);
 static struct attribute *msm_fb_attrs[] = {
 	&dev_attr_msm_fb_type.attr,
 	&dev_attr_msm_fb_fps_level.attr,
+	&dev_attr_kcal.attr,
 	NULL,
 };
 static struct attribute_group msm_fb_attr_group = {
