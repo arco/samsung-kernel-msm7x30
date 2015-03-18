@@ -677,6 +677,12 @@ config SAMSUNG_JACK
 	---help---
 	  This is 3.5 PI EAR_JACK driver for Samsung devices.
 
+config SAMSUNG_VIBRATOR
+	bool "Samsung Vibrator driver for Samsung devices"
+	default n
+	---help---
+	  This is Vibrator motor driver for Samsung devices.
+
 config SAMSUNG_FM_SI4709
 	tristate "SI4709 FM radio driver for Samsung devices"
 	default n

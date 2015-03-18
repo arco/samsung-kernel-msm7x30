@@ -72,6 +72,7 @@ obj-$(CONFIG_QFP_FUSE) += qfp_fuse.o
 obj-$(CONFIG_BU52031NVX) += pm8xxx-cradle.o
 obj-$(CONFIG_SLIMPORT_ANX7808)	+= slimport_anx7808/
 obj-$(CONFIG_SAMSUNG_JACK) += sec_jack.o
+obj-$(CONFIG_SAMSUNG_VIBRATOR) += samsung_vibrator.o
 obj-$(CONFIG_SAMSUNG_FM_SI4709) += fm_si4709/
 obj-$(CONFIG_VIBETONZ)		+= vibetonz/
 obj-$(CONFIG_GENERIC_BLN) += bln.o 

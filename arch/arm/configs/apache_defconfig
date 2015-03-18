@@ -1237,6 +1237,9 @@ CONFIG_SAMSUNG_JACK=y
 # CONFIG_GENERIC_BLN is not set
 # CONFIG_C2PORT is not set
 
+# Samsung Vibrator
+CONFIG_SAMSUNG_VIBRATOR=y
+
 #
 # EEPROM support
 #
