@@ -1190,9 +1190,9 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 			 * previous value of 300ms is known to be
 			 * insufficient for some cards.
 			 */
-			limit_us = 3000000;
+			limit_us = 6000000;
 		else
-			limit_us = 100000;
+			limit_us = 200000;
 
 		/*
 		 * SDHC cards always use these fixed values.
