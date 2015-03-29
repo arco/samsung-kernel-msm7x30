@@ -143,6 +143,7 @@ struct mcs8000_ts_driver {
 	int window_ver;
 	struct input_info info;
 	int suspended;
+	atomic_t keypad_enable;
 	struct early_suspend	early_suspend;
 };
 
@@ -1226,6 +1227,10 @@ static int check_debug_data(struct mcs8000_ts_driver *ts)
     else {
         printk("can't read SENSING CH \n");
     }
+
+	if (!atomic_read(&melfas_mcs8000_ts->keypad_enable)) {
+		return;
+	}
     
     /* Read Reference Data */
     write_command[0] = 0x09;  // Low level data output mode 
@@ -1727,6 +1732,41 @@ static ssize_t set_intensity4_mode_show(struct device *dev,
 	return sprintf(buf, "%u\n", intensity);
 }
 
+static ssize_t keypad_enable_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mcs8000_ts_driver *ts = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", atomic_read(&melfas_mcs8000_ts->keypad_enable));
+}
+
+static ssize_t keypad_enable_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct mcs8000_ts_driver *ts = dev_get_drvdata(dev);
+
+	unsigned int val = 0;
+	sscanf(buf, "%d", &val);
+	val = (val == 0 ? 0 : 1);
+	atomic_set(&melfas_mcs8000_ts->keypad_enable, val);
+	if (val) {
+		set_bit(TOUCH_BACK, melfas_mcs8000_ts->input_dev->keybit);
+		set_bit(TOUCH_MENU, melfas_mcs8000_ts->input_dev->keybit);
+		set_bit(TOUCH_HOME, melfas_mcs8000_ts->input_dev->keybit);
+		set_bit(TOUCH_SEARCH, melfas_mcs8000_ts->input_dev->keybit);
+	} else {
+		clear_bit(TOUCH_BACK, melfas_mcs8000_ts->input_dev->keybit);
+		clear_bit(TOUCH_MENU, melfas_mcs8000_ts->input_dev->keybit);
+		clear_bit(TOUCH_HOME, melfas_mcs8000_ts->input_dev->keybit);
+		clear_bit(TOUCH_SEARCH, melfas_mcs8000_ts->input_dev->keybit);
+	}
+	input_sync(melfas_mcs8000_ts->input_dev);
+
+	return count;
+}
+
+static DEVICE_ATTR(keypad_enable, S_IRUGO|S_IWUSR, keypad_enable_show,
+	      keypad_enable_store);
 static DEVICE_ATTR(set_module_on, S_IRUGO | S_IWUSR | S_IWGRP, set_tsp_module_on_show, NULL);
 static DEVICE_ATTR(set_module_off, S_IRUGO | S_IWUSR | S_IWGRP, set_tsp_module_off_show, NULL);
 static DEVICE_ATTR(set_all_refer, S_IRUGO | S_IWUSR | S_IWGRP, set_all_refer_mode_show, NULL);
@@ -1751,6 +1791,7 @@ static DEVICE_ATTR(set_refer4, S_IRUGO | S_IWUSR | S_IWGRP, set_refer4_mode_show
 static DEVICE_ATTR(set_delta4, S_IRUGO | S_IWUSR | S_IWGRP, set_intensity4_mode_show, NULL);
 static DEVICE_ATTR(set_threshould, S_IRUGO | S_IWUSR | S_IWGRP, set_tsp_threshold_mode_show, NULL);	/* touch threshold return */
 
+
 static struct attribute *sec_touch_facotry_attributes[] = {
 	&dev_attr_set_module_on.attr,
 	&dev_attr_set_module_off.attr,
@@ -1771,6 +1812,7 @@ static struct attribute *sec_touch_facotry_attributes[] = {
 	&dev_attr_set_refer4.attr,
 	&dev_attr_set_delta4.attr,
 	&dev_attr_set_threshould.attr,
+	&dev_attr_keypad_enable.attr,
 	NULL,
 };
 
@@ -2407,6 +2449,8 @@ int melfas_mcs8000_ts_probe(struct i2c_client *client,
 	input_set_abs_params(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_X, 0, max_x, 0, 0);
 	input_set_abs_params(melfas_mcs8000_ts->input_dev, ABS_MT_POSITION_Y, 0, max_y, 0, 0);
 	input_set_abs_params(melfas_mcs8000_ts->input_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
+
+	atomic_set(&melfas_mcs8000_ts->keypad_enable, 1);
 
 	printk("melfas_mcs8000_ts_probe: max_x: %d, max_y: %d\n", max_x, max_y);
 
