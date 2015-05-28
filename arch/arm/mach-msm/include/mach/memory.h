@@ -35,7 +35,7 @@
 *  One or more of these banks can contain holes in the memory map as well.
 *  These macros define appropriate conversion routines between the physical
 *  and virtual address domains for supporting these configurations using
-*  SPARSEMEM and a 3G/1G VM split.
+*  a 3G/1G VM split.
 */
 
 #if defined(CONFIG_ARCH_MSM7X30)
@@ -51,7 +51,7 @@ extern unsigned long ebi1_phys_offset;
 #define EBI1_PHYS_OFFSET (ebi1_phys_offset)
 #define EBI1_PAGE_OFFSET (EBI0_PAGE_OFFSET + EBI0_SIZE)
 
-#if (defined(CONFIG_SPARSEMEM) && defined(CONFIG_VMSPLIT_3G))
+#if defined(CONFIG_VMSPLIT_3G)
 
 #define __phys_to_virt(phys)				\
 	((phys) >= EBI1_PHYS_OFFSET ?			\
